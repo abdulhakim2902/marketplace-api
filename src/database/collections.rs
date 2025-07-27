@@ -401,7 +401,7 @@ impl ICollections for Collections {
         )
         .fetch_all(&*self.pool)
         .await
-        .context("Failed to fetch nfts")?;
+        .context("Failed to fetch collection activities")?;
 
         Ok(res)
     }

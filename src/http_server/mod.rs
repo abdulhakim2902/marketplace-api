@@ -8,7 +8,7 @@ use tokio::net::TcpListener;
 
 use crate::{
     config::Config,
-    http_server::controllers::{collection, health},
+    http_server::controllers::{collection, health, nft},
     services::{IInternalServices, Services},
     utils::shutdown_utils,
 };
@@ -49,15 +49,20 @@ where
             .route("/health", get(health::check))
             .nest(
                 "/api/v1",
-                Router::new().nest(
-                    "/collections",
-                    Router::new()
-                        .route("/", get(collection::filter))
-                        .route("/{id}", get(collection::info))
-                        .route("/{id}/nfts", get(collection::nfts))
-                        .route("/{id}/offers", get(collection::offers))
-                        .route("/{id}/activities", get(collection::activities)),
-                ),
+                Router::new()
+                    .nest(
+                        "/collections",
+                        Router::new()
+                            .route("/", get(collection::filter))
+                            .route("/{id}", get(collection::info))
+                            .route("/{id}/nfts", get(collection::nfts))
+                            .route("/{id}/offers", get(collection::offers))
+                            .route("/{id}/activities", get(collection::activities)),
+                    )
+                    .nest(
+                        "/nfts",
+                        Router::new().route("/{id}/activities", get(nft::activities)),
+                    ),
             )
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
             .with_state(Arc::clone(self))

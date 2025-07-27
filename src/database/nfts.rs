@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::db::nft::Nft;
+use crate::models::{api::responses::nft_activity::NftActivity, db::nft::Nft};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -15,6 +15,15 @@ pub trait INfts: Send + Sync {
     async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<Nft>>;
 
     async fn count_nft_metadata_urls(&self) -> anyhow::Result<i64>;
+
+    async fn fetch_nft_activities(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<NftActivity>>;
+
+    async fn count_nft_activities(&self, id: &str) -> anyhow::Result<i64>;
 }
 
 pub struct Nfts {
@@ -129,6 +138,57 @@ impl INfts for Nfts {
         .fetch_one(&*self.pool)
         .await
         .context("Failed to count nft metadata urls")?;
+
+        Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_nft_activities(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<NftActivity>> {
+        let res = sqlx::query_as!(
+            NftActivity,
+            r#"
+            SELECT 
+                a.tx_type,
+                a.tx_index,
+                a.tx_id,
+                a.sender                AS seller,
+                a.receiver              AS buyer,
+                a.price,
+                a.usd_price,
+                a.market_name,
+                a.market_contract_id,
+                a.block_time            AS time
+            FROM activities a
+            WHERE a.nft_id = $1
+            ORDER BY a.block_time
+            LIMIT $2 OFFSET $3
+            "#,
+            id,
+            size,
+            size * (page - 1),
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch nft activitiess")?;
+
+        Ok(res)
+    }
+
+    async fn count_nft_activities(&self, id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM activities a
+            WHERE a.nft_id = $1
+            "#,
+            id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count filtered nft activities")?;
 
         Ok(res.unwrap_or_default())
     }
