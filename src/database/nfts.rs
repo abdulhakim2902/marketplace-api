@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::models::{api::responses::nft_activity::NftActivity, db::nft::Nft};
+use crate::models::{
+    api::responses::{nft_activity::NftActivity, nft_listing::NftListing},
+    db::nft::Nft,
+};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -24,6 +27,15 @@ pub trait INfts: Send + Sync {
     ) -> anyhow::Result<Vec<NftActivity>>;
 
     async fn count_nft_activities(&self, id: &str) -> anyhow::Result<i64>;
+
+    async fn fetch_nft_listings(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<NftListing>>;
+
+    async fn count_nft_listings(&self, id: &str) -> anyhow::Result<i64>;
 }
 
 pub struct Nfts {
@@ -189,6 +201,57 @@ impl INfts for Nfts {
         .fetch_one(&*self.pool)
         .await
         .context("Failed to count filtered nft activities")?;
+
+        Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_nft_listings(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<NftListing>> {
+        let res = sqlx::query_as!(
+            NftListing,
+            r#"
+            WITH latest_prices AS (
+                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
+                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
+                ORDER BY tp.token_address, tp.created_at DESC
+            )
+            SELECT
+                l.price,
+                l.market_name,
+                l.market_contract_id,
+                l.seller                                     AS from,
+                (l.price * lp.price / POW(10, 8))::NUMERIC   AS usd_price
+            FROM listings l
+                LEFT JOIN latest_prices lp ON TRUE
+            WHERE l.nft_id = $1 AND l.listed
+            LIMIT $2 OFFSET $3
+            "#,
+            id,
+            size,
+            size * (page - 1),
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch nft listings")?;
+
+        Ok(res)
+    }
+
+    async fn count_nft_listings(&self, id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM listings l
+            WHERE l.nft_id = $1 AND l.listed
+            "#,
+            id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count filtered nft listings")?;
 
         Ok(res.unwrap_or_default())
     }

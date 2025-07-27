@@ -3,6 +3,7 @@ pub mod collection_activity;
 pub mod collection_info;
 pub mod collection_nft;
 pub mod nft_activity;
+pub mod nft_listing;
 
 use serde::Serialize;
 
