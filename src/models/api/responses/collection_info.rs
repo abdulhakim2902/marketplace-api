@@ -25,4 +25,5 @@ pub struct CollectionInfo {
     pub sales_24h: Option<i64>,
     pub volume_24h: Option<BigDecimal>,
     pub volume_24h_usd: Option<BigDecimal>,
+    pub total_offer: Option<BigDecimal>,
 }

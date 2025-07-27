@@ -1,5 +1,6 @@
 pub mod collection;
 pub mod collection_info;
+pub mod collection_nft;
 
 use serde::Serialize;
 

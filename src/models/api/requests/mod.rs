@@ -3,6 +3,8 @@ use serde_with::{DisplayFromStr, PickFirst, serde_as};
 use validator::Validate;
 
 pub mod filter_collection;
+pub mod filter_nft;
+pub mod filter_offer;
 
 #[serde_as]
 #[derive(Deserialize, Debug, Clone, Validate, Default)]

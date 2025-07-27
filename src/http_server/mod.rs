@@ -53,7 +53,9 @@ where
                     "/collections",
                     Router::new()
                         .route("/", get(collection::filter))
-                        .route("/{id}", get(collection::info)),
+                        .route("/{id}", get(collection::info))
+                        .route("/{id}/nfts", get(collection::nfts))
+                        .route("/{id}/offers", get(collection::offers)),
                 ),
             )
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
