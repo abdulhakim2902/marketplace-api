@@ -59,6 +59,10 @@ where
         tokio::select! {
             _ = async {
                 loop {
+                    if cancel_token.is_cancelled() {
+                        break;
+                    }
+
                     if let Err(e) = self.fetch_and_store_token_prices(&client).await {
                         tracing::error!("Failed to fetch and store prices: {e:#}");
                     }

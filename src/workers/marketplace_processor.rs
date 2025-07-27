@@ -18,6 +18,7 @@ use crate::{
     cache::ICache,
     config::{Config, marketplace_config::NFTMarketplaceConfig},
     database::{IDatabase, processor_status::IProcessorStatus},
+    utils::shutdown_utils,
     workers::steps::{
         marketplace::{
             db_writing_step::DBWritingStep, reduction_step::NFTReductionStep,
@@ -122,21 +123,30 @@ where
         .connect_to(version_tracker_step.into_runnable_step(), 10)
         .end_and_return_output_receiver(10);
 
-        // (Optional) Parse the results
-        loop {
-            match buffer_receiver.recv().await {
-                Ok(txn_context) => {
-                    tracing::debug!(
-                        "Finished processing events from versions [{:?}, {:?}]",
-                        txn_context.metadata.start_version,
-                        txn_context.metadata.end_version,
-                    );
+        let cancel_token = shutdown_utils::get_shutdown_token();
+        tokio::select! {
+            _ = async {
+                loop {
+                    if cancel_token.is_cancelled() {
+                        break;
+                    }
+
+                    match buffer_receiver.recv().await {
+                        Ok(txn_context) => {
+                            tracing::debug!(
+                                "Finished processing events from versions [{:?}, {:?}]",
+                                txn_context.metadata.start_version,
+                                txn_context.metadata.end_version,
+                            );
+                        }
+                        Err(e) => {
+                            tracing::info!("No more transactions in channel: {:?}", e);
+                            break;
+                        }
+                    }
                 }
-                Err(e) => {
-                    tracing::info!("No more transactions in channel: {:?}", e);
-                    break;
-                }
-            }
+            } => {},
+            _ = cancel_token.cancelled() => {}
         }
 
         Ok(())

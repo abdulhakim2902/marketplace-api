@@ -6,6 +6,7 @@ use reqwest::Client;
 use crate::{
     database::{IDatabase, attributes::IAttributes, nfts::INfts},
     models::{db::attribute::Attribute, nft_metadata::NFTMetadata},
+    utils::shutdown_utils,
 };
 
 pub struct AttributeWorker<TDb: IDatabase> {
@@ -23,15 +24,25 @@ where
     pub async fn start(&self) -> anyhow::Result<()> {
         let client = Client::new();
 
-        loop {
-            if let Err(e) = self.process_attributes(&client).await {
-                tracing::error!("Failed to process attributes: {e:#}");
-            }
+        let cancel_token = shutdown_utils::get_shutdown_token();
+        tokio::select! {
+            _ = async {
+                loop {
+                    if cancel_token.is_cancelled() {
+                        break;
+                    }
 
-            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    if let Err(e) = self.process_attributes(&client).await {
+                        tracing::error!("Failed to process attributes: {e:#}");
+                    }
 
-            // Sleep for a defined interval before processing again
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                }
+            } => {},
+            _ = cancel_token.cancelled() => {}
         }
+
+        Ok(())
     }
 
     pub async fn process_attributes(&self, _client: &Client) -> anyhow::Result<()> {
