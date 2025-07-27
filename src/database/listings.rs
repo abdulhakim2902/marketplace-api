@@ -71,8 +71,7 @@ impl IListings for Listings {
             ON CONFLICT (market_contract_id, nft_id) DO UPDATE SET 
                 block_height = EXCLUDED.block_height,
                 block_time = EXCLUDED.block_time,
-                price = EXCLUDED.price, 
-                usd_price = EXCLUDED.usd_price,
+                price = EXCLUDED.price,
                 price_str = EXCLUDED.price_str, 
                 listed = EXCLUDED.listed, 
                 nonce = EXCLUDED.nonce,
