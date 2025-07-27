@@ -8,7 +8,8 @@ use sqlx::{
 
 use crate::models::{
     api::responses::{
-        collection::Collection, collection_info::CollectionInfo, collection_nft::CollectionNft,
+        collection::Collection, collection_activity::CollectionActivity,
+        collection_info::CollectionInfo, collection_nft::CollectionNft,
     },
     db::collection::Collection as DbCollection,
 };
@@ -40,6 +41,15 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionNft>>;
 
     async fn count_collection_nfts(&self, id: &str) -> anyhow::Result<i64>;
+
+    async fn fetch_collection_activities(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<CollectionActivity>>;
+
+    async fn count_collection_activities(&self, id: &str) -> anyhow::Result<i64>;
 }
 
 pub struct Collections {
@@ -351,6 +361,62 @@ impl ICollections for Collections {
         .fetch_one(&*self.pool)
         .await
         .context("Failed to count filtered collection nfts")?;
+
+        Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_collection_activities(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<CollectionActivity>> {
+        let res = sqlx::query_as!(
+            CollectionActivity,
+            r#"
+            SELECT 
+                a.tx_type,
+                a.tx_index,
+                a.tx_id,
+                a.sender                AS from,
+                a.receiver              AS to,
+                a.price,
+                a.usd_price,
+                a.market_name,
+                a.market_contract_id,
+                a.block_time            AS time,
+                a.nft_id,
+                n.name                  AS nft_name,
+                n.description           AS nft_description,
+                n.image_url             AS nft_image_url
+            FROM activities a
+	            LEFT JOIN nfts n ON n.id = a.nft_id
+            WHERE a.collection_id = $1
+            ORDER BY a.block_time
+            LIMIT $2 OFFSET $3
+            "#,
+            id,
+            size,
+            size * (page - 1),
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch nfts")?;
+
+        Ok(res)
+    }
+
+    async fn count_collection_activities(&self, id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM activities a
+            WHERE a.collection_id = $1
+            "#,
+            id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count filtered collection activities")?;
 
         Ok(res.unwrap_or_default())
     }

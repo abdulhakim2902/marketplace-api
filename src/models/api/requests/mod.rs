@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde_with::{DisplayFromStr, PickFirst, serde_as};
 use validator::Validate;
 
+pub mod filter_activity;
 pub mod filter_collection;
 pub mod filter_nft;
 pub mod filter_offer;

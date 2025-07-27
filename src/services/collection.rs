@@ -4,10 +4,12 @@ use crate::{
     database::{IDatabase, collections::ICollections},
     models::api::{
         requests::{
-            filter_collection::FilterCollection, filter_nft::FilterNft, filter_offer::FilterOffer,
+            filter_activity::FilterActivity, filter_collection::FilterCollection,
+            filter_nft::FilterNft, filter_offer::FilterOffer,
         },
         responses::{
-            collection::Collection, collection_info::CollectionInfo, collection_nft::CollectionNft,
+            collection::Collection, collection_activity::CollectionActivity,
+            collection_info::CollectionInfo, collection_nft::CollectionNft,
         },
     },
 };
@@ -28,6 +30,12 @@ pub trait ICollectionService {
     ) -> anyhow::Result<(Vec<CollectionNft>, i64)>;
 
     async fn fetch_collection_offers(&self, id: &str, filter: &FilterOffer) -> anyhow::Result<()>;
+
+    async fn fetch_collection_activities(
+        &self,
+        id: &str,
+        filter: &FilterActivity,
+    ) -> anyhow::Result<(Vec<CollectionActivity>, i64)>;
 }
 
 pub struct CollectionService<TDb: IDatabase> {
@@ -89,5 +97,23 @@ where
         _filter: &FilterOffer,
     ) -> anyhow::Result<()> {
         Ok(())
+    }
+
+    async fn fetch_collection_activities(
+        &self,
+        id: &str,
+        filter: &FilterActivity,
+    ) -> anyhow::Result<(Vec<CollectionActivity>, i64)> {
+        let repository = self.db.collections();
+
+        let filter_fut =
+            repository.fetch_collection_activities(id, filter.paging.page, filter.paging.page_size);
+
+        let count_fut = repository.count_collection_activities(&id);
+
+        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
+        let (data, count) = (data_res?, count_res?);
+
+        Ok((data, count))
     }
 }
