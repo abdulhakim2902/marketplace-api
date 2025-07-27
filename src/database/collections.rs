@@ -7,7 +7,8 @@ use sqlx::{
 };
 
 use crate::models::{
-    api::responses::collection::Collection, db::collection::Collection as DbCollection,
+    api::responses::{collection::Collection, collection_info::CollectionInfo},
+    db::collection::Collection as DbCollection,
 };
 
 #[async_trait::async_trait]
@@ -26,6 +27,8 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<Collection>>;
 
     async fn count(&self) -> anyhow::Result<i64>;
+
+    async fn fetch_collection_info(&self, id: &str) -> anyhow::Result<CollectionInfo>;
 }
 
 pub struct Collections {
@@ -114,6 +117,12 @@ impl ICollections for Collections {
                     FROM nfts n
                     GROUP BY n.collection_id
                 ),
+                prev_floors AS (
+                    SELECT DISTINCT ON (a.collection_id) a.collection_id, a.price FROM activities a
+                    WHERE a.tx_type = 'list'
+                        AND ($1::INTERVAL IS NULL OR a.block_time >= NOW() - $1::INTERVAL)
+                    ORDER BY a.collection_id, a.price ASC
+                ),
                 listings AS (
                     SELECT l.collection_id, MIN(l.price) AS floor, COUNT(*) AS count
                     FROM listings l
@@ -147,6 +156,7 @@ impl ICollections for Collections {
                 c.description, 
                 c.cover_url, 
                 l.floor,
+                pf.price                                    AS prev_floor,
                 l.count                                     AS listed,
                 o.owners,
                 s.count                                     AS sales,
@@ -159,6 +169,7 @@ impl ICollections for Collections {
                 LEFT JOIN owners o ON c.id = o.collection_id
                 LEFT JOIN sales s ON c.id = s.collection_id
                 LEFT JOIN top_bids tb ON c.id = tb.collection_id
+                LEFT JOIN prev_floors pf ON c.id = pf.collection_id
             ORDER BY s.volume DESC
             LIMIT $2 OFFSET $3
             "#,
@@ -184,5 +195,92 @@ impl ICollections for Collections {
         .context("Failed to count filtered collections")?;
 
         Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_collection_info(&self, id: &str) -> anyhow::Result<CollectionInfo> {
+        let res = sqlx::query_as!(
+            CollectionInfo,
+            r#"
+            WITH 
+                owners AS (
+                    SELECT n.collection_id, COUNT(DISTINCT n.owner) AS owners
+                    FROM nfts n
+                    WHERE n.collection_id = $1
+                    GROUP BY n.collection_id
+                ),
+                listings AS (
+                    SELECT l.collection_id, MIN(l.price) AS floor, COUNT(*) AS count
+                    FROM listings l
+                    WHERE l.listed AND l.collection_id = $1
+                    GROUP BY l.collection_id
+                ),
+                sales AS (
+                    SELECT 
+                        a.collection_id, 
+                        COUNT(*)            AS count, 
+                        SUM(a.price)        AS volume,
+                        SUM(a.usd_price)    AS volume_usd
+                    FROM activities a
+                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    GROUP BY a.collection_id
+                ),
+                sales_24h AS (
+                    SELECT 
+                        a.collection_id, 
+                        COUNT(*)            AS count, 
+                        SUM(a.price)        AS volume,
+                        SUM(a.usd_price)    AS volume_usd
+                    FROM activities a
+                    WHERE a.tx_type = 'buy'
+                        AND a.block_time >= NOW() - '1d'::INTERVAL
+                    GROUP BY a.collection_id
+                ),
+                top_bids AS (
+                    SELECT b.collection_id, MAX(b.price) AS price
+                    FROM bids b
+                    WHERE b.status = 'active'
+                        AND b.bid_type = 'solo'
+                        AND b.expires_at > NOW()
+                        AND b.collection_id = $1
+                    GROUP BY b.collection_id
+                )
+            SELECT
+                c.id,
+                c.slug, 
+                c.supply, 
+                c.title, 
+                c.description, 
+                c.cover_url, 
+                c.verified,
+                c.website,
+                c.discord,
+                c.twitter,
+                l.floor,
+                l.floor AS prev_floor,
+                l.count                                     AS listed,
+                o.owners,
+                s.count                                     AS sales,
+                s.volume                                    AS all_volume,
+                s.volume_usd                                AS all_volume_usd,
+                s24.count                                   AS sales_24h,
+                s24.volume                                  AS volume_24h,
+                s24.volume_usd                              AS volume_24h_usd,
+                tb.price                                    AS top_offer,
+                (s.volume / NULLIF(s.count, 0))::NUMERIC    AS average 
+            FROM collections c
+                LEFT JOIN listings l ON c.id = l.collection_id
+                LEFT JOIN owners o ON c.id = o.collection_id
+                LEFT JOIN sales s ON c.id = s.collection_id
+                LEFT JOIN top_bids tb ON c.id = tb.collection_id
+                LEFT JOIN sales_24h s24 ON c.id = s24.collection_id
+            WHERE c.id = $1
+            "#,
+            id,
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch collections")?;
+
+        Ok(res)
     }
 }

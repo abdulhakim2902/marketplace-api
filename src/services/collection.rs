@@ -3,7 +3,8 @@ use std::sync::Arc;
 use crate::{
     database::{IDatabase, collections::ICollections},
     models::api::{
-        requests::filter_collection::FilterCollection, responses::collection::Collection,
+        requests::filter_collection::FilterCollection,
+        responses::{collection::Collection, collection_info::CollectionInfo},
     },
 };
 
@@ -13,6 +14,8 @@ pub trait ICollectionService {
         &self,
         filter: &FilterCollection,
     ) -> anyhow::Result<(Vec<Collection>, i64)>;
+
+    async fn fetch_collection_info(&self, id: &str) -> anyhow::Result<CollectionInfo>;
 }
 
 pub struct CollectionService<TDb: IDatabase> {
@@ -44,5 +47,9 @@ where
         let (data, count) = (data_res?, count_res?);
 
         Ok((data, count))
+    }
+
+    async fn fetch_collection_info(&self, id: &str) -> anyhow::Result<CollectionInfo> {
+        self.db.collections().fetch_collection_info(id).await
     }
 }

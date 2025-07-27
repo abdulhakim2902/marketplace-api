@@ -51,7 +51,9 @@ where
                 "/api/v1",
                 Router::new().nest(
                     "/collections",
-                    Router::new().route("/", get(collection::filter)),
+                    Router::new()
+                        .route("/", get(collection::filter))
+                        .route("/{id}", get(collection::info)),
                 ),
             )
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))

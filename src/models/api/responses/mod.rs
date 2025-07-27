@@ -1,4 +1,5 @@
 pub mod collection;
+pub mod collection_info;
 
 use serde::Serialize;
 
