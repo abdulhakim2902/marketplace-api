@@ -1,0 +1,136 @@
+use std::sync::Arc;
+
+use aptos_indexer_processor_sdk::{
+    aptos_indexer_transaction_stream::{
+        BooleanTransactionFilter, EventFilterBuilder, MoveStructTagFilterBuilder,
+        TransactionRootFilterBuilder, TransactionStreamConfig,
+    },
+    aptos_protos::transaction::v1::transaction::TransactionType,
+    builder::ProcessorBuilder,
+    common_steps::{
+        DEFAULT_UPDATE_PROCESSOR_STATUS_SECS, TransactionStreamStep, VersionTrackerStep,
+    },
+    traits::IntoRunnableStep,
+};
+
+use crate::{
+    config::Config,
+    database::{IDatabase, processor_status::IProcessorStatus},
+    workers::steps::{
+        processor_status_saver_step::DbProcessorStatusSaver,
+        token::{db_writing_step::DBWritingStep, extractor_step::TokenExtractor},
+    },
+};
+
+pub struct TokenProcessor<TDb: IDatabase> {
+    config: Arc<Config>,
+    db: Arc<TDb>,
+}
+
+impl<TDb> TokenProcessor<TDb>
+where
+    TDb: IDatabase + Send + Sync + 'static,
+{
+    pub fn new(config: Arc<Config>, db: Arc<TDb>) -> Self {
+        Self { config, db }
+    }
+
+    pub async fn start(&self) -> anyhow::Result<()> {
+        let processor_name = "token".to_string();
+        let starting_version = self
+            .db
+            .processor_status()
+            .get_starting_version(&processor_name)
+            .await
+            .unwrap_or(self.config.stream_config.starting_version as i64);
+
+        let token_v1_struct_filter = MoveStructTagFilterBuilder::default()
+            .address("0x3")
+            .module("token")
+            .build()?;
+
+        let token_v2_struct_filter = MoveStructTagFilterBuilder::default()
+            .address("0x4")
+            .build()?;
+
+        let object_struct_filter = MoveStructTagFilterBuilder::default()
+            .address("0x1")
+            .module("object")
+            .build()?;
+
+        let token_v1_filter = EventFilterBuilder::default()
+            .struct_type(token_v1_struct_filter)
+            .build()?;
+
+        let token_v2_filter = EventFilterBuilder::default()
+            .struct_type(token_v2_struct_filter)
+            .build()?;
+
+        let object_filter = EventFilterBuilder::default()
+            .struct_type(object_struct_filter)
+            .build()?;
+
+        let tx_filter = TransactionRootFilterBuilder::default()
+            .success(true)
+            .txn_type(TransactionType::User)
+            .build()?;
+
+        let token_filter = BooleanTransactionFilter::from(token_v1_filter)
+            .or(token_v2_filter)
+            .or(object_filter);
+
+        let filter = BooleanTransactionFilter::from(tx_filter).and(token_filter);
+
+        let transaction_stream = TransactionStreamStep::new(TransactionStreamConfig {
+            indexer_grpc_data_service_address: url::Url::parse(
+                &self.config.stream_config.indexer_grpc,
+            )?,
+            starting_version: Some(starting_version as u64),
+            request_ending_version: None,
+            auth_token: self.config.stream_config.auth_token.clone(),
+            request_name_header: "marketplace-event-processor".to_string(),
+            additional_headers: Default::default(),
+            indexer_grpc_http2_ping_interval_secs: 30,
+            indexer_grpc_http2_ping_timeout_secs: 10,
+            indexer_grpc_reconnection_timeout_secs: 5,
+            indexer_grpc_response_item_timeout_secs: 60,
+            indexer_grpc_reconnection_max_retries: 5,
+            transaction_filter: Some(filter),
+        })
+        .await?;
+
+        let remapping_step = TokenExtractor::new();
+        let db_writing_step = DBWritingStep::new(Arc::clone(&self.db));
+        let version_tracker_step = VersionTrackerStep::new(
+            DbProcessorStatusSaver::new(processor_name, Arc::clone(&self.db)),
+            DEFAULT_UPDATE_PROCESSOR_STATUS_SECS,
+        );
+
+        let (_, buffer_receiver) = ProcessorBuilder::new_with_inputless_first_step(
+            transaction_stream.into_runnable_step(),
+        )
+        .connect_to(remapping_step.into_runnable_step(), 10)
+        .connect_to(db_writing_step.into_runnable_step(), 10)
+        .connect_to(version_tracker_step.into_runnable_step(), 10)
+        .end_and_return_output_receiver(10);
+
+        // (Optional) Parse the results
+        loop {
+            match buffer_receiver.recv().await {
+                Ok(txn_context) => {
+                    tracing::debug!(
+                        "Finished processing events from versions [{:?}, {:?}]",
+                        txn_context.metadata.start_version,
+                        txn_context.metadata.end_version,
+                    );
+                }
+                Err(e) => {
+                    tracing::info!("No more transactions in channel: {:?}", e);
+                    break;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}

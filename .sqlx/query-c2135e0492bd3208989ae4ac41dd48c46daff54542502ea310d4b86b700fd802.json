@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO token_prices (token_address, price, created_at) \n            VALUES ($1, $2, $3)\n            ON CONFLICT (token_address, created_at) DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Numeric",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c2135e0492bd3208989ae4ac41dd48c46daff54542502ea310d4b86b700fd802"
+}

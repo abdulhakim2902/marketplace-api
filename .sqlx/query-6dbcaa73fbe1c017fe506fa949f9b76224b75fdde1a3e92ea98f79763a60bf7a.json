@@ -1,0 +1,107 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT * FROM nfts\n            WHERE nfts.image_url ILIKE '$.json'\n            LIMIT $1 OFFSET $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "owner",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "properties",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 5,
+        "name": "image_data",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "avatar_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "image_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "external_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "description",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "background_color",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "animation_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "youtube_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "burned",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 14,
+        "name": "version",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6dbcaa73fbe1c017fe506fa949f9b76224b75fdde1a3e92ea98f79763a60bf7a"
+}

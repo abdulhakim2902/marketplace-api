@@ -1,0 +1,33 @@
+[package]
+name = "nft-aggregator-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+async-trait = "0.1.88"
+axum = "0.8.4"
+futures = "0.3.31"
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "postgres", "chrono", "macros", "derive", "bigdecimal", "json"] }
+tokio = { version = "1.46.1", features = ["full"] }
+tokio-util = { version = "0.7.15", features = ["rt"] }
+tracing = "0.1.41"
+aptos-indexer-processor-sdk = { git = "https://github.com/aptos-labs/aptos-indexer-processor-sdk.git", rev = "6eb78b8fdadae14551e886185105ad5fffa29f2d" }
+serde = { version = "1.0.219", features = ["derive", "rc"] }
+url = "2.5.4"
+hex = "0.4.3"
+jsonpath-rust = "0.7.0"
+serde_json = "1.0.141"
+rayon = "1.10.0"
+chrono = "0.4.41"
+strum = { version = "0.27.2", features = ["derive"] }
+bigdecimal = "0.4.8"
+ahash = "0.8.12"
+serde_yaml = "0.9.34"
+tracing-subscriber = "0.3.19"
+reqwest = { version = "0.12.22", features = ["json"] }
+const_format = "0.2.34"
+serde_with = "3.14.0"
+validator = { version = "0.20.0", features = ["derive"] }
+serde_qs = "0.15.0"
+moka = { version = "0.12.10", features = ["future"] }
