@@ -2,7 +2,9 @@ use crate::{
     config::marketplace_config::MarketplaceEventType,
     models::db::{activity::Activity, bid::Bid, listing::Listing},
 };
-use aptos_indexer_processor_sdk::aptos_indexer_transaction_stream::utils::time::parse_timestamp_secs;
+use aptos_indexer_processor_sdk::{
+    aptos_indexer_transaction_stream::utils::time::parse_timestamp_secs, utils::extract::hash_str,
+};
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
@@ -64,6 +66,7 @@ impl From<NftMarketplaceActivity> for Activity {
 impl From<NftMarketplaceActivity> for Bid {
     fn from(value: NftMarketplaceActivity) -> Self {
         Self {
+            id: value.get_bid_id(),
             created_tx_id: value.get_created_txn_id(),
             accepted_tx_id: value.get_accepted_txn_id(),
             canceled_tx_id: value.get_cancelled_txn_id(),
@@ -200,7 +203,19 @@ impl MarketplaceModel for NftMarketplaceActivity {
 
 impl BidModel for NftMarketplaceActivity {
     fn is_valid_bid(&self) -> bool {
-        self.contract_address.is_some() && self.offer_id.is_some()
+        self.contract_address.is_some() && self.offer_id.is_some() && self.get_bid_id().is_some()
+    }
+
+    fn get_bid_id(&self) -> Option<String> {
+        if let Some(status) = self.get_bid_type().as_ref() {
+            return match status.as_str() {
+                "solo" => Some(hash_str(&self.token_addr.clone().unwrap_or_default())),
+                "collection" => Some(hash_str(&self.collection_addr.clone().unwrap_or_default())),
+                _ => None,
+            };
+        }
+
+        None
     }
 
     fn get_bid_status(&self) -> Option<String> {
@@ -311,6 +326,7 @@ pub trait MarketplaceModel {
 }
 
 pub trait BidModel {
+    fn get_bid_id(&self) -> Option<String>;
     fn get_bid_status(&self) -> Option<String>;
     fn get_bid_type(&self) -> Option<String>;
     fn get_created_txn_id(&self) -> Option<String>;

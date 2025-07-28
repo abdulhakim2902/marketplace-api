@@ -1,5 +1,6 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS bids (
+  id VARCHAR(66) NOT NULL,
   bidder VARCHAR(66) NOT NULL,
   accepted_tx_id VARCHAR(66) DEFAULT NULL,
   canceled_tx_id VARCHAR(66) DEFAULT NULL,
@@ -16,5 +17,5 @@ CREATE TABLE IF NOT EXISTS bids (
   remaining_count BIGINT,
   status VARCHAR(20),
   bid_type VARCHAR(20),
-  PRIMARY KEY (market_contract_id, collection_id, nft_id, bidder)
+  PRIMARY KEY (market_contract_id, id, bidder)
 );

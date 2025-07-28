@@ -37,6 +37,7 @@ impl IBids for Bids {
         let res = QueryBuilder::<Postgres>::new(
             r#"
             INSERT INTO bids (
+                id,
                 bidder, 
                 accepted_tx_id, 
                 canceled_tx_id, 
@@ -57,6 +58,7 @@ impl IBids for Bids {
             "#,
         )
         .push_values(items, |mut b, item| {
+            b.push_bind(item.id.clone());
             b.push_bind(item.bidder.clone());
             b.push_bind(item.accepted_tx_id.clone());
             b.push_bind(item.canceled_tx_id.clone());
@@ -76,7 +78,7 @@ impl IBids for Bids {
         })
         .push(
             r#"
-            ON CONFLICT (market_contract_id, collection_id, nft_id, bidder) DO UPDATE
+            ON CONFLICT (market_contract_id, id, bidder) DO UPDATE
             SET 
                 bidder = EXCLUDED.bidder,
                 status = EXCLUDED.status,
@@ -84,6 +86,7 @@ impl IBids for Bids {
                 created_tx_id = COALESCE(EXCLUDED.created_tx_id, bids.created_tx_id),
                 accepted_tx_id = COALESCE(EXCLUDED.accepted_tx_id, bids.accepted_tx_id),
                 canceled_tx_id = COALESCE(EXCLUDED.canceled_tx_id, bids.canceled_tx_id),
+                nft_id = COALESCE(EXCLUDED.nft_id, bids.nft_id),
                 receiver = EXCLUDED.receiver
             "#,
         )

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Bid {
+    pub id: Option<String>,
     pub bidder: Option<String>,
     pub accepted_tx_id: Option<String>,
     pub canceled_tx_id: Option<String>,

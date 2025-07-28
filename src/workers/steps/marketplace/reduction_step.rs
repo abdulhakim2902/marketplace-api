@@ -15,12 +15,7 @@ use aptos_indexer_processor_sdk::{
 use bigdecimal::BigDecimal;
 use std::{collections::HashMap, sync::Arc};
 
-pub type BidIdType = (
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-);
+pub type BidIdType = (Option<String>, Option<String>, Option<String>);
 
 pub type ListingIdType = (Option<String>, Option<String>);
 
@@ -47,8 +42,7 @@ impl NFTAccumulator {
             let bid: Bid = activity.to_owned().into();
             let key = (
                 bid.market_contract_id.clone(),
-                bid.collection_id.clone(),
-                bid.nft_id.clone(),
+                bid.id.clone(),
                 bid.bidder.clone(),
             );
 
