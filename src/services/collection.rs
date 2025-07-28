@@ -11,11 +11,17 @@ use crate::{
             floor_chart::FloorChart,
         },
         responses::{
-            collection::Collection, collection_activity::CollectionActivity,
-            collection_info::CollectionInfo, collection_nft::CollectionNft,
+            collection::Collection,
+            collection_activity::CollectionActivity,
+            collection_info::CollectionInfo,
+            collection_nft::CollectionNft,
+            collection_nft_distribution::{
+                CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
+            },
             collection_nft_holder::CollectionNftHolder,
             collection_nft_trending::CollectionNftTrending,
-            collection_top_buyer::CollectionTopBuyer, collection_top_seller::CollectionTopSeller,
+            collection_top_buyer::CollectionTopBuyer,
+            collection_top_seller::CollectionTopSeller,
             data_point::DataPoint,
         },
     },
@@ -73,6 +79,16 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterNftTrending,
     ) -> anyhow::Result<(Vec<CollectionNftTrending>, i64)>;
+
+    async fn fetch_collection_nft_amount_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<CollectionNftAmountDistribution>;
+
+    async fn fetch_collection_nft_period_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<CollectionNftPeriodDistribution>;
 }
 
 pub struct CollectionService<TDb: IDatabase> {
@@ -117,14 +133,10 @@ where
     ) -> anyhow::Result<(Vec<CollectionNft>, i64)> {
         let repository = self.db.collections();
 
-        let filter_fut = repository.fetch_collection_nfts(
-            id,
-            &filter.account,
-            filter.paging.page,
-            filter.paging.page_size,
-        );
+        let filter_fut =
+            repository.fetch_collection_nfts(id, filter.paging.page, filter.paging.page_size);
 
-        let count_fut = repository.count_collection_nfts(id, &filter.account);
+        let count_fut = repository.count_collection_nfts(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);
@@ -236,5 +248,25 @@ where
         let (data, count) = (data_res?, count_res?);
 
         Ok((data, count))
+    }
+
+    async fn fetch_collection_nft_amount_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<CollectionNftAmountDistribution> {
+        self.db
+            .collections()
+            .fetch_collection_nft_amount_distribution(id)
+            .await
+    }
+
+    async fn fetch_collection_nft_period_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<CollectionNftPeriodDistribution> {
+        self.db
+            .collections()
+            .fetch_collection_nft_period_distribution(id)
+            .await
     }
 }

@@ -179,3 +179,33 @@ pub async fn nft_trendings<TInternalService: IInternalServices>(
         Err(err) => response_unhandled_err(err),
     }
 }
+
+pub async fn nft_amount_distribution<TInternalService: IInternalServices>(
+    State(state): InternalState<TInternalService>,
+    Path(id): Path<String>,
+) -> Response {
+    match state
+        .services
+        .collection_service
+        .fetch_collection_nft_amount_distribution(&id)
+        .await
+    {
+        Ok(data) => Json(HttpResponse { data }).into_response(),
+        Err(err) => response_unhandled_err(err),
+    }
+}
+
+pub async fn nft_period_distribution<TInternalService: IInternalServices>(
+    State(state): InternalState<TInternalService>,
+    Path(id): Path<String>,
+) -> Response {
+    match state
+        .services
+        .collection_service
+        .fetch_collection_nft_period_distribution(&id)
+        .await
+    {
+        Ok(data) => Json(HttpResponse { data }).into_response(),
+        Err(err) => response_unhandled_err(err),
+    }
+}

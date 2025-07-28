@@ -2,6 +2,7 @@ pub mod collection;
 pub mod collection_activity;
 pub mod collection_info;
 pub mod collection_nft;
+pub mod collection_nft_distribution;
 pub mod collection_nft_holder;
 pub mod collection_nft_trending;
 pub mod collection_top_buyer;

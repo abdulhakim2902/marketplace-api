@@ -9,10 +9,17 @@ use sqlx::{
 
 use crate::models::{
     api::responses::{
-        collection::Collection, collection_activity::CollectionActivity,
-        collection_info::CollectionInfo, collection_nft::CollectionNft,
-        collection_nft_holder::CollectionNftHolder, collection_nft_trending::CollectionNftTrending,
-        collection_top_buyer::CollectionTopBuyer, collection_top_seller::CollectionTopSeller,
+        collection::Collection,
+        collection_activity::CollectionActivity,
+        collection_info::CollectionInfo,
+        collection_nft::CollectionNft,
+        collection_nft_distribution::{
+            CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
+        },
+        collection_nft_holder::CollectionNftHolder,
+        collection_nft_trending::CollectionNftTrending,
+        collection_top_buyer::CollectionTopBuyer,
+        collection_top_seller::CollectionTopSeller,
         data_point::DataPoint,
     },
     db::collection::Collection as DbCollection,
@@ -40,12 +47,11 @@ pub trait ICollections: Send + Sync {
     async fn fetch_collection_nfts(
         &self,
         id: &str,
-        account: &str,
         page: i64,
         size: i64,
     ) -> anyhow::Result<Vec<CollectionNft>>;
 
-    async fn count_collection_nfts(&self, id: &str, account: &str) -> anyhow::Result<i64>;
+    async fn count_collection_nfts(&self, id: &str) -> anyhow::Result<i64>;
 
     async fn fetch_collection_activities(
         &self,
@@ -93,6 +99,16 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionNftTrending>>;
 
     async fn count_collection_trending_nfts(&self, id: &str) -> anyhow::Result<i64>;
+
+    async fn fetch_collection_nft_amount_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<CollectionNftAmountDistribution>;
+
+    async fn fetch_collection_nft_period_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<CollectionNftPeriodDistribution>;
 }
 
 pub struct Collections {
@@ -352,7 +368,6 @@ impl ICollections for Collections {
     async fn fetch_collection_nfts(
         &self,
         id: &str,
-        account: &str,
         page: i64,
         size: i64,
     ) -> anyhow::Result<Vec<CollectionNft>> {
@@ -399,12 +414,10 @@ impl ICollections for Collections {
                 LEFT JOIN top_bids tb ON tb.nft_id = n.id
             WHERE n.collection_id = $1 
                 AND NOT n.burned
-                AND ($2 = '' OR n.owner = $2)
             ORDER BY lp.price
-            LIMIT $3 OFFSET $4
+            LIMIT $2 OFFSET $3
             "#,
             id,
-            account,
             size,
             size * (page - 1),
         )
@@ -415,16 +428,14 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn count_collection_nfts(&self, id: &str, account: &str) -> anyhow::Result<i64> {
+    async fn count_collection_nfts(&self, id: &str) -> anyhow::Result<i64> {
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM nfts n
             WHERE n.collection_id = $1 
                 AND NOT n.burned
-                AND ($2 = '' OR n.owner = $2)
             "#,
             id,
-            account,
         )
         .fetch_one(&*self.pool)
         .await
@@ -752,5 +763,134 @@ impl ICollections for Collections {
         .context("Failed to count filtered collection nft trendings")?;
 
         Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_collection_nft_amount_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<CollectionNftAmountDistribution> {
+        let res = sqlx::query_as!(
+            CollectionNftAmountDistribution,
+            r#"
+            WITH nft_distributions AS (
+                SELECT n.collection_id, n.owner, COUNT(*) FROM nfts n
+                WHERE n.collection_id = $1
+                GROUP BY n.collection_id, n.owner
+            )
+            SELECT 
+                SUM(
+                    CASE 
+                        WHEN nd.count = 1 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_1,
+                SUM(
+                    CASE 
+                        WHEN nd.count = 2 OR nd.count = 3 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_2_to_3,
+                SUM(
+                    CASE 
+                        WHEN nd.count >= 4 AND nd.count <= 10 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_4_to_10,
+                SUM(
+                    CASE 
+                        WHEN nd.count >= 11 AND nd.count <= 50 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_11_to_50,
+                SUM(
+                    CASE 
+                        WHEN nd.count >= 50 AND nd.count <= 100 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_51_to_100,
+                SUM(
+                    CASE 
+                        WHEN nd.count > 100 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_gt_100
+            FROM nft_distributions nd
+            GROUP BY nd.collection_id
+            "#,
+            id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch collection nft distribution")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_collection_nft_period_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<CollectionNftPeriodDistribution> {
+        let res = sqlx::query_as!(
+            CollectionNftPeriodDistribution,
+            r#"
+            WITH
+                nft_periods AS (
+                    SELECT DISTINCT ON(a.collection_id, a.nft_id) 
+                        a.collection_id, 
+                        a.nft_id,
+                        (EXTRACT(EPOCH FROM a.block_time) - COALESCE(EXTRACT(EPOCH FROM a2.block_time), 0)) AS period 
+                    FROM activities a
+                        LEFT JOIN activities a2 ON a2.receiver = a.sender AND a2.collection_id = a.collection_id AND a2.nft_id = a.nft_id
+                    WHERE a.collection_id = $1
+                        AND a.tx_type IN ('buy', 'transfer', 'mint')
+                    ORDER BY a.collection_id, a.nft_id, a.block_time DESC
+                )
+            SELECT
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 1 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_lt_24h,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) >= 1 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 7 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_1d_to_7d,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) >= 7 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 30 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_7d_to_30d,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) >= 1 AND np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) < 3 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_1m_to_3m,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) >= 3 AND np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) < 1 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_3m_to_1y,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) >= 3 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_gte_1y
+            FROM nft_periods np
+            GROUP BY np.collection_id
+            "#,
+            id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch collection nft distribution")?;
+
+        Ok(res)
     }
 }

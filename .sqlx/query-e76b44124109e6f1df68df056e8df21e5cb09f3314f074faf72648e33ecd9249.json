@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH nft_distributions AS (\n                SELECT n.collection_id, n.owner, COUNT(*) FROM nfts n\n                WHERE n.collection_id = $1\n                GROUP BY n.collection_id, n.owner\n            )\n            SELECT \n                SUM(\n                    CASE \n                        WHEN nd.count = 1 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_1,\n                SUM(\n                    CASE \n                        WHEN nd.count = 2 OR nd.count = 3 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_2_to_3,\n                SUM(\n                    CASE \n                        WHEN nd.count >= 4 AND nd.count <= 10 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_4_to_10,\n                SUM(\n                    CASE \n                        WHEN nd.count >= 11 AND nd.count <= 50 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_11_to_50,\n                SUM(\n                    CASE \n                        WHEN nd.count >= 50 AND nd.count <= 100 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_51_to_100,\n                SUM(\n                    CASE \n                        WHEN nd.count > 100 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_gt_100\n            FROM nft_distributions nd\n            GROUP BY nd.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "range_1",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "range_2_to_3",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "range_4_to_10",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "range_11_to_50",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "range_51_to_100",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "range_gt_100",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "e76b44124109e6f1df68df056e8df21e5cb09f3314f074faf72648e33ecd9249"
+}
