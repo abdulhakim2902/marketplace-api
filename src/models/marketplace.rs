@@ -78,7 +78,7 @@ impl From<NftMarketplaceActivity> for Bid {
             nft_id: value.token_addr,
             price: Some(value.price),
             price_str: Some(value.price.to_string()),
-            expires_at: value.expiration_time,
+            expired_at: value.expiration_time,
             nonce: value.offer_id,
             bidder: value.buyer,
             remaining_count: value.token_amount,

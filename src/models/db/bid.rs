@@ -9,7 +9,7 @@ pub struct Bid {
     pub canceled_tx_id: Option<String>,
     pub collection_id: Option<String>,
     pub created_tx_id: Option<String>,
-    pub expires_at: Option<NaiveDateTime>,
+    pub expired_at: Option<NaiveDateTime>,
     pub market_contract_id: Option<String>,
     pub market_name: Option<String>,
     pub nonce: Option<String>,

@@ -43,7 +43,7 @@ impl IBids for Bids {
                 canceled_tx_id, 
                 collection_id, 
                 created_tx_id, 
-                expires_at, 
+                expired_at, 
                 market_contract_id, 
                 market_name, 
                 nonce, 
@@ -64,7 +64,7 @@ impl IBids for Bids {
             b.push_bind(item.canceled_tx_id.clone());
             b.push_bind(item.collection_id.clone());
             b.push_bind(item.created_tx_id.clone());
-            b.push_bind(item.expires_at);
+            b.push_bind(item.expired_at);
             b.push_bind(item.market_contract_id.clone());
             b.push_bind(item.market_name.clone());
             b.push_bind(item.nonce.clone());

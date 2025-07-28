@@ -151,7 +151,7 @@ impl INfts for Nfts {
                     FROM bids b
                     WHERE b.status = 'active'
                         AND b.bid_type = 'solo'
-                        AND b.expires_at > NOW()
+                        AND b.expired_at > NOW()
                         AND b.nft_id = $1
                     GROUP BY b.nft_id
                 )
@@ -323,7 +323,7 @@ impl INfts for Nfts {
             SELECT
                 b.price,
                 b.bidder                                    AS from,
-                b.expires_at,
+                b.expired_at,
                 (
                     SELECT a.block_time FROM activities a
                     WHERE a.nft_id = $1 AND a.tx_id = b.created_tx_id

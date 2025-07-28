@@ -175,7 +175,7 @@ impl ICollections for Collections {
                     FROM bids b
                     WHERE b.status = 'active'
                         AND b.bid_type = 'solo'
-                        AND b.expires_at > NOW()
+                        AND b.expired_at > NOW()
                     GROUP BY b.collection_id
                 )
             SELECT
@@ -270,7 +270,7 @@ impl ICollections for Collections {
                     FROM bids b
                     WHERE b.status = 'active'
                         AND b.bid_type = 'solo'
-                        AND b.expires_at > NOW()
+                        AND b.expired_at > NOW()
                         AND b.collection_id = $1
                     GROUP BY b.collection_id
                 )
@@ -336,7 +336,7 @@ impl ICollections for Collections {
                     FROM bids b
                     WHERE b.status = 'active'
                         AND b.bid_type = 'solo'
-                        AND b.expires_at > NOW()
+                        AND b.expired_at > NOW()
                     GROUP BY b.nft_id
                 ),
                 sales AS (
