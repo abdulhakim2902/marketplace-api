@@ -12,6 +12,8 @@ pub mod filter_collection;
 pub mod filter_listing;
 pub mod filter_nft;
 pub mod filter_offer;
+pub mod filter_top_buyer;
+pub mod filter_top_seller;
 pub mod floor_chart;
 
 #[serde_as]

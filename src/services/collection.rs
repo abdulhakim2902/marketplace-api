@@ -5,11 +5,14 @@ use crate::{
     models::api::{
         requests::{
             filter_activity::FilterActivity, filter_collection::FilterCollection,
-            filter_nft::FilterNft, filter_offer::FilterOffer, floor_chart::FloorChart,
+            filter_nft::FilterNft, filter_offer::FilterOffer, filter_top_buyer::FilterTopBuyer,
+            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
         },
         responses::{
             collection::Collection, collection_activity::CollectionActivity,
-            collection_info::CollectionInfo, collection_nft::CollectionNft, data_point::DataPoint,
+            collection_info::CollectionInfo, collection_nft::CollectionNft,
+            collection_top_buyer::CollectionTopBuyer, collection_top_seller::CollectionTopSeller,
+            data_point::DataPoint,
         },
     },
 };
@@ -42,6 +45,18 @@ pub trait ICollectionService {
         id: &str,
         floor_chart: &FloorChart,
     ) -> anyhow::Result<Vec<DataPoint>>;
+
+    async fn fetch_top_buyer(
+        &self,
+        id: &str,
+        filter: &FilterTopBuyer,
+    ) -> anyhow::Result<Vec<CollectionTopBuyer>>;
+
+    async fn fetch_top_seller(
+        &self,
+        id: &str,
+        filter: &FilterTopSeller,
+    ) -> anyhow::Result<Vec<CollectionTopSeller>>;
 }
 
 pub struct CollectionService<TDb: IDatabase> {
@@ -136,6 +151,28 @@ where
                 floor_chart.time_range.end_time,
                 floor_chart.time_range.interval,
             )
+            .await
+    }
+
+    async fn fetch_top_buyer(
+        &self,
+        id: &str,
+        filter: &FilterTopBuyer,
+    ) -> anyhow::Result<Vec<CollectionTopBuyer>> {
+        self.db
+            .collections()
+            .fetch_collection_top_buyers(id, filter.interval)
+            .await
+    }
+
+    async fn fetch_top_seller(
+        &self,
+        id: &str,
+        filter: &FilterTopSeller,
+    ) -> anyhow::Result<Vec<CollectionTopSeller>> {
+        self.db
+            .collections()
+            .fetch_collection_top_sellers(id, filter.interval)
             .await
     }
 }
