@@ -12,7 +12,7 @@ use crate::{
     models::api::{
         requests::{
             filter_activity::FilterActivity, filter_collection::FilterCollection,
-            filter_nft::FilterNft, filter_offer::FilterOffer,
+            filter_nft::FilterNft, filter_offer::FilterOffer, floor_chart::FloorChart,
         },
         responses::{HttpResponse, HttpResponsePaging},
     },
@@ -93,6 +93,22 @@ pub async fn activities<TInternalService: IInternalServices>(
         .await
     {
         Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
+        Err(err) => response_unhandled_err(err),
+    }
+}
+
+pub async fn floor_chart<TInternalService: IInternalServices>(
+    State(state): InternalState<TInternalService>,
+    Path(id): Path<String>,
+    QueryValidator(query): QueryValidator<FloorChart>,
+) -> Response {
+    match state
+        .services
+        .collection_service
+        .fetch_collection_floor_chart(&id, &query)
+        .await
+    {
+        Ok(data) => Json(HttpResponse { data }).into_response(),
         Err(err) => response_unhandled_err(err),
     }
 }

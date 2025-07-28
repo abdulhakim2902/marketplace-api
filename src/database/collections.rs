@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Context;
+use chrono::{DateTime, Utc};
 use sqlx::{
     PgPool, Postgres, QueryBuilder, Transaction,
     postgres::{PgQueryResult, types::PgInterval},
@@ -9,7 +10,7 @@ use sqlx::{
 use crate::models::{
     api::responses::{
         collection::Collection, collection_activity::CollectionActivity,
-        collection_info::CollectionInfo, collection_nft::CollectionNft,
+        collection_info::CollectionInfo, collection_nft::CollectionNft, data_point::DataPoint,
     },
     db::collection::Collection as DbCollection,
 };
@@ -50,6 +51,14 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionActivity>>;
 
     async fn count_collection_activities(&self, id: &str) -> anyhow::Result<i64>;
+
+    async fn fetch_collection_floor_chart(
+        &self,
+        id: &str,
+        start_time: DateTime<Utc>,
+        end_time: DateTime<Utc>,
+        interval: PgInterval,
+    ) -> anyhow::Result<Vec<DataPoint>>;
 }
 
 pub struct Collections {
@@ -419,5 +428,69 @@ impl ICollections for Collections {
         .context("Failed to count filtered collection activities")?;
 
         Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_collection_floor_chart(
+        &self,
+        id: &str,
+        start_time: DateTime<Utc>,
+        end_time: DateTime<Utc>,
+        interval: PgInterval,
+    ) -> anyhow::Result<Vec<DataPoint>> {
+        let res = sqlx::query_as!(
+            DataPoint,
+            r#"
+            WITH 
+                time_series AS (
+                    SELECT GENERATE_SERIES($2::TIMESTAMPTZ, $3::TIMESTAMPTZ, $4::INTERVAL) AS time_bin
+                ),
+                floor_prices AS (
+                    SELECT 
+                        ts.time_bin AS time,
+                        COALESCE(
+                            (
+                                SELECT a.price FROM activities a
+                                WHERE a.tx_type = 'list'
+                                    AND a.collection_id = $1
+                                    AND a.block_time >= ts.time_bin AND a.block_time < ts.time_bin + $4::INTERVAL
+                                ORDER BY a.price ASC
+                                LIMIT 1
+                            ),
+                            0
+                        ) AS floor
+                    FROM time_series ts
+                    ORDER BY ts.time_bin
+                )
+            SELECT 
+                ts.time_bin AS x,
+                COALESCE(
+                    (
+                        SELECT fp.floor FROM floor_prices fp
+                        WHERE fp.time <= ts.time_bin
+                        LIMIT 1
+                    ),
+                    (
+                        SELECT a.price FROM activities a
+                        WHERE a.tx_type = 'list'
+                            AND a.collection_id = $1
+                            AND a.block_time <= ts.time_bin
+                        ORDER BY a.price ASC
+                        LIMIT 1
+                    ),
+                    0
+                ) AS y
+            FROM time_series ts
+            ORDER BY ts.time_bin
+            "#,
+            id,
+            start_time,
+            end_time,
+            interval,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection floor chart")?;
+
+        Ok(res)
     }
 }

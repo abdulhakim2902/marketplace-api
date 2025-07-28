@@ -5,11 +5,11 @@ use crate::{
     models::api::{
         requests::{
             filter_activity::FilterActivity, filter_collection::FilterCollection,
-            filter_nft::FilterNft, filter_offer::FilterOffer,
+            filter_nft::FilterNft, filter_offer::FilterOffer, floor_chart::FloorChart,
         },
         responses::{
             collection::Collection, collection_activity::CollectionActivity,
-            collection_info::CollectionInfo, collection_nft::CollectionNft,
+            collection_info::CollectionInfo, collection_nft::CollectionNft, data_point::DataPoint,
         },
     },
 };
@@ -36,6 +36,12 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterActivity,
     ) -> anyhow::Result<(Vec<CollectionActivity>, i64)>;
+
+    async fn fetch_collection_floor_chart(
+        &self,
+        id: &str,
+        floor_chart: &FloorChart,
+    ) -> anyhow::Result<Vec<DataPoint>>;
 }
 
 pub struct CollectionService<TDb: IDatabase> {
@@ -115,5 +121,21 @@ where
         let (data, count) = (data_res?, count_res?);
 
         Ok((data, count))
+    }
+
+    async fn fetch_collection_floor_chart(
+        &self,
+        id: &str,
+        floor_chart: &FloorChart,
+    ) -> anyhow::Result<Vec<DataPoint>> {
+        self.db
+            .collections()
+            .fetch_collection_floor_chart(
+                id,
+                floor_chart.time_range.start_time,
+                floor_chart.time_range.end_time,
+                floor_chart.time_range.interval,
+            )
+            .await
     }
 }

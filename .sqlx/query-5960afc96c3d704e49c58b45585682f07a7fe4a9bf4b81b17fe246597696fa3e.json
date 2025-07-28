@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH \n                time_series AS (\n                    SELECT GENERATE_SERIES($2::TIMESTAMPTZ, $3::TIMESTAMPTZ, $4::INTERVAL) AS time_bin\n                ),\n                floor_prices AS (\n                    SELECT \n                        ts.time_bin AS time,\n                        COALESCE(\n                            (\n                                SELECT a.price FROM activities a\n                                WHERE a.tx_type = 'list'\n                                    AND a.collection_id = $1\n                                    AND a.block_time >= ts.time_bin AND a.block_time < ts.time_bin + $4::INTERVAL\n                                ORDER BY a.price ASC\n                                LIMIT 1\n                            ),\n                            0\n                        ) AS floor\n                    FROM time_series ts\n                    ORDER BY ts.time_bin\n                )\n            SELECT \n                ts.time_bin AS x,\n                COALESCE(\n                    (\n                        SELECT fp.floor FROM floor_prices fp\n                        WHERE fp.time <= ts.time_bin\n                        LIMIT 1\n                    ),\n                    (\n                        SELECT a.price FROM activities a\n                        WHERE a.tx_type = 'list'\n                            AND a.collection_id = $1\n                            AND a.block_time <= ts.time_bin\n                        ORDER BY a.price ASC\n                        LIMIT 1\n                    ),\n                    0\n                ) AS y\n            FROM time_series ts\n            ORDER BY ts.time_bin\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "x",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "y",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Interval"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "5960afc96c3d704e49c58b45585682f07a7fe4a9bf4b81b17fe246597696fa3e"
+}
