@@ -433,6 +433,7 @@ impl ICollections for Collections {
                 n.image_url, 
                 n.owner, 
                 n.description,
+                n.royalty,
                 lp.price            AS listing_price,
                 s.price             AS last_sale, 
                 lp.block_time       AS listed_at,

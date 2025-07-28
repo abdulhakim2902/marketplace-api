@@ -1,3 +1,4 @@
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -12,4 +13,5 @@ pub struct CollectionNft {
     pub last_sale: Option<i64>,
     pub listed_at: Option<DateTime<Utc>>,
     pub top_offer: Option<i64>,
+    pub royalty: Option<BigDecimal>,
 }

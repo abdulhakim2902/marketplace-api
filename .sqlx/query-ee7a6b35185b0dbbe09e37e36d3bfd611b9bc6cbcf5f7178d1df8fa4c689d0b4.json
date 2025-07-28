@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH\n                listing_prices AS (\n                    SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time\n                    FROM listings l\n                    WHERE l.listed\n                    ORDER BY l.nft_id, l.price ASC\n                ),\n                top_bids AS (\n                    SELECT b.nft_id, MAX(b.price) AS price\n                    FROM bids b\n                    WHERE b.status = 'active'\n                        AND b.bid_type = 'solo'\n                        AND b.expired_at > NOW()\n                    GROUP BY b.nft_id\n                ),\n                sales AS (\n                    SELECT DISTINCT ON (a.nft_id) \n                        a.nft_id, \n                        a.block_time, \n                        a.price \n                    FROM activities a\n                    WHERE a.tx_type = 'buy'\n                    ORDER BY a.nft_id, a.block_time DESC\n                )\n            SELECT \n                n.id, \n                n.name, \n                n.image_url, \n                n.owner, \n                n.description,\n                n.royalty,\n                lp.price            AS listing_price,\n                s.price             AS last_sale, \n                lp.block_time       AS listed_at,\n                tb.price            AS top_offer\n            FROM nfts n\n\t            LEFT JOIN listing_prices lp ON lp.nft_id = n.id\n\t            LEFT JOIN sales s ON s.nft_id = n.id\n                LEFT JOIN top_bids tb ON tb.nft_id = n.id\n            WHERE n.collection_id = $1 \n                AND (n.burned IS NULL OR NOT n.burned)\n            ORDER BY lp.price\n            LIMIT $2 OFFSET $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "image_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "owner",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "royalty",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "listing_price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "last_sale",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "listed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "top_offer",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "ee7a6b35185b0dbbe09e37e36d3bfd611b9bc6cbcf5f7178d1df8fa4c689d0b4"
+}
