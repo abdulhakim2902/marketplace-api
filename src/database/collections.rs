@@ -18,6 +18,7 @@ use crate::models::{
         },
         collection_nft_holder::CollectionNftHolder,
         collection_nft_trending::CollectionNftTrending,
+        collection_profit_leaderboard::CollectionProfitLeaderboard,
         collection_top_buyer::CollectionTopBuyer,
         collection_top_seller::CollectionTopSeller,
         data_point::DataPoint,
@@ -109,6 +110,15 @@ pub trait ICollections: Send + Sync {
         &self,
         id: &str,
     ) -> anyhow::Result<CollectionNftPeriodDistribution>;
+
+    async fn fetch_collection_profit_leaderboard(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<CollectionProfitLeaderboard>>;
+
+    async fn count_collection_profit_leaderboard(&self, id: &str) -> anyhow::Result<i64>;
 }
 
 pub struct Collections {
@@ -892,5 +902,78 @@ impl ICollections for Collections {
         .context("Failed to fetch collection nft distribution")?;
 
         Ok(res)
+    }
+
+    async fn fetch_collection_profit_leaderboard(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<CollectionProfitLeaderboard>> {
+        let res = sqlx::query_as!(
+            CollectionProfitLeaderboard,
+            r#"
+            WITH
+                bought_activities AS (
+                    SELECT a.collection_id, a.receiver AS address, COUNT(*) AS bought, SUM(price) AS price FROM activities a
+                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    GROUP BY a.collection_id, a.receiver 
+                ),
+                sold_activities AS (
+                    SELECT a.collection_id, a.sender AS address, COUNT(*) AS sold, SUM(price) AS price FROM activities a
+                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    GROUP BY a.collection_id, a.sender
+                ),
+                unique_addresses AS (
+                    SELECT ba.address FROM bought_activities ba
+                    UNION
+                    SELECT sa.address FROM sold_activities sa
+                )
+            SELECT
+                ua.address,
+                ba.bought, 
+                sa.sold, 
+                ba.price                            AS spent,
+                (sa.price - ba.price) 				AS total_profit,
+                (sa.price - ba.price) / ba.price 	AS profit_percentage
+            FROM unique_addresses ua
+                LEFT JOIN bought_activities ba ON ba.address = ua.address
+                LEFT JOIN sold_activities sa ON sa.address = ua.address
+            WHERE ua.address IS NOT NULL
+            ORDER BY total_profit DESC
+            LIMIT $2 OFFSET $3
+            "#,
+            id,
+            size,
+            size * (page - 1),
+        ).fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection profit leaders")?;
+
+        Ok(res)
+    }
+
+    async fn count_collection_profit_leaderboard(&self, id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            WITH addresses AS (
+                SELECT a.receiver AS address FROM activities a
+                WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                GROUP BY a.collection_id, a.receiver 
+                UNION
+                SELECT a.sender AS address FROM activities a
+                WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                GROUP BY a.collection_id, a.sender
+            )
+            SELECT COUNT(*) FROM addresses
+            WHERE addresses.address IS NOT NULL
+            "#,
+            id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count collection profit leaderboard")?;
+
+        Ok(res.unwrap_or_default())
     }
 }

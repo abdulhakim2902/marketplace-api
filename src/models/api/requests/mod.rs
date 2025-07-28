@@ -14,6 +14,7 @@ pub mod filter_nft;
 pub mod filter_nft_holder;
 pub mod filter_nft_trending;
 pub mod filter_offer;
+pub mod filter_profit_leaderboard;
 pub mod filter_top_buyer;
 pub mod filter_top_seller;
 pub mod floor_chart;

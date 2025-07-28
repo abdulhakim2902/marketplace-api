@@ -7,8 +7,8 @@ use crate::{
             filter_activity::FilterActivity, filter_collection::FilterCollection,
             filter_nft::FilterNft, filter_nft_holder::FilterNftHolder,
             filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
-            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
-            floor_chart::FloorChart,
+            filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
+            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
         },
         responses::{
             collection::Collection,
@@ -20,6 +20,7 @@ use crate::{
             },
             collection_nft_holder::CollectionNftHolder,
             collection_nft_trending::CollectionNftTrending,
+            collection_profit_leaderboard::CollectionProfitLeaderboard,
             collection_top_buyer::CollectionTopBuyer,
             collection_top_seller::CollectionTopSeller,
             data_point::DataPoint,
@@ -89,6 +90,12 @@ pub trait ICollectionService {
         &self,
         id: &str,
     ) -> anyhow::Result<CollectionNftPeriodDistribution>;
+
+    async fn fetch_collection_profit_leaderboard(
+        &self,
+        id: &str,
+        filter: &FilterProfitLeader,
+    ) -> anyhow::Result<(Vec<CollectionProfitLeaderboard>, i64)>;
 }
 
 pub struct CollectionService<TDb: IDatabase> {
@@ -268,5 +275,26 @@ where
             .collections()
             .fetch_collection_nft_period_distribution(id)
             .await
+    }
+
+    async fn fetch_collection_profit_leaderboard(
+        &self,
+        id: &str,
+        filter: &FilterProfitLeader,
+    ) -> anyhow::Result<(Vec<CollectionProfitLeaderboard>, i64)> {
+        let repository = self.db.collections();
+
+        let filter_fut = repository.fetch_collection_profit_leaderboard(
+            id,
+            filter.paging.page,
+            filter.paging.page_size,
+        );
+
+        let count_fut = repository.count_collection_profit_leaderboard(id);
+
+        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
+        let (data, count) = (data_res?, count_res?);
+
+        Ok((data, count))
     }
 }

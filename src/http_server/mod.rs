@@ -64,6 +64,10 @@ where
                             .route("/{id}/nft-holders", get(collection::nft_holders))
                             .route("/{id}/nft-trendings", get(collection::nft_trendings))
                             .route(
+                                "/{id}/profit-leaderboard",
+                                get(collection::profit_leaderboard),
+                            )
+                            .route(
                                 "/{id}/nft-amount-distribution",
                                 get(collection::nft_amount_distribution),
                             )
