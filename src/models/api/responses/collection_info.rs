@@ -13,6 +13,7 @@ pub struct CollectionInfo {
     pub discord: Option<String>,
     pub twitter: Option<String>,
     pub cover_url: Option<String>,
+    pub royalty: Option<BigDecimal>,
     pub floor: Option<i64>,
     pub prev_floor: Option<i64>,
     pub owners: Option<i64>,

@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS collections (
   discord VARCHAR,
   description TEXT,
   cover_url VARCHAR(512),
+  royalty NUMERIC(20, 5),
   PRIMARY KEY (id)
 );

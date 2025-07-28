@@ -89,7 +89,8 @@ impl INfts for Nfts {
                 animation_url,
                 youtube_url,
                 burned,
-                version
+                version,
+                royalty
             )
             "#,
         )
@@ -109,6 +110,7 @@ impl INfts for Nfts {
             b.push_bind(item.youtube_url.clone());
             b.push_bind(item.burned);
             b.push_bind(item.version.clone());
+            b.push_bind(item.royalty.clone());
         })
         .push(
             r#"
@@ -124,6 +126,7 @@ impl INfts for Nfts {
                 youtube_url = COALESCE(EXCLUDED.youtube_url, nfts.youtube_url),
                 avatar_url = COALESCE(EXCLUDED.avatar_url, nfts.avatar_url),
                 external_url = COALESCE(EXCLUDED.external_url, nfts.external_url),
+                royalty = COALESCE(EXCLUDED.royalty, nfts.royalty),
                 burned = EXCLUDED.burned
             "#,
         )

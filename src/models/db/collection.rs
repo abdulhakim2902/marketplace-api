@@ -12,7 +12,7 @@ use aptos_indexer_processor_sdk::{
     aptos_protos::transaction::v1::{WriteResource, WriteTableItem},
     utils::convert::standardize_address,
 };
-use bigdecimal::ToPrimitive;
+use bigdecimal::{BigDecimal, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -27,6 +27,7 @@ pub struct Collection {
     pub website: Option<String>,
     pub discord: Option<String>,
     pub twitter: Option<String>,
+    pub royalty: Option<BigDecimal>,
 }
 
 impl Collection {
@@ -104,6 +105,10 @@ impl Collection {
 
                 if let Some(concurrent_supply) = object.concurrent_supply.as_ref() {
                     collection.supply = concurrent_supply.current_supply.value.to_i64()
+                }
+
+                if let Some(royalty) = object.royalty.as_ref() {
+                    collection.royalty = Some(royalty.get_royalty());
                 }
             }
 

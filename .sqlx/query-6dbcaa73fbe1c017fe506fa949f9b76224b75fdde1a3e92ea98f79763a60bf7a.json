@@ -77,6 +77,11 @@
         "ordinal": 14,
         "name": "version",
         "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "royalty",
+        "type_info": "Numeric"
       }
     ],
     "parameters": {
@@ -87,6 +92,7 @@
     },
     "nullable": [
       false,
+      true,
       true,
       true,
       true,

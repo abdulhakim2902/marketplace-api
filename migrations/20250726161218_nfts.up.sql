@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS nfts (
   animation_url VARCHAR DEFAULT NULL,
   youtube_url VARCHAR DEFAULT NULL,
   burned BOOLEAN DEFAULT false,
+  royalty NUMERIC(20, 5),
   version VARCHAR(10) DEFAULT 'v2',
   PRIMARY KEY (id)
 );

@@ -13,6 +13,7 @@ use crate::models::{
         collection_activity::CollectionActivity,
         collection_info::CollectionInfo,
         collection_nft::CollectionNft,
+        collection_nft_change::CollectionNftChange,
         collection_nft_distribution::{
             CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
         },
@@ -119,6 +120,20 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionProfitLeaderboard>>;
 
     async fn count_collection_profit_leaderboard(&self, id: &str) -> anyhow::Result<i64>;
+
+    async fn fetch_collection_nft_change(
+        &self,
+        id: &str,
+        interval: Option<PgInterval>,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<CollectionNftChange>>;
+
+    async fn count_collection_nft_change(
+        &self,
+        id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<i64>;
 }
 
 pub struct Collections {
@@ -154,7 +169,8 @@ impl ICollections for Collections {
                 website,
                 verified,
                 description,
-                cover_url
+                cover_url,
+                royalty
             )
             "#,
         )
@@ -169,6 +185,7 @@ impl ICollections for Collections {
             b.push_bind(item.verified);
             b.push_bind(item.description.clone());
             b.push_bind(item.cover_url.clone());
+            b.push_bind(item.royalty.clone());
         })
         .push(
             r#"
@@ -181,7 +198,8 @@ impl ICollections for Collections {
                 website = EXCLUDED.website,
                 verified = EXCLUDED.verified,
                 description = EXCLUDED.description,
-                cover_url = EXCLUDED.cover_url
+                cover_url = EXCLUDED.cover_url,
+                royalty = EXCLUDED.royalty
             "#,
         )
         .build()
@@ -345,6 +363,7 @@ impl ICollections for Collections {
                 c.website,
                 c.discord,
                 c.twitter,
+                c.royalty,
                 l.floor,
                 l.floor AS prev_floor,
                 l.count                                     AS listed,
@@ -423,7 +442,7 @@ impl ICollections for Collections {
 	            LEFT JOIN sales s ON s.nft_id = n.id
                 LEFT JOIN top_bids tb ON tb.nft_id = n.id
             WHERE n.collection_id = $1 
-                AND NOT n.burned
+                AND (n.burned IS NULL OR NOT n.burned)
             ORDER BY lp.price
             LIMIT $2 OFFSET $3
             "#,
@@ -443,7 +462,7 @@ impl ICollections for Collections {
             r#"
             SELECT COUNT(*) FROM nfts n
             WHERE n.collection_id = $1 
-                AND NOT n.burned
+                AND (n.burned IS NULL OR NOT n.burned)
             "#,
             id,
         )
@@ -673,7 +692,7 @@ impl ICollections for Collections {
                         n.owner     AS address,
                         COUNT(*)    AS count
                     FROM nfts n
-                    WHERE n.collection_id = $1 AND NOT n.burned
+                    WHERE n.collection_id = $1 AND (n.burned IS NULL OR NOT n.burned)
                     GROUP BY n.owner
                 )
             SELECT 
@@ -704,7 +723,7 @@ impl ICollections for Collections {
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM nfts n
-            WHERE n.collection_id = $1 AND NOT n.burned
+            WHERE n.collection_id = $1 AND (n.burned IS NULL OR NOT n.burned)
             GROUP BY n.owner
             "#,
             id
@@ -764,7 +783,7 @@ impl ICollections for Collections {
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM nfts n
-            WHERE n.collection_id = $1 AND NOT n.burned
+            WHERE n.collection_id = $1 AND (n.burned IS NULL OR NOT n.burned)
             "#,
             id
         )
@@ -933,9 +952,9 @@ impl ICollections for Collections {
                 ua.address,
                 ba.bought, 
                 sa.sold, 
-                ba.price                            AS spent,
-                (sa.price - ba.price) 				AS total_profit,
-                (sa.price - ba.price) / ba.price 	AS profit_percentage
+                ba.price                                                                AS spent,
+                (COALESCE(sa.price, 0) - COALESCE(ba.price, 0)) 	                    AS total_profit,
+                (COALESCE(sa.price, 0) - COALESCE(ba.price, 0)) / NULLIF (ba.price, 0) 	AS profit_percentage
             FROM unique_addresses ua
                 LEFT JOIN bought_activities ba ON ba.address = ua.address
                 LEFT JOIN sold_activities sa ON sa.address = ua.address
@@ -969,6 +988,98 @@ impl ICollections for Collections {
             WHERE addresses.address IS NOT NULL
             "#,
             id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count collection profit leaderboard")?;
+
+        Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_collection_nft_change(
+        &self,
+        id: &str,
+        interval: Option<PgInterval>,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<CollectionNftChange>> {
+        let res = sqlx::query_as!(
+            CollectionNftChange,
+            r#"
+            WITH 
+                current_nft_owners AS (
+                    SELECT n.owner, COUNT(*) FROM nfts n
+                    WHERE n.burned IS NULL OR NOT n.burned AND n.collection_id = $1
+                    GROUP BY n.collection_id, n.owner
+                ),
+                transfer_in AS (
+                    SELECT a.collection_id, a.receiver AS address, COUNT(*) FROM activities a
+                    WHERE a.block_time >= NOW() - $2::INTERVAL 
+                        AND a.tx_type = 'transfer'
+                        AND a.collection_id = $1
+                    GROUP BY a.collection_id, a.receiver
+                ),
+                transfer_out AS (
+                    SELECT a.collection_id, a.sender AS address, COUNT(*) FROM activities a
+                    WHERE a.block_time >= NOW() - $2::INTERVAL 
+                        AND a.tx_type = 'transfer'
+                        AND a.collection_id = $1
+                    GROUP BY a.collection_id, a.sender
+                ),
+                unique_addresses AS (
+                    SELECT tin.address FROM transfer_in tin
+                    UNION
+                    SELECT tout.address FROM transfer_out tout
+                )
+            SELECT 
+                ua.address, 
+                (COALESCE(tout.count, 0) - COALESCE(tin.count, 0)) 	AS change,
+                COALESCE(co.count, 0) 								AS quantity	
+            FROM unique_addresses ua
+                LEFT JOIN transfer_in tin ON tin.address = ua.address
+                LEFT JOIN transfer_out tout ON tout.address = ua.address
+                LEFT JOIN current_nft_owners co ON co.owner = ua.address
+            WHERE ua.address IS NOT NULL
+            ORDER BY change DESC
+            LIMIT $3 OFFSET $4
+            "#,
+            id,
+            interval,
+            size,
+            size * (page - 1),
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection profit leaders")?;
+
+        Ok(res)
+    }
+
+    async fn count_collection_nft_change(
+        &self,
+        id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            WITH addresses AS (
+                SELECT a.receiver AS address FROM activities a
+                WHERE a.block_time >= NOW() - $2::INTERVAL 
+                    AND a.tx_type = 'transfer'
+                    AND a.collection_id = $1
+                GROUP BY a.collection_id, a.receiver
+                UNION
+                SELECT a.sender AS address FROM activities a
+                WHERE a.block_time >= NOW() - $2::INTERVAL 
+                    AND a.tx_type = 'transfer'
+                    AND a.collection_id = $1
+                GROUP BY a.collection_id, a.sender
+            )
+            SELECT COUNT(*) FROM addresses
+            WHERE addresses.address IS NOT NULL
+            "#,
+            id,
+            interval,
         )
         .fetch_one(&*self.pool)
         .await

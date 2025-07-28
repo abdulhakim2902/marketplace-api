@@ -9,7 +9,7 @@ use aptos_indexer_processor_sdk::{
         },
     },
 };
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, Zero};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Formatter};
 
@@ -221,6 +221,14 @@ pub struct RoyaltyType {
 impl RoyaltyType {
     pub fn get_payee_address(&self) -> String {
         standardize_address(&self.payee_address)
+    }
+
+    pub fn get_royalty(&self) -> BigDecimal {
+        if &self.royalty_points_denominator > &BigDecimal::zero() {
+            &self.royalty_points_numerator / &self.royalty_points_denominator * 100
+        } else {
+            BigDecimal::zero()
+        }
     }
 }
 

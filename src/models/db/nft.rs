@@ -11,6 +11,7 @@ use aptos_indexer_processor_sdk::{
     aptos_protos::transaction::v1::{WriteResource, WriteTableItem},
     utils::convert::standardize_address,
 };
+use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -29,6 +30,7 @@ pub struct Nft {
     pub avatar_url: Option<String>,
     pub external_url: Option<String>,
     pub image_url: Option<String>,
+    pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
 }
 
@@ -62,6 +64,10 @@ impl Nft {
 
                 if let Some(property_map) = object_data.property_map.as_ref() {
                     nft.properties = Some(property_map.inner.clone());
+                }
+
+                if let Some(royalty) = object_data.royalty.as_ref() {
+                    nft.royalty = Some(royalty.get_royalty());
                 }
             }
 
@@ -116,6 +122,7 @@ impl Nft {
                         image_url: Some(token_data.uri),
                         properties: Some(token_data.default_properties),
                         description: Some(token_data.description),
+                        royalty: Some(token_data.royalty.get_royalty()),
                         version: Some("v1".to_string()),
                         ..Default::default()
                     };
