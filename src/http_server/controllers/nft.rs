@@ -11,10 +11,20 @@ use crate::{
     },
     models::api::{
         requests::{filter_activity::FilterActivity, filter_listing::FilterListing},
-        responses::HttpResponsePaging,
+        responses::{HttpResponse, HttpResponsePaging},
     },
     services::{IInternalServices, nft::INftService},
 };
+
+pub async fn info<TInternalService: IInternalServices>(
+    State(state): InternalState<TInternalService>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.services.nft_service.fetch_info(&id).await {
+        Ok(data) => Json(HttpResponse { data }).into_response(),
+        Err(err) => response_unhandled_err(err),
+    }
+}
 
 pub async fn activities<TInternalService: IInternalServices>(
     State(state): InternalState<TInternalService>,

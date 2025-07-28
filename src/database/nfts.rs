@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{nft_activity::NftActivity, nft_listing::NftListing},
+    api::responses::{nft_activity::NftActivity, nft_info::NftInfo, nft_listing::NftListing},
     db::nft::Nft,
 };
 use anyhow::Context;
@@ -14,6 +14,8 @@ pub trait INfts: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         items: Vec<Nft>,
     ) -> anyhow::Result<PgQueryResult>;
+
+    async fn fetch_nft_info(&self, id: &str) -> anyhow::Result<NftInfo>;
 
     async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<Nft>>;
 
@@ -118,6 +120,48 @@ impl INfts for Nfts {
         .execute(&mut **tx)
         .await
         .context("Failed to insert nfts")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_nft_info(&self, id: &str) -> anyhow::Result<NftInfo> {
+        let res = sqlx::query_as!(
+            NftInfo,
+            r#"
+            WITH 
+                listing_prices AS (
+                    SELECT l.nft_id, MIN(l.price) AS price
+                    FROM listings l
+                    WHERE l.nft_id = $1 AND l.listed
+                    GROUP BY l.nft_id
+                ),
+                top_bids AS (
+                    SELECT b.nft_id, MAX(b.price) AS price
+                    FROM bids b
+                    WHERE b.status = 'active'
+                        AND b.bid_type = 'solo'
+                        AND b.expires_at > NOW()
+                        AND b.nft_id = $1
+                    GROUP BY b.nft_id
+                )
+            SELECT
+                id,
+                name,
+                description,
+                image_url,
+                owner,
+                tb.price        AS top_offer,
+                lp.price        AS list_price
+            FROM nfts n
+                LEFT JOIN top_bids tb ON tb.nft_id = n.id
+                LEFT JOIN listing_prices lp ON lp.nft_id = n.id
+            WHERE n.id = $1 AND NOT n.burned
+            "#,
+            id,
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch nft info")?;
 
         Ok(res)
     }

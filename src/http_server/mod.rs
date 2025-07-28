@@ -63,6 +63,7 @@ where
                     .nest(
                         "/nfts",
                         Router::new()
+                            .route("/{id}", get(nft::info))
                             .route("/{id}/activities", get(nft::activities))
                             .route("/{id}/listings", get(nft::listings)),
                     ),

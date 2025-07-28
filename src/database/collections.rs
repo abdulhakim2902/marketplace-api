@@ -324,28 +324,46 @@ impl ICollections for Collections {
         let res = sqlx::query_as!(
             CollectionNft,
             r#"
-            WITH sales AS (
-                SELECT DISTINCT ON (a.nft_id) 
-                    a.nft_id, 
-                    a.block_time, 
-                    a.price 
-                FROM activities a
-                WHERE a.tx_type = 'buy'
-                ORDER BY a.nft_id, a.block_time DESC
-            )
+            WITH
+                listing_prices AS (
+                    SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time
+                    FROM listings l
+                    WHERE l.listed
+                    ORDER BY l.nft_id, l.price ASC
+                ),
+                top_bids AS (
+                    SELECT b.nft_id, MAX(b.price) AS price
+                    FROM bids b
+                    WHERE b.status = 'active'
+                        AND b.bid_type = 'solo'
+                        AND b.expires_at > NOW()
+                    GROUP BY b.nft_id
+                ),
+                sales AS (
+                    SELECT DISTINCT ON (a.nft_id) 
+                        a.nft_id, 
+                        a.block_time, 
+                        a.price 
+                    FROM activities a
+                    WHERE a.tx_type = 'buy'
+                    ORDER BY a.nft_id, a.block_time DESC
+                )
             SELECT 
                 n.id, 
                 n.name, 
                 n.image_url, 
-                l.price AS listing_price, 
-                s.price AS last_sale, 
                 n.owner, 
-                l.block_time AS listed_at 
+                n.description,
+                lp.price            AS listing_price,
+                s.price             AS last_sale, 
+                lp.block_time       AS listed_at,
+                tb.price            AS top_offer
             FROM nfts n
-	            LEFT JOIN listings l ON l.nft_id = n.id AND l.listed
+	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
 	            LEFT JOIN sales s ON s.nft_id = n.id
+                LEFT JOIN top_bids tb ON tb.nft_id = n.id
             WHERE n.collection_id = $1 AND n.burned IS NOT NULL AND NOT n.burned
-            ORDER BY l.price
+            ORDER BY lp.price
             LIMIT $2 OFFSET $3
             "#,
             id,
