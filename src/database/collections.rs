@@ -40,11 +40,12 @@ pub trait ICollections: Send + Sync {
     async fn fetch_collection_nfts(
         &self,
         id: &str,
+        account: &str,
         page: i64,
         size: i64,
     ) -> anyhow::Result<Vec<CollectionNft>>;
 
-    async fn count_collection_nfts(&self, id: &str) -> anyhow::Result<i64>;
+    async fn count_collection_nfts(&self, id: &str, account: &str) -> anyhow::Result<i64>;
 
     async fn fetch_collection_activities(
         &self,
@@ -351,6 +352,7 @@ impl ICollections for Collections {
     async fn fetch_collection_nfts(
         &self,
         id: &str,
+        account: &str,
         page: i64,
         size: i64,
     ) -> anyhow::Result<Vec<CollectionNft>> {
@@ -395,11 +397,14 @@ impl ICollections for Collections {
 	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
 	            LEFT JOIN sales s ON s.nft_id = n.id
                 LEFT JOIN top_bids tb ON tb.nft_id = n.id
-            WHERE n.collection_id = $1 AND n.burned IS NOT NULL AND NOT n.burned
+            WHERE n.collection_id = $1 
+                AND NOT n.burned
+                AND ($2 = '' OR n.owner = $2)
             ORDER BY lp.price
-            LIMIT $2 OFFSET $3
+            LIMIT $3 OFFSET $4
             "#,
             id,
+            account,
             size,
             size * (page - 1),
         )
@@ -410,13 +415,16 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn count_collection_nfts(&self, id: &str) -> anyhow::Result<i64> {
+    async fn count_collection_nfts(&self, id: &str, account: &str) -> anyhow::Result<i64> {
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM nfts n
-            WHERE n.collection_id = $1 AND n.burned IS NOT NULL AND NOT n.burned
+            WHERE n.collection_id = $1 
+                AND NOT n.burned
+                AND ($2 = '' OR n.owner = $2)
             "#,
-            id
+            id,
+            account,
         )
         .fetch_one(&*self.pool)
         .await

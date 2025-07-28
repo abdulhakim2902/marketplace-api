@@ -66,7 +66,7 @@ where
         let filter_fut =
             repository.fetch_nft_offers(id, filter.paging.page, filter.paging.page_size);
 
-        let count_fut = repository.count_nft_offers(&id);
+        let count_fut = repository.count_nft_offers(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);
@@ -84,7 +84,7 @@ where
         let filter_fut =
             repository.fetch_nft_activities(id, filter.paging.page, filter.paging.page_size);
 
-        let count_fut = repository.count_nft_activities(&id);
+        let count_fut = repository.count_nft_activities(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);
@@ -102,7 +102,7 @@ where
         let filter_fut =
             repository.fetch_nft_listings(id, filter.paging.page, filter.paging.page_size);
 
-        let count_fut = repository.count_nft_listings(&id);
+        let count_fut = repository.count_nft_listings(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);

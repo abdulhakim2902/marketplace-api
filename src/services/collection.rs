@@ -117,10 +117,14 @@ where
     ) -> anyhow::Result<(Vec<CollectionNft>, i64)> {
         let repository = self.db.collections();
 
-        let filter_fut =
-            repository.fetch_collection_nfts(id, filter.paging.page, filter.paging.page_size);
+        let filter_fut = repository.fetch_collection_nfts(
+            id,
+            &filter.account,
+            filter.paging.page,
+            filter.paging.page_size,
+        );
 
-        let count_fut = repository.count_collection_nfts(&id);
+        let count_fut = repository.count_collection_nfts(id, &filter.account);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);
@@ -146,7 +150,7 @@ where
         let filter_fut =
             repository.fetch_collection_activities(id, filter.paging.page, filter.paging.page_size);
 
-        let count_fut = repository.count_collection_activities(&id);
+        let count_fut = repository.count_collection_activities(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);
@@ -205,7 +209,7 @@ where
             filter.paging.page_size,
         );
 
-        let count_fut = repository.count_collection_nft_holders(&id);
+        let count_fut = repository.count_collection_nft_holders(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);
@@ -226,7 +230,7 @@ where
             filter.paging.page_size,
         );
 
-        let count_fut = repository.count_collection_trending_nfts(&id);
+        let count_fut = repository.count_collection_trending_nfts(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);
