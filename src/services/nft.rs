@@ -3,14 +3,26 @@ use std::sync::Arc;
 use crate::{
     database::{IDatabase, nfts::INfts},
     models::api::{
-        requests::{filter_activity::FilterActivity, filter_listing::FilterListing},
-        responses::{nft_activity::NftActivity, nft_info::NftInfo, nft_listing::NftListing},
+        requests::{
+            filter_activity::FilterActivity, filter_listing::FilterListing,
+            filter_offer::FilterOffer,
+        },
+        responses::{
+            nft_activity::NftActivity, nft_info::NftInfo, nft_listing::NftListing,
+            nft_offer::NftOffer,
+        },
     },
 };
 
 #[async_trait::async_trait]
 pub trait INftService {
     async fn fetch_info(&self, id: &str) -> anyhow::Result<NftInfo>;
+
+    async fn fetch_nft_offers(
+        &self,
+        id: &str,
+        filter: &FilterOffer,
+    ) -> anyhow::Result<(Vec<NftOffer>, i64)>;
 
     async fn fetch_nft_activities(
         &self,
@@ -42,6 +54,24 @@ where
 {
     async fn fetch_info(&self, id: &str) -> anyhow::Result<NftInfo> {
         self.db.nfts().fetch_nft_info(id).await
+    }
+
+    async fn fetch_nft_offers(
+        &self,
+        id: &str,
+        filter: &FilterOffer,
+    ) -> anyhow::Result<(Vec<NftOffer>, i64)> {
+        let repository = self.db.nfts();
+
+        let filter_fut =
+            repository.fetch_nft_offers(id, filter.paging.page, filter.paging.page_size);
+
+        let count_fut = repository.count_nft_offers(&id);
+
+        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
+        let (data, count) = (data_res?, count_res?);
+
+        Ok((data, count))
     }
 
     async fn fetch_nft_activities(

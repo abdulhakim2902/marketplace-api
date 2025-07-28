@@ -10,7 +10,10 @@ use crate::{
         utils::{err_handler::response_unhandled_err, validator::QueryValidator},
     },
     models::api::{
-        requests::{filter_activity::FilterActivity, filter_listing::FilterListing},
+        requests::{
+            filter_activity::FilterActivity, filter_listing::FilterListing,
+            filter_offer::FilterOffer,
+        },
         responses::{HttpResponse, HttpResponsePaging},
     },
     services::{IInternalServices, nft::INftService},
@@ -22,6 +25,22 @@ pub async fn info<TInternalService: IInternalServices>(
 ) -> Response {
     match state.services.nft_service.fetch_info(&id).await {
         Ok(data) => Json(HttpResponse { data }).into_response(),
+        Err(err) => response_unhandled_err(err),
+    }
+}
+
+pub async fn offers<TInternalService: IInternalServices>(
+    State(state): InternalState<TInternalService>,
+    Path(id): Path<String>,
+    QueryValidator(query): QueryValidator<FilterOffer>,
+) -> Response {
+    match state
+        .services
+        .nft_service
+        .fetch_nft_offers(&id, &query)
+        .await
+    {
+        Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
         Err(err) => response_unhandled_err(err),
     }
 }

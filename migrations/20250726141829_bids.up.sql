@@ -16,5 +16,5 @@ CREATE TABLE IF NOT EXISTS bids (
   remaining_count BIGINT,
   status VARCHAR(20),
   bid_type VARCHAR(20),
-  PRIMARY KEY (market_contract_id, nonce)
+  PRIMARY KEY (market_contract_id, collection_id, nft_id, bidder)
 );

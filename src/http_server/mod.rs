@@ -64,8 +64,9 @@ where
                         "/nfts",
                         Router::new()
                             .route("/{id}", get(nft::info))
-                            .route("/{id}/activities", get(nft::activities))
-                            .route("/{id}/listings", get(nft::listings)),
+                            .route("/{id}/offers", get(nft::offers))
+                            .route("/{id}/listings", get(nft::listings))
+                            .route("/{id}/activities", get(nft::activities)),
                     ),
             )
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))

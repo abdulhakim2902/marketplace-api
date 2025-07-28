@@ -76,12 +76,14 @@ impl IBids for Bids {
         })
         .push(
             r#"
-            ON CONFLICT (market_contract_id, nonce) DO UPDATE
+            ON CONFLICT (market_contract_id, collection_id, nft_id, bidder) DO UPDATE
             SET 
                 bidder = EXCLUDED.bidder,
                 status = EXCLUDED.status,
-                accepted_tx_id = EXCLUDED.accepted_tx_id,
-                canceled_tx_id = EXCLUDED.canceled_tx_id,
+                nonce = EXCLUDED.nonce,
+                created_tx_id = COALESCE(EXCLUDED.created_tx_id, bids.created_tx_id),
+                accepted_tx_id = COALESCE(EXCLUDED.accepted_tx_id, bids.accepted_tx_id),
+                canceled_tx_id = COALESCE(EXCLUDED.canceled_tx_id, bids.canceled_tx_id),
                 receiver = EXCLUDED.receiver
             "#,
         )

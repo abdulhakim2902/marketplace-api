@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{nft_activity::NftActivity, nft_info::NftInfo, nft_listing::NftListing},
+    api::responses::{
+        nft_activity::NftActivity, nft_info::NftInfo, nft_listing::NftListing, nft_offer::NftOffer,
+    },
     db::nft::Nft,
 };
 use anyhow::Context;
@@ -38,6 +40,15 @@ pub trait INfts: Send + Sync {
     ) -> anyhow::Result<Vec<NftListing>>;
 
     async fn count_nft_listings(&self, id: &str) -> anyhow::Result<i64>;
+
+    async fn fetch_nft_offers(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<NftOffer>>;
+
+    async fn count_nft_offers(&self, id: &str) -> anyhow::Result<i64>;
 }
 
 pub struct Nfts {
@@ -296,6 +307,56 @@ impl INfts for Nfts {
         .fetch_one(&*self.pool)
         .await
         .context("Failed to count filtered nft listings")?;
+
+        Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_nft_offers(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<NftOffer>> {
+        let res = sqlx::query_as!(
+            NftOffer,
+            r#"
+            SELECT
+                b.price,
+                b.bidder                                    AS from,
+                b.expires_at,
+                (
+                    SELECT a.block_time FROM activities a
+                    WHERE a.nft_id = $1 AND a.tx_id = b.created_tx_id
+                    LIMIT 1
+                )                                           AS updated_at,
+                b.status
+            FROM bids b
+            WHERE b.nft_id = $1
+            ORDER by updated_at DESC
+            LIMIT $2 OFFSET $3
+            "#,
+            id,
+            size,
+            size * (page - 1),
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch nft offers")?;
+
+        Ok(res)
+    }
+
+    async fn count_nft_offers(&self, id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM bids b
+            WHERE b.nft_id = $1
+            "#,
+            id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count filtered nft offers")?;
 
         Ok(res.unwrap_or_default())
     }

@@ -15,7 +15,12 @@ use aptos_indexer_processor_sdk::{
 use bigdecimal::BigDecimal;
 use std::{collections::HashMap, sync::Arc};
 
-pub type BidIdType = (Option<String>, Option<String>);
+pub type BidIdType = (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
 
 pub type ListingIdType = (Option<String>, Option<String>);
 
@@ -40,35 +45,36 @@ impl NFTAccumulator {
     pub fn fold_bidding(&mut self, activity: &NftMarketplaceActivity) {
         if activity.is_valid_bid() {
             let bid: Bid = activity.to_owned().into();
-            let key = (bid.market_contract_id.clone(), bid.nonce.clone());
+            let key = (
+                bid.market_contract_id.clone(),
+                bid.collection_id.clone(),
+                bid.nft_id.clone(),
+                bid.bidder.clone(),
+            );
+
             self.bids
                 .entry(key)
                 .and_modify(|existing: &mut Bid| {
-                    let is_active = bid
-                        .status
-                        .clone()
-                        .map_or(false, |status| status.as_str() == "active");
-
-                    if let Some(tx_id) = bid.created_tx_id.clone() {
-                        existing.created_tx_id = Some(tx_id);
+                    if let Some(nonce) = bid.nonce.as_ref() {
+                        existing.nonce = Some(nonce.to_string());
                     }
 
-                    if let Some(tx_id) = bid.accepted_tx_id.clone() {
-                        existing.accepted_tx_id = Some(tx_id);
-                        if is_active {
-                            existing.status = Some("matched".to_string());
-                        }
+                    if let Some(tx_id) = bid.created_tx_id.as_ref() {
+                        existing.created_tx_id = Some(tx_id.to_string());
                     }
 
-                    if let Some(tx_id) = bid.canceled_tx_id.clone() {
-                        existing.canceled_tx_id = Some(tx_id);
-                        if is_active {
-                            existing.status = Some("cancelled".to_string());
-                        };
+                    if let Some(tx_id) = bid.accepted_tx_id.as_ref() {
+                        existing.accepted_tx_id = Some(tx_id.to_string());
+                        existing.status = Some("matched".to_string());
                     }
 
-                    if let Some(receiver) = bid.receiver.clone() {
-                        existing.receiver = Some(receiver);
+                    if let Some(tx_id) = bid.canceled_tx_id.as_ref() {
+                        existing.canceled_tx_id = Some(tx_id.to_string());
+                        existing.status = Some("cancelled".to_string());
+                    }
+
+                    if let Some(receiver) = bid.receiver.as_ref() {
+                        existing.receiver = Some(receiver.to_string());
                     }
                 })
                 .or_insert(bid);

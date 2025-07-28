@@ -6,6 +6,7 @@ pub mod data_point;
 pub mod nft_activity;
 pub mod nft_info;
 pub mod nft_listing;
+pub mod nft_offer;
 
 use serde::Serialize;
 
