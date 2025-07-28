@@ -12,8 +12,9 @@ use crate::{
     models::api::{
         requests::{
             filter_activity::FilterActivity, filter_collection::FilterCollection,
-            filter_nft::FilterNft, filter_offer::FilterOffer, filter_top_buyer::FilterTopBuyer,
-            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
+            filter_nft::FilterNft, filter_nft_holder::FilterNftHolder, filter_offer::FilterOffer,
+            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
+            floor_chart::FloorChart,
         },
         responses::{HttpResponse, HttpResponsePaging},
     },
@@ -122,7 +123,7 @@ pub async fn top_buyers<TInternalService: IInternalServices>(
     match state
         .services
         .collection_service
-        .fetch_top_buyer(&id, &query)
+        .fetch_collection_top_buyer(&id, &query)
         .await
     {
         Ok(data) => Json(HttpResponse { data }).into_response(),
@@ -138,10 +139,26 @@ pub async fn top_sellers<TInternalService: IInternalServices>(
     match state
         .services
         .collection_service
-        .fetch_top_seller(&id, &query)
+        .fetch_collection_top_seller(&id, &query)
         .await
     {
         Ok(data) => Json(HttpResponse { data }).into_response(),
+        Err(err) => response_unhandled_err(err),
+    }
+}
+
+pub async fn nft_holders<TInternalService: IInternalServices>(
+    State(state): InternalState<TInternalService>,
+    Path(id): Path<String>,
+    QueryValidator(query): QueryValidator<FilterNftHolder>,
+) -> Response {
+    match state
+        .services
+        .collection_service
+        .fetch_collection_nft_holders(&id, &query)
+        .await
+    {
+        Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
         Err(err) => response_unhandled_err(err),
     }
 }

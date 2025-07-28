@@ -5,14 +5,15 @@ use crate::{
     models::api::{
         requests::{
             filter_activity::FilterActivity, filter_collection::FilterCollection,
-            filter_nft::FilterNft, filter_offer::FilterOffer, filter_top_buyer::FilterTopBuyer,
-            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
+            filter_nft::FilterNft, filter_nft_holder::FilterNftHolder, filter_offer::FilterOffer,
+            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
+            floor_chart::FloorChart,
         },
         responses::{
             collection::Collection, collection_activity::CollectionActivity,
             collection_info::CollectionInfo, collection_nft::CollectionNft,
-            collection_top_buyer::CollectionTopBuyer, collection_top_seller::CollectionTopSeller,
-            data_point::DataPoint,
+            collection_nft_holder::CollectionNftHolder, collection_top_buyer::CollectionTopBuyer,
+            collection_top_seller::CollectionTopSeller, data_point::DataPoint,
         },
     },
 };
@@ -46,17 +47,23 @@ pub trait ICollectionService {
         floor_chart: &FloorChart,
     ) -> anyhow::Result<Vec<DataPoint>>;
 
-    async fn fetch_top_buyer(
+    async fn fetch_collection_top_buyer(
         &self,
         id: &str,
         filter: &FilterTopBuyer,
     ) -> anyhow::Result<Vec<CollectionTopBuyer>>;
 
-    async fn fetch_top_seller(
+    async fn fetch_collection_top_seller(
         &self,
         id: &str,
         filter: &FilterTopSeller,
     ) -> anyhow::Result<Vec<CollectionTopSeller>>;
+
+    async fn fetch_collection_nft_holders(
+        &self,
+        id: &str,
+        filter: &FilterNftHolder,
+    ) -> anyhow::Result<(Vec<CollectionNftHolder>, i64)>;
 }
 
 pub struct CollectionService<TDb: IDatabase> {
@@ -154,7 +161,7 @@ where
             .await
     }
 
-    async fn fetch_top_buyer(
+    async fn fetch_collection_top_buyer(
         &self,
         id: &str,
         filter: &FilterTopBuyer,
@@ -165,7 +172,7 @@ where
             .await
     }
 
-    async fn fetch_top_seller(
+    async fn fetch_collection_top_seller(
         &self,
         id: &str,
         filter: &FilterTopSeller,
@@ -174,5 +181,26 @@ where
             .collections()
             .fetch_collection_top_sellers(id, filter.interval)
             .await
+    }
+
+    async fn fetch_collection_nft_holders(
+        &self,
+        id: &str,
+        filter: &FilterNftHolder,
+    ) -> anyhow::Result<(Vec<CollectionNftHolder>, i64)> {
+        let repository = self.db.collections();
+
+        let filter_fut = repository.fetch_collection_nft_holders(
+            id,
+            filter.paging.page,
+            filter.paging.page_size,
+        );
+
+        let count_fut = repository.count_collection_nft_holders(&id);
+
+        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
+        let (data, count) = (data_res?, count_res?);
+
+        Ok((data, count))
     }
 }

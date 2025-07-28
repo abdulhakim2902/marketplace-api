@@ -60,7 +60,8 @@ where
                             .route("/{id}/activities", get(collection::activities))
                             .route("/{id}/floor-chart", get(collection::floor_chart))
                             .route("/{id}/top-buyers", get(collection::top_buyers))
-                            .route("/{id}/top-sellers", get(collection::top_sellers)),
+                            .route("/{id}/top-sellers", get(collection::top_sellers))
+                            .route("/{id}/nft-holders", get(collection::nft_holders)),
                     )
                     .nest(
                         "/nfts",

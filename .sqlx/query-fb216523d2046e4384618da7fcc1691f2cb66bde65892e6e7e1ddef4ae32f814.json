@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) FROM nfts n\n            WHERE n.collection_id = $1 AND NOT n.burned\n            GROUP BY n.owner\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fb216523d2046e4384618da7fcc1691f2cb66bde65892e6e7e1ddef4ae32f814"
+}
