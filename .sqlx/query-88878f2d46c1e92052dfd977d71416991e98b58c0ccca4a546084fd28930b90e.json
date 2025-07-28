@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH addresses AS (\n                SELECT a.receiver AS address FROM activities a\n                WHERE a.block_time >= NOW() - $2::INTERVAL \n                    AND a.tx_type = 'transfer'\n                    AND a.collection_id = $1\n                GROUP BY a.collection_id, a.receiver\n                UNION\n                SELECT a.sender AS address FROM activities a\n                WHERE a.block_time >= NOW() - $2::INTERVAL \n                    AND a.tx_type = 'transfer'\n                    AND a.collection_id = $1\n                GROUP BY a.collection_id, a.sender\n            )\n            SELECT COUNT(*) FROM addresses\n            WHERE addresses.address IS NOT NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Interval"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "88878f2d46c1e92052dfd977d71416991e98b58c0ccca4a546084fd28930b90e"
+}

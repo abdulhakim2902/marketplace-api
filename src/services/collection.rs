@@ -5,16 +5,18 @@ use crate::{
     models::api::{
         requests::{
             filter_activity::FilterActivity, filter_collection::FilterCollection,
-            filter_nft::FilterNft, filter_nft_holder::FilterNftHolder,
-            filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
-            filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
-            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
+            filter_nft::FilterNft, filter_nft_change::FilterNftChange,
+            filter_nft_holder::FilterNftHolder, filter_nft_trending::FilterNftTrending,
+            filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
+            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
+            floor_chart::FloorChart,
         },
         responses::{
             collection::Collection,
             collection_activity::CollectionActivity,
             collection_info::CollectionInfo,
             collection_nft::CollectionNft,
+            collection_nft_change::CollectionNftChange,
             collection_nft_distribution::{
                 CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
             },
@@ -96,6 +98,12 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterProfitLeader,
     ) -> anyhow::Result<(Vec<CollectionProfitLeaderboard>, i64)>;
+
+    async fn fetch_collection_nft_change(
+        &self,
+        id: &str,
+        filter: &FilterNftChange,
+    ) -> anyhow::Result<(Vec<CollectionNftChange>, i64)>;
 }
 
 pub struct CollectionService<TDb: IDatabase> {
@@ -291,6 +299,28 @@ where
         );
 
         let count_fut = repository.count_collection_profit_leaderboard(id);
+
+        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
+        let (data, count) = (data_res?, count_res?);
+
+        Ok((data, count))
+    }
+
+    async fn fetch_collection_nft_change(
+        &self,
+        id: &str,
+        filter: &FilterNftChange,
+    ) -> anyhow::Result<(Vec<CollectionNftChange>, i64)> {
+        let repository = self.db.collections();
+
+        let filter_fut = repository.fetch_collection_nft_change(
+            id,
+            filter.interval,
+            filter.paging.page,
+            filter.paging.page_size,
+        );
+
+        let count_fut = repository.count_collection_nft_change(id, filter.interval);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);

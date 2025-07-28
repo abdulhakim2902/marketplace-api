@@ -63,6 +63,7 @@ where
                             .route("/{id}/top-sellers", get(collection::top_sellers))
                             .route("/{id}/nft-holders", get(collection::nft_holders))
                             .route("/{id}/nft-trendings", get(collection::nft_trendings))
+                            .route("/{id}/nft-change", get(collection::nft_change))
                             .route(
                                 "/{id}/profit-leaderboard",
                                 get(collection::profit_leaderboard),

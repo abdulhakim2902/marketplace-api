@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT COUNT(*) FROM nfts n\n            WHERE n.collection_id = $1 \n                AND NOT n.burned\n            ",
+  "query": "\n            SELECT COUNT(*) FROM nfts n\n            WHERE n.collection_id = $1 \n                AND (n.burned IS NULL OR NOT n.burned)\n            ",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       null
     ]
   },
-  "hash": "f055b4161c7ade2bbe29fcc2c32a33855de01710e7b3b7cef9882c16bca389fe"
+  "hash": "acdb165859bb6a1c6263c27d6663fdb5f9cb82f7e2da2ff1cdc3ae38bed8e0c6"
 }

@@ -166,7 +166,7 @@ impl INfts for Nfts {
             FROM nfts n
                 LEFT JOIN top_bids tb ON tb.nft_id = n.id
                 LEFT JOIN listing_prices lp ON lp.nft_id = n.id
-            WHERE n.id = $1 AND NOT n.burned
+            WHERE n.id = $1 AND (n.burned IS NULL OR NOT n.burned)
             "#,
             id,
         )
