@@ -9,9 +9,10 @@ pub struct CollectionNft {
     pub owner: Option<String>,
     pub description: Option<String>,
     pub image_url: Option<String>,
-    pub listing_price: Option<i64>,
-    pub last_sale: Option<i64>,
+    pub listing_price: Option<BigDecimal>,
+    pub listing_usd_price: Option<BigDecimal>,
+    pub last_sale: Option<BigDecimal>,
     pub listed_at: Option<DateTime<Utc>>,
-    pub top_offer: Option<i64>,
+    pub top_offer: Option<BigDecimal>,
     pub royalty: Option<BigDecimal>,
 }

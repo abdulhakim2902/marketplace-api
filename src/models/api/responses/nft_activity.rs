@@ -9,9 +9,10 @@ pub struct NftActivity {
     pub tx_id: Option<String>,
     pub seller: Option<String>,
     pub buyer: Option<String>,
-    pub price: Option<i64>,
+    pub price: Option<BigDecimal>,
     pub usd_price: Option<BigDecimal>,
     pub market_name: Option<String>,
     pub market_contract_id: Option<String>,
     pub time: Option<DateTime<Utc>>,
+    pub quantity: Option<i64>,
 }

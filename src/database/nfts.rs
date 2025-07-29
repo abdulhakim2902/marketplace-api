@@ -235,6 +235,7 @@ impl INfts for Nfts {
                 a.tx_id,
                 a.sender                AS seller,
                 a.receiver              AS buyer,
+                a.amount                AS quantity,
                 a.price,
                 a.usd_price,
                 a.market_name,
@@ -290,7 +291,7 @@ impl INfts for Nfts {
                 l.market_name,
                 l.market_contract_id,
                 l.seller                                     AS from,
-                (l.price * lp.price / POW(10, 8))::NUMERIC   AS usd_price
+                l.price * lp.price                           AS usd_price
             FROM listings l
                 LEFT JOIN latest_prices lp ON TRUE
             WHERE l.nft_id = $1 AND l.listed
@@ -331,8 +332,14 @@ impl INfts for Nfts {
         let res = sqlx::query_as!(
             NftOffer,
             r#"
+            WITH latest_prices AS (
+                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
+                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
+                ORDER BY tp.token_address, tp.created_at DESC
+            )
             SELECT
                 b.price,
+                b.price * lp.price                          AS usd_price,
                 b.bidder                                    AS from,
                 b.expired_at,
                 (
@@ -342,6 +349,7 @@ impl INfts for Nfts {
                 )                                           AS updated_at,
                 b.status
             FROM bids b
+                LEFT JOIN latest_prices lp ON TRUE
             WHERE b.nft_id = $1
             ORDER by updated_at DESC
             LIMIT $2 OFFSET $3

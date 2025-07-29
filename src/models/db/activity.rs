@@ -20,7 +20,7 @@ pub struct Activity {
     pub tx_id: String,
     pub sender: Option<String>,
     pub receiver: Option<String>,
-    pub price: Option<i64>,
+    pub price: Option<BigDecimal>,
     pub nft_id: Option<String>,
     pub collection_id: Option<String>,
     pub block_time: Option<NaiveDateTime>,

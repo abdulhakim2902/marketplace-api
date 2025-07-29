@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS bids (
   market_name VARCHAR(128),
   nonce VARCHAR(128),
   nft_id VARCHAR(66) DEFAULT NULL,
-  price BIGINT,
+  price NUMERIC,
   price_str VARCHAR(128),
   receiver VARCHAR(66),
   remaining_count BIGINT,

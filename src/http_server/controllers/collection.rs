@@ -80,7 +80,7 @@ pub async fn offers<TInternalService: IInternalServices>(
         .fetch_collection_offers(&id, &query)
         .await
     {
-        Ok(data) => Json(HttpResponse { data }).into_response(),
+        Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
         Err(err) => response_unhandled_err(err),
     }
 }

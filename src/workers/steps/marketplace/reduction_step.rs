@@ -12,7 +12,6 @@ use aptos_indexer_processor_sdk::{
     types::transaction_context::TransactionContext,
     utils::errors::ProcessorError,
 };
-use bigdecimal::BigDecimal;
 use std::{collections::HashMap, sync::Arc};
 
 pub type BidIdType = (Option<String>, Option<String>, Option<String>);
@@ -20,7 +19,6 @@ pub type BidIdType = (Option<String>, Option<String>, Option<String>);
 pub type ListingIdType = (Option<String>, Option<String>);
 
 const APT_TOKEN_ADDR: &str = "0x000000000000000000000000000000000000000000000000000000000000000a";
-const APT_DECIMAL: i32 = 100_000_000;
 
 #[derive(Clone, Debug, Default)]
 pub struct NFTAccumulator {
@@ -169,10 +167,7 @@ where
                         .unwrap_or_default(),
                 };
 
-                let usd_price =
-                    BigDecimal::from(activity.price) * &usd / BigDecimal::from(APT_DECIMAL);
-
-                activity.usd_price = Some(usd_price);
+                activity.usd_price = Some(activity.get_price() * &usd);
 
                 self.accumulator.fold_activity(&activity);
                 self.accumulator.fold_bidding(&activity);

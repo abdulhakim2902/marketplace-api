@@ -19,6 +19,7 @@ use crate::models::{
         },
         collection_nft_holder::CollectionNftHolder,
         collection_nft_trending::CollectionNftTrending,
+        collection_offer::CollectionOffer,
         collection_profit_leaderboard::CollectionProfitLeaderboard,
         collection_top_buyer::CollectionTopBuyer,
         collection_top_seller::CollectionTopSeller,
@@ -63,6 +64,15 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionActivity>>;
 
     async fn count_collection_activities(&self, id: &str) -> anyhow::Result<i64>;
+
+    async fn fetch_collection_offers(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<CollectionOffer>>;
+
+    async fn count_collection_offers(&self, id: &str) -> anyhow::Result<i64>;
 
     async fn fetch_collection_floor_chart(
         &self,
@@ -404,6 +414,11 @@ impl ICollections for Collections {
             CollectionNft,
             r#"
             WITH
+                latest_prices AS (
+                    SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
+                    WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
+                    ORDER BY tp.token_address, tp.created_at DESC
+                ),
                 listing_prices AS (
                     SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time
                     FROM listings l
@@ -434,14 +449,16 @@ impl ICollections for Collections {
                 n.owner, 
                 n.description,
                 n.royalty,
-                lp.price            AS listing_price,
-                s.price             AS last_sale, 
-                lp.block_time       AS listed_at,
-                tb.price            AS top_offer
+                lp.price                AS listing_price,
+                lp.price * ltp.price    AS listing_usd_price,
+                s.price                 AS last_sale, 
+                lp.block_time           AS listed_at,
+                tb.price                AS top_offer
             FROM nfts n
 	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
 	            LEFT JOIN sales s ON s.nft_id = n.id
                 LEFT JOIN top_bids tb ON tb.nft_id = n.id
+                LEFT JOIN latest_prices ltp ON TRUE
             WHERE n.collection_id = $1 
                 AND (n.burned IS NULL OR NOT n.burned)
             ORDER BY lp.price
@@ -487,18 +504,18 @@ impl ICollections for Collections {
                 a.tx_type,
                 a.tx_index,
                 a.tx_id,
-                a.sender                AS from,
-                a.receiver              AS to,
+                a.sender                        AS from,
+                a.receiver                      AS to,
                 a.price,
                 a.usd_price,
                 a.market_name,
                 a.market_contract_id,
-                a.amount                AS quantity,
-                a.block_time            AS time,
+                a.amount                        AS quantity,
+                a.block_time                    AS time,
                 a.nft_id,
-                n.name                  AS nft_name,
-                n.description           AS nft_description,
-                n.image_url             AS nft_image_url
+                n.name                          AS nft_name,
+                n.description                   AS nft_description,
+                n.image_url                     AS nft_image_url
             FROM activities a
 	            LEFT JOIN nfts n ON n.id = a.nft_id
             WHERE a.collection_id = $1
@@ -529,6 +546,19 @@ impl ICollections for Collections {
         .context("Failed to count filtered collection activities")?;
 
         Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_collection_offers(
+        &self,
+        _id: &str,
+        _page: i64,
+        _size: i64,
+    ) -> anyhow::Result<Vec<CollectionOffer>> {
+        Ok(Vec::new())
+    }
+
+    async fn count_collection_offers(&self, _id: &str) -> anyhow::Result<i64> {
+        Ok(10)
     }
 
     async fn fetch_collection_floor_chart(

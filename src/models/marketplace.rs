@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
 pub const NFT_MARKETPLACE_ACTIVITIES_TABLE_NAME: &str = "nft_marketplace_activities";
+pub const APT_DECIMAL: i32 = 100_000_000;
 
 /**
  * NftMarketplaceActivity is the main model for storing NFT marketplace activities.
@@ -47,6 +48,7 @@ impl From<NftMarketplaceActivity> for Activity {
     fn from(value: NftMarketplaceActivity) -> Self {
         Self {
             tx_index: value.get_tx_index(),
+            price: Some(value.get_price()),
             market_contract_id: value.contract_address,
             tx_id: value.txn_id,
             nft_id: value.token_addr,
@@ -54,7 +56,6 @@ impl From<NftMarketplaceActivity> for Activity {
             collection_id: value.collection_addr,
             sender: value.seller,
             receiver: value.buyer,
-            price: Some(value.price),
             block_time: Some(value.block_timestamp),
             market_name: value.marketplace,
             block_height: Some(value.block_height),
@@ -73,11 +74,11 @@ impl From<NftMarketplaceActivity> for Bid {
             canceled_tx_id: value.get_cancelled_txn_id(),
             bid_type: value.get_bid_type(),
             status: value.get_bid_status(),
+            price: Some(value.get_price()),
             market_contract_id: value.contract_address,
             market_name: value.marketplace,
             collection_id: value.collection_addr,
             nft_id: value.token_addr,
-            price: Some(value.price),
             price_str: Some(value.price.to_string()),
             expired_at: value.expiration_time,
             nonce: value.offer_id,
@@ -93,13 +94,13 @@ impl From<NftMarketplaceActivity> for Listing {
         Self {
             tx_index: Some(value.get_tx_index()),
             listed: value.get_listing_status(),
+            price: Some(value.get_price()),
+            price_str: Some(value.get_price().to_string()),
             market_contract_id: value.contract_address,
             collection_id: value.collection_addr,
             nft_id: value.token_addr,
             market_name: value.marketplace,
             seller: value.seller,
-            price: Some(value.price),
-            price_str: Some(value.price.to_string()),
             block_time: Some(value.block_timestamp),
             nonce: value.listing_id,
             block_height: Some(value.block_height),
@@ -110,6 +111,10 @@ impl From<NftMarketplaceActivity> for Listing {
 impl NftMarketplaceActivity {
     pub fn get_tx_index(&self) -> i64 {
         self.txn_version * 100_000 + self.index
+    }
+
+    pub fn get_price(&self) -> BigDecimal {
+        BigDecimal::from(self.price) / APT_DECIMAL
     }
 }
 

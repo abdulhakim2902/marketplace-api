@@ -22,6 +22,7 @@ use crate::{
             },
             collection_nft_holder::CollectionNftHolder,
             collection_nft_trending::CollectionNftTrending,
+            collection_offer::CollectionOffer,
             collection_profit_leaderboard::CollectionProfitLeaderboard,
             collection_top_buyer::CollectionTopBuyer,
             collection_top_seller::CollectionTopSeller,
@@ -45,7 +46,11 @@ pub trait ICollectionService {
         filter: &FilterNft,
     ) -> anyhow::Result<(Vec<CollectionNft>, i64)>;
 
-    async fn fetch_collection_offers(&self, id: &str, filter: &FilterOffer) -> anyhow::Result<()>;
+    async fn fetch_collection_offers(
+        &self,
+        id: &str,
+        filter: &FilterOffer,
+    ) -> anyhow::Result<(Vec<CollectionOffer>, i64)>;
 
     async fn fetch_collection_activities(
         &self,
@@ -161,10 +166,20 @@ where
 
     async fn fetch_collection_offers(
         &self,
-        _id: &str,
-        _filter: &FilterOffer,
-    ) -> anyhow::Result<()> {
-        Ok(())
+        id: &str,
+        filter: &FilterOffer,
+    ) -> anyhow::Result<(Vec<CollectionOffer>, i64)> {
+        let repository = self.db.collections();
+
+        let filter_fut =
+            repository.fetch_collection_offers(id, filter.paging.page, filter.paging.page_size);
+
+        let count_fut = repository.count_collection_offers(id);
+
+        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
+        let (data, count) = (data_res?, count_res?);
+
+        Ok((data, count))
     }
 
     async fn fetch_collection_activities(

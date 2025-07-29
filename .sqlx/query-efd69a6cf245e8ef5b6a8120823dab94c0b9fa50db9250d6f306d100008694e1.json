@@ -36,12 +36,12 @@
       {
         "ordinal": 6,
         "name": "floor",
-        "type_info": "Int8"
+        "type_info": "Numeric"
       },
       {
         "ordinal": 7,
         "name": "prev_floor",
-        "type_info": "Int8"
+        "type_info": "Numeric"
       },
       {
         "ordinal": 8,
@@ -71,7 +71,7 @@
       {
         "ordinal": 13,
         "name": "top_offer",
-        "type_info": "Int8"
+        "type_info": "Numeric"
       },
       {
         "ordinal": 14,

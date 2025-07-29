@@ -6,6 +6,7 @@ pub mod collection_nft_change;
 pub mod collection_nft_distribution;
 pub mod collection_nft_holder;
 pub mod collection_nft_trending;
+pub mod collection_offer;
 pub mod collection_profit_leaderboard;
 pub mod collection_top_buyer;
 pub mod collection_top_seller;

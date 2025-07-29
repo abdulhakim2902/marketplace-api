@@ -1,3 +1,4 @@
+use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,7 @@ pub struct Bid {
     pub market_name: Option<String>,
     pub nonce: Option<String>,
     pub nft_id: Option<String>,
-    pub price: Option<i64>,
+    pub price: Option<BigDecimal>,
     pub price_str: Option<String>,
     pub receiver: Option<String>,
     pub remaining_count: Option<i64>,

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT \n                a.tx_type,\n                a.tx_index,\n                a.tx_id,\n                a.sender                AS from,\n                a.receiver              AS to,\n                a.price,\n                a.usd_price,\n                a.market_name,\n                a.market_contract_id,\n                a.amount                AS quantity,\n                a.block_time            AS time,\n                a.nft_id,\n                n.name                  AS nft_name,\n                n.description           AS nft_description,\n                n.image_url             AS nft_image_url\n            FROM activities a\n\t            LEFT JOIN nfts n ON n.id = a.nft_id\n            WHERE a.collection_id = $1\n            ORDER BY a.block_time\n            LIMIT $2 OFFSET $3\n            ",
+  "query": "\n            SELECT \n                a.tx_type,\n                a.tx_index,\n                a.tx_id,\n                a.sender                        AS from,\n                a.receiver                      AS to,\n                a.price,\n                a.usd_price,\n                a.market_name,\n                a.market_contract_id,\n                a.amount                        AS quantity,\n                a.block_time                    AS time,\n                a.nft_id,\n                n.name                          AS nft_name,\n                n.description                   AS nft_description,\n                n.image_url                     AS nft_image_url\n            FROM activities a\n\t            LEFT JOIN nfts n ON n.id = a.nft_id\n            WHERE a.collection_id = $1\n            ORDER BY a.block_time\n            LIMIT $2 OFFSET $3\n            ",
   "describe": {
     "columns": [
       {
@@ -31,7 +31,7 @@
       {
         "ordinal": 5,
         "name": "price",
-        "type_info": "Int8"
+        "type_info": "Numeric"
       },
       {
         "ordinal": 6,
@@ -104,5 +104,5 @@
       true
     ]
   },
-  "hash": "88f7cd39998e77f596eed4380382cbf0e83d93c984b6008cd88d25633ea22ce5"
+  "hash": "bffbdb84b2b8f2962a3133fceaa93a1934168dc3803985b8f399ac08e3bc4691"
 }

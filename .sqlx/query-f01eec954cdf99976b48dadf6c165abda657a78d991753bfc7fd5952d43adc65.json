@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH latest_prices AS (\n                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp\n                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'\n                ORDER BY tp.token_address, tp.created_at DESC\n            )\n            SELECT\n                b.price,\n                b.price * lp.price                          AS usd_price,\n                b.bidder                                    AS from,\n                b.expired_at,\n                (\n                    SELECT a.block_time FROM activities a\n                    WHERE a.nft_id = $1 AND a.tx_id = b.created_tx_id\n                    LIMIT 1\n                )                                           AS updated_at,\n                b.status\n            FROM bids b\n                LEFT JOIN latest_prices lp ON TRUE\n            WHERE b.nft_id = $1\n            ORDER by updated_at DESC\n            LIMIT $2 OFFSET $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 1,
+        "name": "usd_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 2,
+        "name": "from",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "expired_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      false,
+      true,
+      null,
+      true
+    ]
+  },
+  "hash": "f01eec954cdf99976b48dadf6c165abda657a78d991753bfc7fd5952d43adc65"
+}

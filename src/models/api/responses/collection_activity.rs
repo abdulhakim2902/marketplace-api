@@ -9,7 +9,7 @@ pub struct CollectionActivity {
     pub tx_id: Option<String>,
     pub from: Option<String>,
     pub to: Option<String>,
-    pub price: Option<i64>,
+    pub price: Option<BigDecimal>,
     pub usd_price: Option<BigDecimal>,
     pub market_name: Option<String>,
     pub market_contract_id: Option<String>,

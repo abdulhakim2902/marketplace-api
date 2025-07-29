@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT \n                a.tx_type,\n                a.tx_index,\n                a.tx_id,\n                a.sender                AS seller,\n                a.receiver              AS buyer,\n                a.price,\n                a.usd_price,\n                a.market_name,\n                a.market_contract_id,\n                a.block_time            AS time\n            FROM activities a\n            WHERE a.nft_id = $1\n            ORDER BY a.block_time\n            LIMIT $2 OFFSET $3\n            ",
+  "query": "\n            SELECT \n                a.tx_type,\n                a.tx_index,\n                a.tx_id,\n                a.sender                AS seller,\n                a.receiver              AS buyer,\n                a.amount                AS quantity,\n                a.price,\n                a.usd_price,\n                a.market_name,\n                a.market_contract_id,\n                a.block_time            AS time\n            FROM activities a\n            WHERE a.nft_id = $1\n            ORDER BY a.block_time\n            LIMIT $2 OFFSET $3\n            ",
   "describe": {
     "columns": [
       {
@@ -30,26 +30,31 @@
       },
       {
         "ordinal": 5,
-        "name": "price",
+        "name": "quantity",
         "type_info": "Int8"
       },
       {
         "ordinal": 6,
-        "name": "usd_price",
+        "name": "price",
         "type_info": "Numeric"
       },
       {
         "ordinal": 7,
+        "name": "usd_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
         "name": "market_name",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "market_contract_id",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "time",
         "type_info": "Timestamptz"
       }
@@ -71,8 +76,9 @@
       true,
       true,
       true,
+      true,
       false
     ]
   },
-  "hash": "fbd776517c540145b8ea3cb388ef4919b70aa94cf543918a1f67cd94bd49eeb1"
+  "hash": "46c3dd1aaf02c7d82dfbdfeee2c31ee2954772a956025a0e49bc10bd0969aad5"
 }
