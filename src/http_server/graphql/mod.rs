@@ -4,8 +4,11 @@ use async_graphql::{Context, Object, http::GraphiQLSource};
 use axum::response::{Html, IntoResponse};
 
 use crate::{
-    database::{Database, IDatabase, collections::ICollections},
-    models::api::responses::{collection::Collection, collection_nft::CollectionNft},
+    database::{Database, IDatabase, collections::ICollections, nfts::INfts},
+    models::api::responses::{
+        collection::Collection, collection_activity::CollectionActivity,
+        collection_nft::CollectionNft, nft_activity::NftActivity,
+    },
     utils::string_utils,
 };
 
@@ -64,5 +67,51 @@ impl Query {
             .expect("Failed to fetch collections");
 
         nfts
+    }
+
+    async fn collection_activities(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Vec<CollectionActivity> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing service in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
+        let activities = db
+            .collections()
+            .fetch_collection_activities(&id, limit, offset)
+            .await
+            .expect("Failed to fetch collections");
+
+        activities
+    }
+
+    async fn nft_activities(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Vec<NftActivity> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing service in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
+        let activities = db
+            .nfts()
+            .fetch_nft_activities(&id, limit, offset)
+            .await
+            .expect("Failed to fetch collections");
+
+        activities
     }
 }

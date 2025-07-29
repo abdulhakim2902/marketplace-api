@@ -27,8 +27,8 @@ pub trait INfts: Send + Sync {
     async fn fetch_nft_activities(
         &self,
         id: &str,
-        page: i64,
-        size: i64,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<NftActivity>>;
 
     async fn count_nft_activities(&self, id: &str) -> anyhow::Result<i64>;
@@ -223,8 +223,8 @@ impl INfts for Nfts {
     async fn fetch_nft_activities(
         &self,
         id: &str,
-        page: i64,
-        size: i64,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<NftActivity>> {
         let res = sqlx::query_as!(
             NftActivity,
@@ -247,8 +247,8 @@ impl INfts for Nfts {
             LIMIT $2 OFFSET $3
             "#,
             id,
-            size,
-            size * (page - 1),
+            limit,
+            offset,
         )
         .fetch_all(&*self.pool)
         .await
