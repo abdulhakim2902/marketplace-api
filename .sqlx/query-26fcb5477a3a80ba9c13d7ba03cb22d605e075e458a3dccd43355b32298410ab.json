@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                c.id,\n                c.slug, \n                c.supply, \n                c.title, \n                c.description, \n                c.cover_url, \n                c.verified,\n                c.website,\n                c.discord,\n                c.twitter,\n                c.royalty\n            FROM collections c\n            WHERE c.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "supply",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "cover_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "website",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "discord",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "twitter",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "royalty",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "26fcb5477a3a80ba9c13d7ba03cb22d605e075e458a3dccd43355b32298410ab"
+}

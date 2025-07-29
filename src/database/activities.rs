@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::db::activity::Activity;
+use crate::models::{api::responses::activity::Activity, db::activity::Activity as DbActivity};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -9,17 +9,19 @@ pub trait IActivities: Send + Sync {
     async fn tx_insert_activities(
         &self,
         tx: &mut Transaction<'_, Postgres>,
-        items: Vec<Activity>,
+        items: Vec<DbActivity>,
     ) -> anyhow::Result<PgQueryResult>;
+
+    async fn fetch_activities(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Activity>>;
 }
 
 pub struct Activities {
-    _pool: Arc<PgPool>,
+    pool: Arc<PgPool>,
 }
 
 impl Activities {
     pub fn new(pool: Arc<PgPool>) -> Self {
-        Self { _pool: pool }
+        Self { pool }
     }
 }
 
@@ -28,7 +30,7 @@ impl IActivities for Activities {
     async fn tx_insert_activities(
         &self,
         tx: &mut Transaction<'_, Postgres>,
-        items: Vec<Activity>,
+        items: Vec<DbActivity>,
     ) -> anyhow::Result<PgQueryResult> {
         if items.is_empty() {
             return Ok(PgQueryResult::default());
@@ -79,6 +81,39 @@ impl IActivities for Activities {
         .execute(&mut **tx)
         .await
         .context("Failed to insert activities")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_activities(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Activity>> {
+        let res = sqlx::query_as!(
+            Activity,
+            r#"
+            SELECT 
+                a.tx_type,
+                a.tx_index,
+                a.tx_id,
+                a.sender,
+                a.receiver,
+                a.price,
+                a.usd_price,
+                a.market_name,
+                a.market_contract_id,
+                a.nft_id,
+                a.collection_id,
+                a.block_time,
+                a.block_height,
+                a.amount
+            FROM activities a
+            ORDER BY a.block_time
+            LIMIT $1 OFFSET $2
+            "#,
+            limit,
+            offset,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection activities")?;
 
         Ok(res)
     }

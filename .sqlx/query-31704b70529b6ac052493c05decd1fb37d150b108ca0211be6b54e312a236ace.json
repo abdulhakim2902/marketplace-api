@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id,\n                name,\n                owner,\n                collection_id,\n                burned,\n                properties,\n                description,\n                background_color,\n                image_data,\n                animation_url,\n                youtube_url,\n                avatar_url,\n                external_url,\n                uri,\n                image_url,\n                royalty,\n                version,\n                updated_at\n            FROM nfts n\n            WHERE n.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "owner",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "burned",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "properties",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "description",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "background_color",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "image_data",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "animation_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "youtube_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "avatar_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "external_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "uri",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "image_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "royalty",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 16,
+        "name": "version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 17,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "31704b70529b6ac052493c05decd1fb37d150b108ca0211be6b54e312a236ace"
+}

@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{
-        nft_activity::NftActivity, nft_info::NftInfo, nft_listing::NftListing, nft_offer::NftOffer,
-    },
-    db::nft::Nft,
+    api::responses::{nft::Nft, nft_info::NftInfo, nft_listing::NftListing, nft_offer::NftOffer},
+    db::nft::Nft as DbNft,
 };
 use anyhow::Context;
 use chrono::Utc;
@@ -15,23 +13,16 @@ pub trait INfts: Send + Sync {
     async fn tx_insert_nfts(
         &self,
         tx: &mut Transaction<'_, Postgres>,
-        items: Vec<Nft>,
+        items: Vec<DbNft>,
     ) -> anyhow::Result<PgQueryResult>;
+
+    async fn fetch_nft_by_id(&self, id: &str) -> anyhow::Result<Nft>;
 
     async fn fetch_nft_info(&self, id: &str) -> anyhow::Result<NftInfo>;
 
-    async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<Nft>>;
+    async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>>;
 
     async fn count_nft_metadata_urls(&self) -> anyhow::Result<i64>;
-
-    async fn fetch_nft_activities(
-        &self,
-        id: &str,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<NftActivity>>;
-
-    async fn count_nft_activities(&self, id: &str) -> anyhow::Result<i64>;
 
     async fn fetch_nft_listings(
         &self,
@@ -67,7 +58,7 @@ impl INfts for Nfts {
     async fn tx_insert_nfts(
         &self,
         tx: &mut Transaction<'_, Postgres>,
-        items: Vec<Nft>,
+        items: Vec<DbNft>,
     ) -> anyhow::Result<PgQueryResult> {
         if items.is_empty() {
             return Ok(PgQueryResult::default());
@@ -145,6 +136,41 @@ impl INfts for Nfts {
         Ok(res)
     }
 
+    async fn fetch_nft_by_id(&self, id: &str) -> anyhow::Result<Nft> {
+        let res = sqlx::query_as!(
+            Nft,
+            r#"
+            SELECT
+                id,
+                name,
+                owner,
+                collection_id,
+                burned,
+                properties,
+                description,
+                background_color,
+                image_data,
+                animation_url,
+                youtube_url,
+                avatar_url,
+                external_url,
+                uri,
+                image_url,
+                royalty,
+                version,
+                updated_at
+            FROM nfts n
+            WHERE n.id = $1
+            "#,
+            id,
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch nft info")?;
+
+        Ok(res)
+    }
+
     async fn fetch_nft_info(&self, id: &str) -> anyhow::Result<NftInfo> {
         let res = sqlx::query_as!(
             NftInfo,
@@ -187,9 +213,9 @@ impl INfts for Nfts {
         Ok(res)
     }
 
-    async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<Nft>> {
+    async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>> {
         let res = sqlx::query_as!(
-            Nft,
+            DbNft,
             r#"
             SELECT * FROM nfts
             WHERE nfts.uri ILIKE '%.json'
@@ -216,58 +242,6 @@ impl INfts for Nfts {
         .fetch_one(&*self.pool)
         .await
         .context("Failed to count nft metadata urls")?;
-
-        Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_nft_activities(
-        &self,
-        id: &str,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<NftActivity>> {
-        let res = sqlx::query_as!(
-            NftActivity,
-            r#"
-            SELECT 
-                a.tx_type,
-                a.tx_index,
-                a.tx_id,
-                a.sender                AS seller,
-                a.receiver              AS buyer,
-                a.amount                AS quantity,
-                a.price,
-                a.usd_price,
-                a.market_name,
-                a.market_contract_id,
-                a.block_time            AS time
-            FROM activities a
-            WHERE a.nft_id = $1
-            ORDER BY a.block_time
-            LIMIT $2 OFFSET $3
-            "#,
-            id,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch nft activitiess")?;
-
-        Ok(res)
-    }
-
-    async fn count_nft_activities(&self, id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM activities a
-            WHERE a.nft_id = $1
-            "#,
-            id
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered nft activities")?;
 
         Ok(res.unwrap_or_default())
     }

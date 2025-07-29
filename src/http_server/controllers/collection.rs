@@ -12,12 +12,11 @@ use crate::{
     },
     models::api::{
         requests::{
-            filter_activity::FilterActivity, filter_collection::FilterCollection,
-            filter_nft::FilterNft, filter_nft_change::FilterNftChange,
-            filter_nft_holder::FilterNftHolder, filter_nft_trending::FilterNftTrending,
-            filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
-            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
-            floor_chart::FloorChart,
+            filter_collection::FilterCollection, filter_nft::FilterNft,
+            filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
+            filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
+            filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
+            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
         },
         responses::{HttpResponse, HttpResponsePaging},
     },
@@ -79,22 +78,6 @@ pub async fn offers<TDb: IDatabase, TInternalService: IInternalServices>(
         .services
         .collection_service
         .fetch_collection_offers(&id, &query)
-        .await
-    {
-        Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
-
-pub async fn activities<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    Path(id): Path<String>,
-    QueryValidator(query): QueryValidator<FilterActivity>,
-) -> Response {
-    match state
-        .services
-        .collection_service
-        .fetch_collection_activities(&id, &query)
         .await
     {
         Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
