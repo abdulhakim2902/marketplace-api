@@ -65,18 +65,16 @@ where
             let total_nft = nfts.len() as i64;
 
             let nft_metadata_fut = nfts.iter().map(|nft| async move {
-                let image_url = nft.image_url.as_ref().unwrap();
-                let response = reqwest::get(image_url).await;
+                let uri = nft.uri.as_ref().unwrap();
+                let response = reqwest::get(uri).await;
                 if response.is_err() {
                     return (nft.id.clone(), None);
                 }
 
-                let value = response.unwrap().json::<NFTMetadata>().await;
-                if value.is_err() {
-                    return (nft.id.clone(), None);
-                }
-
-                (nft.id.clone(), Some(value.unwrap()))
+                (
+                    nft.id.clone(),
+                    response.unwrap().json::<NFTMetadata>().await.ok(),
+                )
             });
 
             let nft_metadata = join_all(nft_metadata_fut).await.into_iter().fold(
@@ -102,6 +100,7 @@ where
                     nft.animation_url = nft_metadata.animation_url;
                     nft.avatar_url = nft_metadata.avatar_url;
                     nft.image_data = nft_metadata.image_data;
+                    nft.uri = None;
                     if nft.name.is_none() {
                         nft.name = nft_metadata.name;
                     }

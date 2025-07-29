@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS nfts (
   properties JSONB DEFAULT NULL,
   image_data VARCHAR DEFAULT NULL,
   avatar_url VARCHAR DEFAULT NULL,
+  uri VARCHAR DEFAULT NULL,
   image_url VARCHAR DEFAULT NULL,
   external_url VARCHAR DEFAULT NULL,
   description VARCHAR DEFAULT NULL,
@@ -16,5 +17,6 @@ CREATE TABLE IF NOT EXISTS nfts (
   burned BOOLEAN DEFAULT false,
   royalty NUMERIC(20, 5),
   version VARCHAR(10) DEFAULT 'v2',
+  updated_at timestamp(6) WITH time zone DEFAULT NOW() NOT NULL,
   PRIMARY KEY (id)
 );

@@ -12,6 +12,7 @@ use aptos_indexer_processor_sdk::{
     utils::convert::standardize_address,
 };
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -29,9 +30,11 @@ pub struct Nft {
     pub youtube_url: Option<String>,
     pub avatar_url: Option<String>,
     pub external_url: Option<String>,
+    pub uri: Option<String>,
     pub image_url: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl Nft {
@@ -46,11 +49,15 @@ impl Nft {
                 id: token_addr.clone(),
                 collection_id: Some(inner.get_collection_address()),
                 name: Some(inner.name),
-                image_url: Some(inner.uri),
+                uri: Some(inner.uri.clone()),
                 description: Some(inner.description),
                 version: Some("v2".to_string()),
                 ..Default::default()
             };
+
+            if !inner.uri.ends_with(".json") {
+                nft.image_url = Some(inner.uri);
+            }
 
             if let Some(object_data) = object_metadata.get(&token_addr) {
                 let object_core = object_data.object.object_core.clone();
@@ -114,18 +121,22 @@ impl Nft {
                             .cloned(),
                     };
 
-                    let nft = Nft {
+                    let mut nft = Nft {
                         id: token_data_id_struct.to_addr(),
                         owner: owner_address,
                         collection_id: Some(token_data_id_struct.get_collection_addr()),
                         name: Some(token_data.name),
-                        image_url: Some(token_data.uri),
+                        uri: Some(token_data.uri.clone()),
                         properties: Some(token_data.default_properties),
                         description: Some(token_data.description),
                         royalty: Some(token_data.royalty.get_royalty()),
                         version: Some("v1".to_string()),
                         ..Default::default()
                     };
+
+                    if !token_data.uri.ends_with(".json") {
+                        nft.image_url = Some(token_data.uri)
+                    }
 
                     return Ok(Some(nft));
                 }

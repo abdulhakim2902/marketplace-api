@@ -7,6 +7,7 @@ use crate::models::{
     db::nft::Nft,
 };
 use anyhow::Context;
+use chrono::Utc;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 #[async_trait::async_trait]
@@ -90,7 +91,9 @@ impl INfts for Nfts {
                 youtube_url,
                 burned,
                 version,
-                royalty
+                royalty,
+                updated_at,
+                uri
             )
             "#,
         )
@@ -111,12 +114,15 @@ impl INfts for Nfts {
             b.push_bind(item.burned);
             b.push_bind(item.version.clone());
             b.push_bind(item.royalty.clone());
+            b.push_bind(Utc::now());
+            b.push_bind(item.uri);
         })
         .push(
             r#"
             ON CONFLICT (id) DO UPDATE SET
                 owner = EXCLUDED.owner,
                 name = COALESCE(EXCLUDED.name, nfts.name),
+                uri = EXCLUDED.uri,
                 image_url = COALESCE(EXCLUDED.image_url, nfts.image_url),
                 description = COALESCE(EXCLUDED.description, nfts.description),
                 properties = COALESCE(EXCLUDED.properties, nfts.properties),
@@ -127,7 +133,8 @@ impl INfts for Nfts {
                 avatar_url = COALESCE(EXCLUDED.avatar_url, nfts.avatar_url),
                 external_url = COALESCE(EXCLUDED.external_url, nfts.external_url),
                 royalty = COALESCE(EXCLUDED.royalty, nfts.royalty),
-                burned = EXCLUDED.burned
+                burned = EXCLUDED.burned,
+                updated_at = EXCLUDED.updated_at
             "#,
         )
         .build()
@@ -185,7 +192,8 @@ impl INfts for Nfts {
             Nft,
             r#"
             SELECT * FROM nfts
-            WHERE nfts.image_url ILIKE '$.json'
+            WHERE nfts.uri ILIKE '$.json'
+            ORDER BY nfts.updated_at ASC
             LIMIT $1 OFFSET $2
             "#,
             limit,
