@@ -73,11 +73,11 @@ impl IAttributes for Attributes {
             r#"
             WITH
                 collection_nfts AS (
-                    SELECT nfts.collection_id, COUNT(*) FROM nfts
+                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts
                     GROUP BY nfts.collection_id
                 ),
                 collection_attributes AS (
-                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*) FROM attributes atr
+                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr
                         JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
                     GROUP by atr.collection_id, atr.attr_type, atr.value
                 ),

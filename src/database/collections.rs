@@ -420,12 +420,12 @@ impl ICollections for Collections {
                     ORDER BY tp.token_address, tp.created_at DESC
                 ),
                 collection_nfts AS (
-                    SELECT nfts.collection_id, COUNT(*) FROM nfts
+                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts
                     WHERE nfts.collection_id = $1
                     GROUP BY nfts.collection_id
                 ),
                 collection_attributes AS (
-                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*) FROM attributes atr
+                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr
                         JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
                     WHERE atr.collection_id = $1
                     GROUP by atr.collection_id, atr.attr_type, atr.value
@@ -476,11 +476,15 @@ impl ICollections for Collections {
                 n.owner, 
                 n.description,
                 n.royalty,
-                nr.rarity_score::NUMERIC,
+                nr.rarity_score,
                 lp.price                AS listing_price,
                 lp.price * ltp.price    AS listing_usd_price,
                 s.price                 AS last_sale, 
-                lp.block_time           AS listed_at,
+                CASE
+                WHEN lp.block_time IS NOT NULL
+                    THEN lp.block_time
+                    ELSE NULL
+                END                     AS listed_at,
                 tb.price                AS top_offer
             FROM nfts n
 	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id

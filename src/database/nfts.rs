@@ -192,7 +192,7 @@ impl INfts for Nfts {
             Nft,
             r#"
             SELECT * FROM nfts
-            WHERE nfts.uri ILIKE '$.json'
+            WHERE nfts.uri ILIKE '%.json'
             ORDER BY nfts.updated_at ASC
             LIMIT $1 OFFSET $2
             "#,
@@ -210,7 +210,7 @@ impl INfts for Nfts {
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM nfts
-            WHERE nfts.image_url ILIKE '$.json'
+            WHERE nfts.uri ILIKE '%.json'
             "#,
         )
         .fetch_one(&*self.pool)
