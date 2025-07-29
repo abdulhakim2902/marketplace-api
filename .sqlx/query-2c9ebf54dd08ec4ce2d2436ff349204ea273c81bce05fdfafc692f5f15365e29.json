@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT COUNT(*) FROM activities a\n            WHERE a.nft_id = $1\n            ",
+  "query": "\n            SELECT COUNT(*) FROM activities a\n            WHERE a.tx_type = 'buy' AND a.collection_id = $1\n            GROUP BY a.collection_id\n            ",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       null
     ]
   },
-  "hash": "37e89ac71496a2cefb44e6d8193bbda8fcac9deb0d84f5a6fc46c19b20a19815"
+  "hash": "2c9ebf54dd08ec4ce2d2436ff349204ea273c81bce05fdfafc692f5f15365e29"
 }

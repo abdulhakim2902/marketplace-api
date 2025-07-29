@@ -4,15 +4,13 @@ use crate::{
     database::{IDatabase, collections::ICollections},
     models::api::{
         requests::{
-            filter_collection::FilterCollection, filter_nft::FilterNft,
-            filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
-            filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
-            filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
-            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
+            filter_nft::FilterNft, filter_nft_change::FilterNftChange,
+            filter_nft_holder::FilterNftHolder, filter_nft_trending::FilterNftTrending,
+            filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
+            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
+            floor_chart::FloorChart,
         },
         responses::{
-            collection::Collection,
-            collection_info::CollectionInfo,
             collection_nft::CollectionNft,
             collection_nft_change::CollectionNftChange,
             collection_nft_distribution::{
@@ -31,13 +29,6 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait ICollectionService {
-    async fn fetch_collections(
-        &self,
-        filter: &FilterCollection,
-    ) -> anyhow::Result<(Vec<Collection>, i64)>;
-
-    async fn fetch_collection_info(&self, id: &str) -> anyhow::Result<CollectionInfo>;
-
     async fn fetch_collection_nfts(
         &self,
         id: &str,
@@ -118,25 +109,6 @@ impl<TDb> ICollectionService for CollectionService<TDb>
 where
     TDb: IDatabase + Send + Sync + 'static,
 {
-    async fn fetch_collections(
-        &self,
-        filter: &FilterCollection,
-    ) -> anyhow::Result<(Vec<Collection>, i64)> {
-        let repository = self.db.collections();
-
-        let filter_fut = repository.filter(filter.interval, filter.limit, filter.offset);
-        let count_fut = repository.count();
-
-        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
-        let (data, count) = (data_res?, count_res?);
-
-        Ok((data, count))
-    }
-
-    async fn fetch_collection_info(&self, id: &str) -> anyhow::Result<CollectionInfo> {
-        self.db.collections().fetch_collection_info(id).await
-    }
-
     async fn fetch_collection_nfts(
         &self,
         id: &str,

@@ -18,6 +18,8 @@ pub trait INfts: Send + Sync {
 
     async fn fetch_nft_by_id(&self, id: &str) -> anyhow::Result<Nft>;
 
+    async fn fetch_total_owners(&self, collection_id: &str) -> anyhow::Result<i64>;
+
     async fn fetch_nft_info(&self, id: &str) -> anyhow::Result<NftInfo>;
 
     async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>>;
@@ -169,6 +171,23 @@ impl INfts for Nfts {
         .context("Failed to fetch nft info")?;
 
         Ok(res)
+    }
+
+    async fn fetch_total_owners(&self, collection_id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(DISTINCT n.owner)
+            FROM nfts n
+            WHERE n.collection_id = $1
+            GROUP BY n.collection_id
+            "#,
+            collection_id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count nft metadata urls")?;
+
+        Ok(res.unwrap_or_default())
     }
 
     async fn fetch_nft_info(&self, id: &str) -> anyhow::Result<NftInfo> {

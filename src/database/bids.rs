@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::models::db::bid::Bid;
 use anyhow::Context;
+use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 #[async_trait::async_trait]
@@ -11,15 +12,17 @@ pub trait IBids: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         bids: Vec<Bid>,
     ) -> anyhow::Result<PgQueryResult>;
+
+    async fn fetch_top_offer(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
 }
 
 pub struct Bids {
-    _pool: Arc<PgPool>,
+    pool: Arc<PgPool>,
 }
 
 impl Bids {
     pub fn new(pool: Arc<PgPool>) -> Self {
-        Self { _pool: pool }
+        Self { pool }
     }
 }
 
@@ -94,6 +97,26 @@ impl IBids for Bids {
         .execute(&mut **tx)
         .await
         .context("Failed to insert bids")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_top_offer(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT MAX(b.price)
+            FROM bids b
+            WHERE b.collection_id = $1
+                AND b.status = 'active'
+                AND b.bid_type = 'solo'
+                AND b.expired_at > NOW()
+            GROUP BY b.collection_id
+            "#,
+            collection_id,
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count filtered collections")?;
 
         Ok(res)
     }

@@ -109,6 +109,7 @@ impl Nft {
         self.updated_at.as_ref().map(|e| e.to_string())
     }
 
+    #[graphql(name = "rarity_score")]
     async fn rarity_score(&self, ctx: &Context<'_>) -> Option<String> {
         if self.collection_id.is_none() {
             return None;
@@ -119,7 +120,7 @@ impl Nft {
 
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing service in the context");
+            .expect("Missing database in the context");
 
         let res = db
             .attributes()

@@ -1,7 +1,6 @@
 pub mod activity;
 pub mod attribute;
 pub mod collection;
-pub mod collection_info;
 pub mod collection_nft;
 pub mod collection_nft_change;
 pub mod collection_nft_distribution;

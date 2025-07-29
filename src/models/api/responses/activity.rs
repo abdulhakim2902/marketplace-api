@@ -105,7 +105,7 @@ impl Activity {
         let nft_id = self.nft_id.as_ref().unwrap();
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing service in the context");
+            .expect("Missing database in the context");
 
         db.nfts().fetch_nft_by_id(nft_id).await.ok()
     }
@@ -118,7 +118,7 @@ impl Activity {
         let collection_id = self.collection_id.as_ref().unwrap();
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing service in the context");
+            .expect("Missing database in the context");
 
         db.collections()
             .fetch_collection_by_id(collection_id)

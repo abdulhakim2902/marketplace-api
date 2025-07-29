@@ -75,8 +75,6 @@ where
                     .nest(
                         "/collections",
                         Router::new()
-                            .route("/", get(collection::filter))
-                            .route("/{id}", get(collection::info))
                             .route("/{id}/nfts", get(collection::nfts))
                             .route("/{id}/offers", get(collection::offers))
                             .route("/{id}/floor-chart", get(collection::floor_chart))

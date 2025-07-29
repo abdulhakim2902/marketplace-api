@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT SUM(a.price) FROM activities a\n            WHERE a.tx_type = 'buy' AND a.collection_id = $1\n            GROUP BY a.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sum",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e65ccd6018bd59582c141ad1ef08db6ffac0e0f81ebd1ca20257109c6483fa35"
+}

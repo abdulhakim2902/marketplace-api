@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT MAX(b.price)\n            FROM bids b\n            WHERE b.collection_id = $1\n                AND b.status = 'active'\n                AND b.bid_type = 'solo'\n                AND b.expired_at > NOW()\n            GROUP BY b.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "max",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "961c9b75d6429800410cf018754b62b5d7cb7e70de1367113a42c075334c2267"
+}

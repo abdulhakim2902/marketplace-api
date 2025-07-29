@@ -13,7 +13,12 @@ pub trait IListings: Send + Sync {
         listings: Vec<DbListing>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn collection_floor(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
+    async fn fetch_collection_floor(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Option<BigDecimal>>;
+
+    async fn fetch_total_listed(&self, collection_id: &str) -> anyhow::Result<i64>;
 }
 
 pub struct Listings {
@@ -90,7 +95,10 @@ impl IListings for Listings {
         Ok(res)
     }
 
-    async fn collection_floor(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+    async fn fetch_collection_floor(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Option<BigDecimal>> {
         let res = sqlx::query_scalar!(
             r#"
             SELECT MIN(l.price) AS floor
@@ -102,8 +110,25 @@ impl IListings for Listings {
         )
         .fetch_one(&*self.pool)
         .await
-        .context("Failed to count filtered nft activities")?;
+        .context("Failed to fetch collection floor")?;
 
         Ok(res)
+    }
+
+    async fn fetch_total_listed(&self, collection_id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*)
+            FROM listings l
+            WHERE l.listed AND l.collection_id = $1
+            GROUP BY l.collection_id
+            "#,
+            collection_id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch total listed")?;
+
+        Ok(res.unwrap_or_default())
     }
 }

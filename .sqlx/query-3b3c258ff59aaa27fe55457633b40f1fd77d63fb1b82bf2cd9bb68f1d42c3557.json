@@ -1,0 +1,109 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH\n                prev_floors AS (\n                    SELECT DISTINCT ON (a.collection_id) a.collection_id, a.price FROM activities a\n                    WHERE a.tx_type = 'list'\n                        AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)\n                    ORDER BY a.collection_id, a.price ASC\n                ),\n                sales AS (\n                    SELECT\n                        a.collection_id,\n                        COUNT(*)            AS count,\n                        SUM(a.price)        AS volume,\n                        SUM(a.usd_price)    AS volume_usd\n                    FROM activities a\n                    WHERE a.tx_type = 'buy'\n                        AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)\n                    GROUP BY a.collection_id\n                )\n            SELECT\n                c.id,\n                c.slug, \n                c.supply, \n                c.title, \n                c.description, \n                c.cover_url, \n                c.verified,\n                c.website,\n                c.discord,\n                c.twitter,\n                c.royalty,\n                s.count             AS sales,\n                s.volume,\n                s.volume_usd,\n                pv.price            AS prev_floor\n            FROM collections c\n                LEFT JOIN sales s ON c.id = s.collection_id\n                LEFT JOIN prev_floors pv ON c.id = pv.collection_id\n            WHERE $1::TEXT IS NULL OR $1::TEXT = '' OR c.id = $1::TEXT \n            ORDER BY s.volume DESC\n            LIMIT $3 OFFSET $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "supply",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "cover_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "website",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "discord",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "twitter",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "royalty",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 11,
+        "name": "sales",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "volume",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 13,
+        "name": "volume_usd",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 14,
+        "name": "prev_floor",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Interval",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      null,
+      null,
+      true
+    ]
+  },
+  "hash": "3b3c258ff59aaa27fe55457633b40f1fd77d63fb1b82bf2cd9bb68f1d42c3557"
+}

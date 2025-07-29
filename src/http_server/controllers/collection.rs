@@ -12,46 +12,16 @@ use crate::{
     },
     models::api::{
         requests::{
-            filter_collection::FilterCollection, filter_nft::FilterNft,
-            filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
-            filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
-            filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
-            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
+            filter_nft::FilterNft, filter_nft_change::FilterNftChange,
+            filter_nft_holder::FilterNftHolder, filter_nft_trending::FilterNftTrending,
+            filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
+            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
+            floor_chart::FloorChart,
         },
         responses::{HttpResponse, HttpResponsePaging},
     },
     services::{IInternalServices, collection::ICollectionService},
 };
-
-pub async fn filter<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    QueryValidator(query): QueryValidator<FilterCollection>,
-) -> Response {
-    match state
-        .services
-        .collection_service
-        .fetch_collections(&query)
-        .await
-    {
-        Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
-
-pub async fn info<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    Path(id): Path<String>,
-) -> Response {
-    match state
-        .services
-        .collection_service
-        .fetch_collection_info(&id)
-        .await
-    {
-        Ok(data) => Json(HttpResponse { data }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
 
 pub async fn nfts<TDb: IDatabase, TInternalService: IInternalServices>(
     State(state): InternalState<TDb, TInternalService>,

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(DISTINCT n.owner)\n            FROM nfts n\n            WHERE n.collection_id = $1\n            GROUP BY n.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e76372c7af4eeb18859bc93b9bb3f99b832d880051f9172cf745fd0abc3e4744"
+}
