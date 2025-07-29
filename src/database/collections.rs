@@ -535,12 +535,12 @@ impl ICollections for Collections {
             r#"
             WITH
                 collection_nfts AS (
-                    SELECT nfts.collection_id, COUNT(*) FROM nfts
+                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts
                     WHERE nfts.collection_id = $1
                     GROUP BY nfts.collection_id
                 ),
                 collection_attributes AS (
-                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*) FROM attributes atr
+                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr
                         JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
                     WHERE atr.collection_id = $1
                     GROUP by atr.collection_id, atr.attr_type, atr.value
@@ -817,9 +817,9 @@ impl ICollections for Collections {
     async fn count_collection_nft_holders(&self, id: &str) -> anyhow::Result<i64> {
         let res = sqlx::query_scalar!(
             r#"
-            SELECT COUNT(*) FROM nfts n
+            SELECT COUNT(DISTINCT n.owner) FROM nfts n
             WHERE n.collection_id = $1 AND (n.burned IS NULL OR NOT n.burned)
-            GROUP BY n.owner
+            GROUP BY n.collection_id
             "#,
             id
         )

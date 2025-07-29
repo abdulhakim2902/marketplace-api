@@ -1,0 +1,114 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH\n                collection_nfts AS (\n                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts\n                    WHERE nfts.collection_id = $1\n                    GROUP BY nfts.collection_id\n                ),\n                collection_attributes AS (\n                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr\n                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id\n                    WHERE atr.collection_id = $1\n                    GROUP by atr.collection_id, atr.attr_type, atr.value\n                ),\n                collection_rarities AS (\n                    SELECT\n                        ca.collection_id,\n                        ca.attr_type, \n                        ca.value, \n                        (ca.count / cn.count)           AS rarity,\n                        -log(2, ca.count / cn.count)    AS score\n                    FROM collection_attributes ca\n                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id\n                ),\n                nft_rarity_scores AS (\n                    SELECT attr.nft_id, SUM(cr.score) AS rarity_score FROM attributes attr\n                        JOIN collection_rarities cr ON cr.collection_id = attr.collection_id AND cr.attr_type = attr.attr_type AND cr.value = attr.value\n                    WHERE attr.collection_id = $1\n                    GROUP BY attr.collection_id, attr.nft_id\n                )\n            SELECT \n                a.tx_type,\n                a.tx_index,\n                a.tx_id,\n                a.sender                        AS from,\n                a.receiver                      AS to,\n                a.price,\n                a.usd_price,\n                a.market_name,\n                a.market_contract_id,\n                nr.rarity_score,\n                a.amount                        AS quantity,\n                a.block_time                    AS time,\n                a.nft_id,\n                n.name                          AS nft_name,\n                n.description                   AS nft_description,\n                n.image_url                     AS nft_image_url\n            FROM activities a\n\t            LEFT JOIN nfts n ON n.id = a.nft_id\n                LEFT JOIN nft_rarity_scores nr ON nr.nft_id = a.nft_id\n            WHERE a.collection_id = $1\n            ORDER BY a.block_time\n            LIMIT $2 OFFSET $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tx_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "tx_index",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "tx_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "from",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "to",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "usd_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "market_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "market_contract_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "rarity_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 10,
+        "name": "quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "nft_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "nft_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "nft_description",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "nft_image_url",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "8dcb928ed57aa4bf8e8360c9ee0bf90dfeb4fa4005f40bf9d225a9126bbcd540"
+}

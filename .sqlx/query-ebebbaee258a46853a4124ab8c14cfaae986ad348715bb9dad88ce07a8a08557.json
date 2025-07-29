@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT COUNT(*) FROM nfts\n            WHERE nfts.image_url ILIKE '$.json'\n            ",
+  "query": "\n            SELECT COUNT(*) FROM nfts\n            WHERE nfts.uri ILIKE '%.json'\n            ",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       null
     ]
   },
-  "hash": "b5097fefd90f12dfef65e0eba2818f5fe15d541181a3f1ceaf5a11327d7b355c"
+  "hash": "ebebbaee258a46853a4124ab8c14cfaae986ad348715bb9dad88ce07a8a08557"
 }

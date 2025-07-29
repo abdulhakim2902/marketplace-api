@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT * FROM nfts\n            WHERE nfts.uri ILIKE '$.json'\n            ORDER BY nfts.updated_at ASC\n            LIMIT $1 OFFSET $2\n            ",
+  "query": "\n            SELECT * FROM nfts\n            WHERE nfts.uri ILIKE '%.json'\n            ORDER BY nfts.updated_at ASC\n            LIMIT $1 OFFSET $2\n            ",
   "describe": {
     "columns": [
       {
@@ -121,5 +121,5 @@
       false
     ]
   },
-  "hash": "6d049c8905291245be110b000bd04f49fdd4a937b5fd1beea12b2afd6e23a08f"
+  "hash": "8d50ca68e0fbfb180cc20fd927ed82ef51c62b6c85335bee67312b1e1155ae87"
 }
