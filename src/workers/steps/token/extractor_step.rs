@@ -129,7 +129,33 @@ impl Processable for TokenExtractor {
                     }
                 }
 
-                let mut deposit_event_owner: AHashMap<String, String> = AHashMap::new();
+                let mut deposit_event_owner: AHashMap<String, Option<String>> = AHashMap::new();
+                for event in events.iter() {
+                    let token_event = TokenEvent::from_event(
+                        event.type_str.as_ref(),
+                        event.data.as_str(),
+                        txn_version,
+                    );
+
+                    if let Some(token_event) = token_event.unwrap() {
+                        let account_address = event
+                            .key
+                            .as_ref()
+                            .map(|key| standardize_address(&key.account_address));
+
+                        match token_event {
+                            TokenEvent::DepositTokenEvent(inner) => {
+                                deposit_event_owner
+                                    .insert(inner.id.token_data_id.to_addr(), account_address);
+                            }
+                            TokenEvent::TokenDeposit(inner) => {
+                                deposit_event_owner
+                                    .insert(inner.id.token_data_id.to_addr(), account_address);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
 
                 for (event_index, event) in events.iter().enumerate() {
                     let event_model = EventModel::from_event(
@@ -148,7 +174,7 @@ impl Processable for TokenExtractor {
                             Activity::get_action_from_token_event_v1(&event, &txn_id, txn_version)
                                 .unwrap();
 
-                        if let Some(activity) = action_v1 {
+                        if let Some(mut activity) = action_v1 {
                             let tx_type = activity.tx_type.as_ref().unwrap().to_string();
                             if tx_type == MarketplaceEventType::Burn.to_string() {
                                 if let Some(nft) =
@@ -159,6 +185,16 @@ impl Processable for TokenExtractor {
                                 } else {
                                     let nft: Nft = activity.clone().into();
                                     self.current_burn_nfts.insert(nft.id.clone(), nft);
+                                }
+                            }
+
+                            if tx_type == MarketplaceEventType::Mint.to_string() {
+                                if activity.receiver.is_none() {
+                                    if let Some(owner) =
+                                        deposit_event_owner.get(activity.nft_id.as_ref().unwrap())
+                                    {
+                                        activity.receiver = owner.clone();
+                                    }
                                 }
                             }
 
@@ -189,30 +225,6 @@ impl Processable for TokenExtractor {
                             }
 
                             self.current_activities.insert(activity.tx_index, activity);
-                        }
-
-                        let token_event = TokenEvent::from_event(
-                            event.type_str.as_ref(),
-                            &event.data.to_string(),
-                            txn_version,
-                        );
-
-                        if let Some(token_event) = token_event.unwrap() {
-                            match token_event {
-                                TokenEvent::DepositTokenEvent(inner) => {
-                                    deposit_event_owner.insert(
-                                        inner.id.token_data_id.to_addr(),
-                                        standardize_address(&event.account_address),
-                                    );
-                                }
-                                TokenEvent::TokenDeposit(inner) => {
-                                    deposit_event_owner.insert(
-                                        inner.id.token_data_id.to_addr(),
-                                        standardize_address(&event.account_address),
-                                    );
-                                }
-                                _ => {}
-                            }
                         }
                     }
                 }

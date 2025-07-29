@@ -46,7 +46,6 @@ impl Activity {
                     block_time: Some(event.block_timestamp),
                     block_height: Some(event.transaction_block_height),
                     tx_type: Some(MarketplaceEventType::Mint.to_string()),
-                    receiver: Some(inner.get_account()),
                     collection_id: Some(inner.id.get_collection_addr()),
                     nft_id: Some(inner.id.to_addr()),
                     ..Default::default()
@@ -57,7 +56,6 @@ impl Activity {
                     block_time: Some(event.block_timestamp),
                     block_height: Some(event.transaction_block_height),
                     tx_type: Some(MarketplaceEventType::Mint.to_string()),
-                    receiver: Some(standardize_address(&event.account_address)),
                     collection_id: Some(inner.id.get_collection_addr()),
                     nft_id: Some(inner.id.to_addr()),
                     ..Default::default()

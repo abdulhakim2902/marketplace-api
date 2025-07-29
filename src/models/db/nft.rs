@@ -88,7 +88,7 @@ impl Nft {
         table_item: &WriteTableItem,
         txn_version: i64,
         table_handle_to_owner: &AHashMap<String, TableMetadataForToken>,
-        deposit_event_owner: &HashMap<String, String>,
+        deposit_event_owner: &HashMap<String, Option<String>>,
     ) -> Result<Option<Self>> {
         if let Some(table_item_data) = table_item.data.as_ref() {
             let maybe_token_data = match TokenWriteSet::from_table_item_type(
@@ -116,9 +116,17 @@ impl Nft {
                         Some(tm) if tm.table_type == TYPE_TOKEN_STORE_V1 => {
                             Some(tm.get_owner_address())
                         }
-                        _ => deposit_event_owner
-                            .get(&token_data_id_struct.to_addr())
-                            .cloned(),
+                        _ => {
+                            let deposit_event_owner = deposit_event_owner
+                                .get(&token_data_id_struct.to_addr())
+                                .cloned();
+
+                            if deposit_event_owner.is_none() {
+                                None
+                            } else {
+                                deposit_event_owner.unwrap()
+                            }
+                        }
                     };
 
                     let mut nft = Nft {
