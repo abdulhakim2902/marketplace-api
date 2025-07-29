@@ -22,8 +22,8 @@ use crate::{
     },
     http_server::HttpServer,
     services::{
-        InternalServices, Services, collection::CollectionService,
-        health::HealthService, nft::NftService,
+        InternalServices, Services, collection::CollectionService, health::HealthService,
+        nft::NftService,
     },
     utils::shutdown_utils,
     workers::Worker,

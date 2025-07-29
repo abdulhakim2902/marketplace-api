@@ -152,8 +152,7 @@ where
     ) -> anyhow::Result<(Vec<CollectionNft>, i64)> {
         let repository = self.db.collections();
 
-        let filter_fut =
-            repository.fetch_collection_nfts(id, filter.paging.page, filter.paging.page_size);
+        let filter_fut = repository.fetch_collection_nfts(id, filter.limit, filter.offset);
 
         let count_fut = repository.count_collection_nfts(id);
 

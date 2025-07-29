@@ -50,8 +50,8 @@ pub trait ICollections: Send + Sync {
     async fn fetch_collection_nfts(
         &self,
         id: &str,
-        page: i64,
-        size: i64,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<CollectionNft>>;
 
     async fn count_collection_nfts(&self, id: &str) -> anyhow::Result<i64>;
@@ -407,8 +407,8 @@ impl ICollections for Collections {
     async fn fetch_collection_nfts(
         &self,
         id: &str,
-        page: i64,
-        size: i64,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<CollectionNft>> {
         let res = sqlx::query_as!(
             CollectionNft,
@@ -498,8 +498,8 @@ impl ICollections for Collections {
             LIMIT $2 OFFSET $3
             "#,
             id,
-            size,
-            size * (page - 1),
+            limit,
+            offset,
         )
         .fetch_all(&*self.pool)
         .await

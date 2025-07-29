@@ -5,7 +5,7 @@ use axum::response::{Html, IntoResponse};
 
 use crate::{
     database::{Database, IDatabase, collections::ICollections},
-    models::api::responses::collection::Collection,
+    models::api::responses::{collection::Collection, collection_nft::CollectionNft},
     utils::string_utils,
 };
 
@@ -43,25 +43,26 @@ impl Query {
         collections
     }
 
-    // async fn collection_nfts(&self, ctx: &Context<'_>, id: String) -> Vec<CollectionNft> {
-    //     let services = ctx
-    //         .data::<Arc<Services<InternalServices>>>()
-    //         .expect("Missing service in the context");
+    async fn collection_nfts(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Vec<CollectionNft> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing service in the context");
 
-    //     let filter = FilterCollection {
-    //         interval: None,
-    //         paging: PagingRequest {
-    //             page: 1,
-    //             page_size: 10,
-    //         },
-    //     };
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
 
-    //     let nfts = services
-    //         .collection_service
-    //         .fetch_collection_nfts(&filter)
-    //         .await
-    //         .expect("Failed to fetch collections");
+        let nfts = db
+            .collections()
+            .fetch_collection_nfts(&id, limit, offset)
+            .await
+            .expect("Failed to fetch collections");
 
-    //     collections.0
-    // }
+        nfts
+    }
 }
