@@ -19,4 +19,5 @@ pub struct CollectionActivity {
     pub nft_description: Option<String>,
     pub nft_image_url: Option<String>,
     pub quantity: Option<i64>,
+    pub rarity_score: Option<BigDecimal>,
 }

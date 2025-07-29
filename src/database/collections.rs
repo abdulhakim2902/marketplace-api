@@ -435,10 +435,16 @@ impl ICollections for Collections {
                         ca.collection_id,
                         ca.attr_type, 
                         ca.value, 
-                        (ca.count / cn.count) AS rarity,
-                        -log(2, ca.count / cn.count) AS score
+                        (ca.count / cn.count)           AS rarity,
+                        -log(2, ca.count / cn.count)    AS score
                     FROM collection_attributes ca
                         JOIN collection_nfts cn ON ca.collection_id = cn.collection_id
+                ),
+                nft_rarity_scores AS (
+                    SELECT attr.nft_id, SUM(cr.score) AS rarity_score FROM attributes attr
+                        JOIN collection_rarities cr ON cr.collection_id = attr.collection_id AND cr.attr_type = attr.attr_type AND cr.value = attr.value
+                    WHERE attr.collection_id = $1
+                    GROUP BY attr.collection_id, attr.nft_id
                 ),
                 listing_prices AS (
                     SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time
@@ -470,7 +476,7 @@ impl ICollections for Collections {
                 n.owner, 
                 n.description,
                 n.royalty,
-                cr.rarity::NUMERIC,
+                nr.rarity_score::NUMERIC,
                 lp.price                AS listing_price,
                 lp.price * ltp.price    AS listing_usd_price,
                 s.price                 AS last_sale, 
@@ -480,8 +486,7 @@ impl ICollections for Collections {
 	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
 	            LEFT JOIN sales s ON s.nft_id = n.id
                 LEFT JOIN top_bids tb ON tb.nft_id = n.id
-                LEFT JOIN attributes attr ON attr.nft_id = n.id
-                LEFT JOIN collection_rarities cr ON cr.attr_type = attr.attr_type AND cr.value = attr.value
+                LEFT JOIN nft_rarity_scores nr ON nr.nft_id = n.id
                 LEFT JOIN latest_prices ltp ON TRUE
             WHERE n.collection_id = $1 
                 AND (n.burned IS NULL OR NOT n.burned)
@@ -524,6 +529,34 @@ impl ICollections for Collections {
         let res = sqlx::query_as!(
             CollectionActivity,
             r#"
+            WITH
+                collection_nfts AS (
+                    SELECT nfts.collection_id, COUNT(*) FROM nfts
+                    WHERE nfts.collection_id = $1
+                    GROUP BY nfts.collection_id
+                ),
+                collection_attributes AS (
+                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*) FROM attributes atr
+                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
+                    WHERE atr.collection_id = $1
+                    GROUP by atr.collection_id, atr.attr_type, atr.value
+                ),
+                collection_rarities AS (
+                    SELECT
+                        ca.collection_id,
+                        ca.attr_type, 
+                        ca.value, 
+                        (ca.count / cn.count)           AS rarity,
+                        -log(2, ca.count / cn.count)    AS score
+                    FROM collection_attributes ca
+                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id
+                ),
+                nft_rarity_scores AS (
+                    SELECT attr.nft_id, SUM(cr.score) AS rarity_score FROM attributes attr
+                        JOIN collection_rarities cr ON cr.collection_id = attr.collection_id AND cr.attr_type = attr.attr_type AND cr.value = attr.value
+                    WHERE attr.collection_id = $1
+                    GROUP BY attr.collection_id, attr.nft_id
+                )
             SELECT 
                 a.tx_type,
                 a.tx_index,
@@ -534,6 +567,7 @@ impl ICollections for Collections {
                 a.usd_price,
                 a.market_name,
                 a.market_contract_id,
+                nr.rarity_score,
                 a.amount                        AS quantity,
                 a.block_time                    AS time,
                 a.nft_id,
@@ -542,6 +576,7 @@ impl ICollections for Collections {
                 n.image_url                     AS nft_image_url
             FROM activities a
 	            LEFT JOIN nfts n ON n.id = a.nft_id
+                LEFT JOIN nft_rarity_scores nr ON nr.nft_id = a.nft_id
             WHERE a.collection_id = $1
             ORDER BY a.block_time
             LIMIT $2 OFFSET $3
