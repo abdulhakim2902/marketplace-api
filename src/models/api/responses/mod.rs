@@ -1,3 +1,4 @@
+pub mod attribute;
 pub mod collection;
 pub mod collection_activity;
 pub mod collection_info;

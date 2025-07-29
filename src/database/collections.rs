@@ -419,6 +419,27 @@ impl ICollections for Collections {
                     WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
                     ORDER BY tp.token_address, tp.created_at DESC
                 ),
+                collection_nfts AS (
+                    SELECT nfts.collection_id, COUNT(*) FROM nfts
+                    WHERE nfts.collection_id = $1
+                    GROUP BY nfts.collection_id
+                ),
+                collection_attributes AS (
+                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*) FROM attributes atr
+                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
+                    WHERE atr.collection_id = $1
+                    GROUP by atr.collection_id, atr.attr_type, atr.value
+                ),
+                collection_rarities AS (
+                    SELECT
+                        ca.collection_id,
+                        ca.attr_type, 
+                        ca.value, 
+                        (ca.count / cn.count) AS rarity,
+                        -log(2, ca.count / cn.count) AS score
+                    FROM collection_attributes ca
+                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id
+                ),
                 listing_prices AS (
                     SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time
                     FROM listings l
@@ -449,6 +470,7 @@ impl ICollections for Collections {
                 n.owner, 
                 n.description,
                 n.royalty,
+                cr.rarity::NUMERIC,
                 lp.price                AS listing_price,
                 lp.price * ltp.price    AS listing_usd_price,
                 s.price                 AS last_sale, 
@@ -458,6 +480,8 @@ impl ICollections for Collections {
 	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
 	            LEFT JOIN sales s ON s.nft_id = n.id
                 LEFT JOIN top_bids tb ON tb.nft_id = n.id
+                LEFT JOIN attributes attr ON attr.nft_id = n.id
+                LEFT JOIN collection_rarities cr ON cr.attr_type = attr.attr_type AND cr.value = attr.value
                 LEFT JOIN latest_prices ltp ON TRUE
             WHERE n.collection_id = $1 
                 AND (n.burned IS NULL OR NOT n.burned)

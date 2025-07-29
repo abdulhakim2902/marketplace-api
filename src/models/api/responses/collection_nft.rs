@@ -15,4 +15,5 @@ pub struct CollectionNft {
     pub listed_at: Option<DateTime<Utc>>,
     pub top_offer: Option<BigDecimal>,
     pub royalty: Option<BigDecimal>,
+    pub rarity: Option<BigDecimal>,
 }
