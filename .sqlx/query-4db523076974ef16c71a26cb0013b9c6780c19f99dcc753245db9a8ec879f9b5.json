@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                c.id,\n                c.slug, \n                c.supply, \n                c.title, \n                c.description, \n                c.cover_url, \n                c.verified,\n                c.website,\n                c.discord,\n                c.twitter,\n                c.royalty,\n                NULL::BIGINT                                AS sales,\n                NULL::NUMERIC                               AS volume,\n                NULL::NUMERIC                               AS volume_usd,\n                NULL::NUMERIC                               AS prev_floor\n            FROM collections c\n            WHERE c.id = $1\n            ",
+  "query": "\n            WITH sales AS (\n                SELECT a.collection_id, SUM(a.price) AS volume FROM activities a\n                WHERE a.tx_type = 'buy'\n                GROUP BY a.collection_id\n            )\n            SELECT\n                c.id,\n                c.slug, \n                c.supply, \n                c.title, \n                c.description, \n                c.cover_url, \n                c.verified,\n                c.website,\n                c.discord,\n                c.twitter,\n                c.royalty,\n                s.volume            AS total_volume\n            FROM collections c\n                LEFT JOIN sales s ON s.collection_id = c.id\n            WHERE $1::TEXT IS NULL OR $1::TEXT = '' OR c.id = $1::TEXT \n            ORDER BY s.volume DESC\n            LIMIT $2 OFFSET $3\n            ",
   "describe": {
     "columns": [
       {
@@ -60,28 +60,15 @@
       },
       {
         "ordinal": 11,
-        "name": "sales",
-        "type_info": "Int8"
-      },
-      {
-        "ordinal": 12,
-        "name": "volume",
-        "type_info": "Numeric"
-      },
-      {
-        "ordinal": 13,
-        "name": "volume_usd",
-        "type_info": "Numeric"
-      },
-      {
-        "ordinal": 14,
-        "name": "prev_floor",
+        "name": "total_volume",
         "type_info": "Numeric"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Text",
+        "Int8",
+        "Int8"
       ]
     },
     "nullable": [
@@ -96,11 +83,8 @@
       true,
       true,
       true,
-      null,
-      null,
-      null,
       null
     ]
   },
-  "hash": "920a1a0e2fbcac50fcbb2a2e2f5f4359ffcfcca9e457fa414ef2c45b9be445cc"
+  "hash": "4db523076974ef16c71a26cb0013b9c6780c19f99dcc753245db9a8ec879f9b5"
 }

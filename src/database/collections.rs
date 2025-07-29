@@ -36,13 +36,10 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_collections(
         &self,
-        collection_id: Option<String>,
-        interval: Option<PgInterval>,
+        id: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<Collection>>;
-
-    async fn fetch_collection_by_id(&self, id: &str) -> anyhow::Result<Collection>;
 
     async fn count(&self) -> anyhow::Result<i64>;
 
@@ -210,66 +207,20 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn fetch_collection_by_id(&self, id: &str) -> anyhow::Result<Collection> {
-        let res = sqlx::query_as!(
-            Collection,
-            r#"
-            SELECT
-                c.id,
-                c.slug, 
-                c.supply, 
-                c.title, 
-                c.description, 
-                c.cover_url, 
-                c.verified,
-                c.website,
-                c.discord,
-                c.twitter,
-                c.royalty,
-                NULL::BIGINT                                AS sales,
-                NULL::NUMERIC                               AS volume,
-                NULL::NUMERIC                               AS volume_usd,
-                NULL::NUMERIC                               AS prev_floor
-            FROM collections c
-            WHERE c.id = $1
-            "#,
-            id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch collection")?;
-
-        Ok(res)
-    }
-
     async fn fetch_collections(
         &self,
-        collection_id: Option<String>,
-        interval: Option<PgInterval>,
+        id: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<Collection>> {
         let res = sqlx::query_as!(
             Collection,
             r#"
-            WITH
-                prev_floors AS (
-                    SELECT DISTINCT ON (a.collection_id) a.collection_id, a.price FROM activities a
-                    WHERE a.tx_type = 'list'
-                        AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-                    ORDER BY a.collection_id, a.price ASC
-                ),
-                sales AS (
-                    SELECT
-                        a.collection_id,
-                        COUNT(*)            AS count,
-                        SUM(a.price)        AS volume,
-                        SUM(a.usd_price)    AS volume_usd
-                    FROM activities a
-                    WHERE a.tx_type = 'buy'
-                        AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-                    GROUP BY a.collection_id
-                )
+            WITH sales AS (
+                SELECT a.collection_id, SUM(a.price) AS volume FROM activities a
+                WHERE a.tx_type = 'buy'
+                GROUP BY a.collection_id
+            )
             SELECT
                 c.id,
                 c.slug, 
@@ -282,19 +233,14 @@ impl ICollections for Collections {
                 c.discord,
                 c.twitter,
                 c.royalty,
-                s.count             AS sales,
-                s.volume,
-                s.volume_usd,
-                pv.price            AS prev_floor
+                s.volume            AS total_volume
             FROM collections c
-                LEFT JOIN sales s ON c.id = s.collection_id
-                LEFT JOIN prev_floors pv ON c.id = pv.collection_id
+                LEFT JOIN sales s ON s.collection_id = c.id
             WHERE $1::TEXT IS NULL OR $1::TEXT = '' OR c.id = $1::TEXT 
             ORDER BY s.volume DESC
-            LIMIT $3 OFFSET $4
+            LIMIT $2 OFFSET $3
             "#,
-            collection_id,
-            interval,
+            id,
             limit,
             offset,
         )

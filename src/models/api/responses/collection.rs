@@ -5,8 +5,11 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
-use crate::database::{
-    Database, IDatabase, activities::IActivities, bids::IBids, listings::IListings, nfts::INfts,
+use crate::{
+    database::{
+        Database, IDatabase, activities::IActivities, bids::IBids, listings::IListings, nfts::INfts,
+    },
+    utils::string_utils,
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
@@ -22,10 +25,7 @@ pub struct Collection {
     pub discord: Option<String>,
     pub twitter: Option<String>,
     pub royalty: Option<BigDecimal>,
-    pub prev_floor: Option<BigDecimal>,
-    pub sales: Option<i64>,
-    pub volume: Option<BigDecimal>,
-    pub volume_usd: Option<BigDecimal>,
+    pub total_volume: Option<BigDecimal>,
 }
 
 #[async_graphql::Object]
@@ -139,122 +139,69 @@ impl Collection {
         self.royalty.as_ref().map(|e| e.to_plain_string())
     }
 
-    #[graphql(name = "prev_floor")]
-    async fn prev_floor(&self) -> Option<String> {
-        self.prev_floor.as_ref().map(|e| e.to_plain_string())
-    }
-
-    async fn sales(&self, ctx: &Context<'_>) -> Option<i64> {
+    #[graphql(name = "past_floor")]
+    async fn past_floor(&self, ctx: &Context<'_>, interval: Option<String>) -> Option<String> {
         if self.id.is_none() {
             return None;
         }
 
-        if self.sales.is_none() {
-            let collection_id = self.id.as_ref().unwrap();
-            let db = ctx
-                .data::<Arc<Database>>()
-                .expect("Missing database in the context");
+        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
+            .expect("Invalid interval");
 
-            db.activities().fetch_sales(collection_id).await.ok()
+        let collection_id = self.id.as_ref().unwrap();
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let res = db.activities().fetch_past_floor(collection_id, i).await;
+        if res.is_err() {
+            None
         } else {
-            self.sales
+            res.unwrap().map(|e| e.to_plain_string())
         }
     }
 
-    async fn volume(&self, ctx: &Context<'_>) -> Option<String> {
+    async fn sale(&self, ctx: &Context<'_>, interval: Option<String>) -> Option<CollectionSale> {
         if self.id.is_none() {
             return None;
         }
 
-        if self.volume.is_none() {
-            let collection_id = self.id.as_ref().unwrap();
-            let db = ctx
-                .data::<Arc<Database>>()
-                .expect("Missing database in the context");
+        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
+            .expect("Invalid interval");
 
-            let res = db.activities().fetch_volume(collection_id).await;
-            if res.is_err() {
-                None
-            } else {
-                res.unwrap().map(|e| e.to_plain_string())
-            }
-        } else {
-            self.volume.as_ref().map(|e| e.to_plain_string())
-        }
+        let collection_id = self.id.as_ref().unwrap();
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.activities().fetch_sale(collection_id, i).await.ok()
+    }
+
+    #[graphql(name = "total_volume")]
+    async fn total_volume(&self) -> Option<String> {
+        self.total_volume.as_ref().map(|e| e.to_string())
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
+pub struct CollectionSale {
+    pub total: Option<i64>,
+    pub volume: Option<BigDecimal>,
+    pub volume_usd: Option<BigDecimal>,
+}
+
+#[async_graphql::Object]
+impl CollectionSale {
+    async fn total(&self) -> Option<i64> {
+        self.total
+    }
+
+    async fn volume(&self) -> Option<String> {
+        self.volume.as_ref().map(|e| e.to_string())
     }
 
     #[graphql(name = "volume_usd")]
-    async fn volume_usd(&self, ctx: &Context<'_>) -> Option<String> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        if self.volume.is_none() {
-            let collection_id = self.id.as_ref().unwrap();
-            let db = ctx
-                .data::<Arc<Database>>()
-                .expect("Missing database in the context");
-
-            let res = db.activities().fetch_volume_usd(collection_id).await;
-            if res.is_err() {
-                None
-            } else {
-                res.unwrap().map(|e| e.to_plain_string())
-            }
-        } else {
-            self.volume_usd.as_ref().map(|e| e.to_plain_string())
-        }
-    }
-
-    #[graphql(name = "sales_24h")]
-    async fn sales_24h(&self, ctx: &Context<'_>) -> Option<i64> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        db.activities().fetch_sales_24h(collection_id).await.ok()
-    }
-
-    #[graphql(name = "volume_24h")]
-    async fn volume_24h(&self, ctx: &Context<'_>) -> Option<String> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let res = db.activities().fetch_volume_24h(collection_id).await;
-        if res.is_err() {
-            return None;
-        }
-
-        res.unwrap().map(|e| e.to_string())
-    }
-
-    #[graphql(name = "volume_usd_24h")]
-    async fn volume_usd_24h(&self, ctx: &Context<'_>) -> Option<String> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let res = db.activities().fetch_volume_usd_24h(collection_id).await;
-        if res.is_err() {
-            return None;
-        }
-
-        res.unwrap().map(|e| e.to_string())
+    async fn volume_usd(&self) -> Option<String> {
+        self.volume_usd.as_ref().map(|e| e.to_string())
     }
 }

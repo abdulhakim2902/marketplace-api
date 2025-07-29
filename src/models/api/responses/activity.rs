@@ -120,9 +120,15 @@ impl Activity {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        db.collections()
-            .fetch_collection_by_id(collection_id)
-            .await
-            .ok()
+        let res = db
+            .collections()
+            .fetch_collections(Some(collection_id.to_string()), 1, 0)
+            .await;
+
+        if res.is_err() {
+            return None;
+        }
+
+        res.unwrap().first().cloned()
     }
 }

@@ -1,9 +1,15 @@
 use std::sync::Arc;
 
-use crate::models::{api::responses::activity::Activity, db::activity::Activity as DbActivity};
+use crate::models::{
+    api::responses::{activity::Activity, collection::CollectionSale},
+    db::activity::Activity as DbActivity,
+};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
-use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+use sqlx::{
+    PgPool, Postgres, QueryBuilder, Transaction,
+    postgres::{PgQueryResult, types::PgInterval},
+};
 
 #[async_trait::async_trait]
 pub trait IActivities: Send + Sync {
@@ -15,18 +21,17 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_activities(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Activity>>;
 
-    async fn fetch_sales(&self, collection_id: &str) -> anyhow::Result<i64>;
+    async fn fetch_past_floor(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<Option<BigDecimal>>;
 
-    async fn fetch_volume(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
-
-    async fn fetch_volume_usd(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
-
-    async fn fetch_sales_24h(&self, collection_id: &str) -> anyhow::Result<i64>;
-
-    async fn fetch_volume_24h(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
-
-    async fn fetch_volume_usd_24h(&self, collection_id: &str)
-    -> anyhow::Result<Option<BigDecimal>>;
+    async fn fetch_sale(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<CollectionSale>;
 }
 
 pub struct Activities {
@@ -132,30 +137,21 @@ impl IActivities for Activities {
         Ok(res)
     }
 
-    async fn fetch_sales(&self, collection_id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM activities a
-            WHERE a.tx_type = 'buy' AND a.collection_id = $1
-            GROUP BY a.collection_id
-            "#,
-            collection_id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch sales")?;
-
-        Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_volume(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+    async fn fetch_past_floor(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<Option<BigDecimal>> {
         let res = sqlx::query_scalar!(
             r#"
             SELECT SUM(a.price) FROM activities a
-            WHERE a.tx_type = 'buy' AND a.collection_id = $1
+            WHERE a.tx_type = 'buy' 
+                AND a.collection_id = $1
+                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
             GROUP BY a.collection_id
             "#,
             collection_id,
+            interval,
         )
         .fetch_one(&*self.pool)
         .await
@@ -164,75 +160,27 @@ impl IActivities for Activities {
         Ok(res)
     }
 
-    async fn fetch_volume_usd(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT SUM(a.usd_price) FROM activities a
-            WHERE a.tx_type = 'buy' AND a.collection_id = $1
-            GROUP BY a.collection_id
-            "#,
-            collection_id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch volume usd")?;
-
-        Ok(res)
-    }
-
-    async fn fetch_sales_24h(&self, collection_id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM activities a
-            WHERE a.tx_type = 'buy'
-                AND a.block_time >= NOW() - '1d'::INTERVAL
-                AND a.collection_id = $1
-            GROUP BY a.collection_id
-            "#,
-            collection_id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch sales 24h")?;
-
-        Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_volume_24h(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT SUM(a.price) FROM activities a
-            WHERE a.tx_type = 'buy'
-                AND a.block_time >= NOW() - '1d'::INTERVAL
-                AND a.collection_id = $1
-            GROUP BY a.collection_id
-            "#,
-            collection_id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch volume 24h")?;
-
-        Ok(res)
-    }
-
-    async fn fetch_volume_usd_24h(
+    async fn fetch_sale(
         &self,
         collection_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>> {
-        let res = sqlx::query_scalar!(
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<CollectionSale> {
+        let res = sqlx::query_as!(
+            CollectionSale,
             r#"
-            SELECT SUM(a.usd_price) FROM activities a
+            SELECT COUNT(*) AS total, SUM(a.price) AS volume, SUM(a.usd_price) AS volume_usd
+            FROM activities a
             WHERE a.tx_type = 'buy'
-                AND a.block_time >= NOW() - '1d'::INTERVAL
                 AND a.collection_id = $1
+                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
             GROUP BY a.collection_id
             "#,
             collection_id,
+            interval,
         )
         .fetch_one(&*self.pool)
         .await
-        .context("Failed to fetch volume usd 24h")?;
+        .context("Failed to fetch sales")?;
 
         Ok(res)
     }
