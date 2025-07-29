@@ -493,6 +493,7 @@ impl ICollections for Collections {
                 a.usd_price,
                 a.market_name,
                 a.market_contract_id,
+                a.amount                AS quantity,
                 a.block_time            AS time,
                 a.nft_id,
                 n.name                  AS nft_name,

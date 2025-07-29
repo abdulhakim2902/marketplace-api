@@ -28,6 +28,7 @@ pub struct Activity {
     pub market_name: Option<String>,
     pub market_contract_id: Option<String>,
     pub usd_price: Option<BigDecimal>,
+    pub amount: Option<i64>,
 }
 
 impl Activity {
@@ -48,6 +49,7 @@ impl Activity {
                     tx_type: Some(MarketplaceEventType::Mint.to_string()),
                     collection_id: Some(inner.id.get_collection_addr()),
                     nft_id: Some(inner.id.to_addr()),
+                    amount: Some(1),
                     ..Default::default()
                 }),
                 TokenEvent::MintTokenEvent(inner) => Some(Activity {
@@ -57,6 +59,7 @@ impl Activity {
                     block_height: Some(event.transaction_block_height),
                     tx_type: Some(MarketplaceEventType::Mint.to_string()),
                     collection_id: Some(inner.id.get_collection_addr()),
+                    amount: Some(1),
                     nft_id: Some(inner.id.to_addr()),
                     ..Default::default()
                 }),
@@ -69,6 +72,7 @@ impl Activity {
                     sender: Some(inner.get_account()),
                     collection_id: Some(inner.id.token_data_id.get_collection_addr()),
                     nft_id: Some(inner.id.token_data_id.to_addr()),
+                    amount: Some(1),
                     ..Default::default()
                 }),
                 TokenEvent::BurnTokenEvent(inner) => Some(Activity {
@@ -80,6 +84,7 @@ impl Activity {
                     sender: Some(standardize_address(&event.account_address)),
                     collection_id: Some(inner.id.token_data_id.get_collection_addr()),
                     nft_id: Some(inner.id.token_data_id.to_addr()),
+                    amount: Some(1),
                     ..Default::default()
                 }),
                 _ => None,
@@ -122,6 +127,7 @@ impl Activity {
                         tx_type: Some(MarketplaceEventType::Mint.to_string()),
                         receiver: Some(object_data.object.object_core.get_owner_address()),
                         collection_id: Some(mint.get_collection_address()),
+                        amount: Some(1),
                         nft_id: Some(mint.get_token_address()),
                         ..Default::default()
                     }),
@@ -133,6 +139,7 @@ impl Activity {
                         tx_type: Some(MarketplaceEventType::Mint.to_string()),
                         receiver: Some(object_data.object.object_core.get_owner_address()),
                         collection_id: Some(standardize_address(&event.account_address)),
+                        amount: Some(1),
                         nft_id: Some(mint.get_token_address()),
                         ..Default::default()
                     }),
@@ -144,6 +151,7 @@ impl Activity {
                         tx_type: Some(MarketplaceEventType::Burn.to_string()),
                         sender: burn.get_previous_owner_address(),
                         collection_id: Some(burn.get_collection_address()),
+                        amount: Some(1),
                         nft_id: Some(burn.get_token_address()),
                         ..Default::default()
                     }),
@@ -155,6 +163,7 @@ impl Activity {
                         tx_type: Some(MarketplaceEventType::Burn.to_string()),
                         sender: sender.map(|s| s.to_string()),
                         collection_id: Some(standardize_address(&event.account_address)),
+                        amount: Some(1),
                         nft_id: Some(burn.get_token_address()),
                         ..Default::default()
                     }),
@@ -169,6 +178,7 @@ impl Activity {
                                 sender: Some(transfer.get_from_address()),
                                 receiver: Some(transfer.get_to_address()),
                                 collection_id: Some(token.get_collection_address()),
+                                amount: Some(1),
                                 nft_id: Some(transfer.get_object_address()),
                                 ..Default::default()
                             })

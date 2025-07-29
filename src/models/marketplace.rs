@@ -59,6 +59,7 @@ impl From<NftMarketplaceActivity> for Activity {
             market_name: value.marketplace,
             block_height: Some(value.block_height),
             usd_price: value.usd_price,
+            amount: value.token_amount,
         }
     }
 }

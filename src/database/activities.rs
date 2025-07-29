@@ -49,7 +49,8 @@ impl IActivities for Activities {
                 market_name,
                 usd_price,
                 block_time,
-                block_height
+                block_height,
+                amount
             )
             "#,
         )
@@ -67,6 +68,7 @@ impl IActivities for Activities {
             b.push_bind(item.usd_price);
             b.push_bind(item.block_time);
             b.push_bind(item.block_height);
+            b.push_bind(item.amount);
         })
         .push(
             r#"
