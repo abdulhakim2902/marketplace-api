@@ -1,7 +1,6 @@
 pub mod activity;
 pub mod attribute;
 pub mod collection;
-pub mod collection_nft;
 pub mod collection_nft_change;
 pub mod collection_nft_distribution;
 pub mod collection_nft_holder;
@@ -12,7 +11,6 @@ pub mod collection_top_buyer;
 pub mod collection_top_seller;
 pub mod data_point;
 pub mod nft;
-pub mod nft_info;
 pub mod nft_listing;
 pub mod nft_offer;
 

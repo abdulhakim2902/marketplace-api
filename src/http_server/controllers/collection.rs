@@ -12,32 +12,15 @@ use crate::{
     },
     models::api::{
         requests::{
-            filter_nft::FilterNft, filter_nft_change::FilterNftChange,
-            filter_nft_holder::FilterNftHolder, filter_nft_trending::FilterNftTrending,
-            filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
-            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
-            floor_chart::FloorChart,
+            filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
+            filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
+            filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
+            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
         },
         responses::{HttpResponse, HttpResponsePaging},
     },
     services::{IInternalServices, collection::ICollectionService},
 };
-
-pub async fn nfts<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    Path(id): Path<String>,
-    QueryValidator(query): QueryValidator<FilterNft>,
-) -> Response {
-    match state
-        .services
-        .collection_service
-        .fetch_collection_nfts(&id, &query)
-        .await
-    {
-        Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
 
 pub async fn offers<TDb: IDatabase, TInternalService: IInternalServices>(
     State(state): InternalState<TDb, TInternalService>,

@@ -9,7 +9,6 @@ use crate::utils::string_utils;
 
 pub mod filter_activity;
 pub mod filter_listing;
-pub mod filter_nft;
 pub mod filter_nft_change;
 pub mod filter_nft_holder;
 pub mod filter_nft_trending;

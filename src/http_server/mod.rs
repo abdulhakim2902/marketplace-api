@@ -75,7 +75,6 @@ where
                     .nest(
                         "/collections",
                         Router::new()
-                            .route("/{id}/nfts", get(collection::nfts))
                             .route("/{id}/offers", get(collection::offers))
                             .route("/{id}/floor-chart", get(collection::floor_chart))
                             .route("/{id}/top-buyers", get(collection::top_buyers))
@@ -99,7 +98,6 @@ where
                     .nest(
                         "/nfts",
                         Router::new()
-                            .route("/{id}", get(nft::info))
                             .route("/{id}/offers", get(nft::offers))
                             .route("/{id}/listings", get(nft::listings)),
                     ),

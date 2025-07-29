@@ -6,9 +6,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
 use crate::{
-    database::{
-        Database, IDatabase, activities::IActivities, bids::IBids, listings::IListings, nfts::INfts,
-    },
+    database::{Database, IDatabase, activities::IActivities, bids::IBids},
     utils::string_utils,
 };
 
@@ -26,6 +24,10 @@ pub struct Collection {
     pub twitter: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub total_volume: Option<BigDecimal>,
+    pub total_sale: Option<i64>,
+    pub total_owner: Option<i64>,
+    pub floor: Option<BigDecimal>,
+    pub listed: Option<i64>,
 }
 
 #[async_graphql::Object]
@@ -55,49 +57,12 @@ impl Collection {
         self.cover_url.as_ref().map(|e| e.as_str())
     }
 
-    async fn floor(&self, ctx: &Context<'_>) -> Option<String> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let res = db.listings().fetch_collection_floor(collection_id).await;
-
-        if res.is_err() {
-            return None;
-        }
-
-        res.unwrap().map(|e| e.to_plain_string())
+    async fn floor(&self) -> Option<String> {
+        self.floor.as_ref().map(|e| e.to_string())
     }
 
-    async fn listed(&self, ctx: &Context<'_>) -> Option<i64> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        db.listings().fetch_total_listed(collection_id).await.ok()
-    }
-
-    async fn owners(&self, ctx: &Context<'_>) -> Option<i64> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        db.nfts().fetch_total_owners(collection_id).await.ok()
+    async fn listed(&self) -> Option<i64> {
+        self.listed
     }
 
     #[graphql(name = "top_offer")]
@@ -111,12 +76,12 @@ impl Collection {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let res = db.bids().fetch_top_offer(collection_id).await;
+        let res = db.bids().fetch_collection_top_offer(collection_id).await;
         if res.is_err() {
             return None;
         }
 
-        res.unwrap().map(|e| e.to_string())
+        res.unwrap().map(|e| e.to_plain_string())
     }
 
     async fn verified(&self) -> Option<bool> {
@@ -179,7 +144,17 @@ impl Collection {
 
     #[graphql(name = "total_volume")]
     async fn total_volume(&self) -> Option<String> {
-        self.total_volume.as_ref().map(|e| e.to_string())
+        self.total_volume.as_ref().map(|e| e.to_plain_string())
+    }
+
+    #[graphql(name = "total_sale")]
+    async fn total_sale(&self) -> Option<i64> {
+        self.total_sale
+    }
+
+    #[graphql(name = "total_owner")]
+    async fn total_owner(&self) -> Option<i64> {
+        self.total_owner
     }
 }
 

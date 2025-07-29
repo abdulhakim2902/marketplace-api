@@ -13,7 +13,12 @@ pub trait IBids: Send + Sync {
         bids: Vec<Bid>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_top_offer(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
+    async fn fetch_collection_top_offer(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Option<BigDecimal>>;
+
+    async fn fetch_nft_top_offer(&self, nft_id: &str) -> anyhow::Result<Option<BigDecimal>>;
 }
 
 pub struct Bids {
@@ -101,7 +106,10 @@ impl IBids for Bids {
         Ok(res)
     }
 
-    async fn fetch_top_offer(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+    async fn fetch_collection_top_offer(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Option<BigDecimal>> {
         let res = sqlx::query_scalar!(
             r#"
             SELECT MAX(b.price)
@@ -113,6 +121,26 @@ impl IBids for Bids {
             GROUP BY b.collection_id
             "#,
             collection_id,
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count filtered collections")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_nft_top_offer(&self, nft_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT MAX(b.price)
+            FROM bids b
+            WHERE b.collection_id = $1
+                AND b.status = 'active'
+                AND b.bid_type = 'solo'
+                AND b.expired_at > NOW()
+            GROUP BY b.nft_id
+            "#,
+            nft_id,
         )
         .fetch_one(&*self.pool)
         .await

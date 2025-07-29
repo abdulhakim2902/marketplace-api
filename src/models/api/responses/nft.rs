@@ -5,7 +5,7 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::database::{Database, IDatabase, attributes::IAttributes};
+use crate::database::{Database, IDatabase, bids::IBids};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Nft {
@@ -27,6 +27,11 @@ pub struct Nft {
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
     pub updated_at: Option<DateTime<Utc>>,
+    pub rarity_score: Option<BigDecimal>,
+    pub last_sale: Option<BigDecimal>,
+    pub listed_at: Option<DateTime<Utc>>,
+    pub list_price: Option<BigDecimal>,
+    pub list_usd_price: Option<BigDecimal>,
 }
 
 #[async_graphql::Object]
@@ -109,23 +114,38 @@ impl Nft {
         self.updated_at.as_ref().map(|e| e.to_string())
     }
 
+    #[graphql(name = "last_sale")]
+    async fn last_sale(&self) -> Option<String> {
+        self.last_sale.as_ref().map(|e| e.to_plain_string())
+    }
+
+    #[graphql(name = "listed_at")]
+    async fn listed_at(&self) -> Option<String> {
+        self.listed_at.as_ref().map(|e| e.to_string())
+    }
+
+    #[graphql(name = "list_price")]
+    async fn list_price(&self) -> Option<String> {
+        self.list_price.as_ref().map(|e| e.to_plain_string())
+    }
+
+    #[graphql(name = "list_usd_price")]
+    async fn list_usd_price(&self) -> Option<String> {
+        self.list_usd_price.as_ref().map(|e| e.to_plain_string())
+    }
+
     #[graphql(name = "rarity_score")]
-    async fn rarity_score(&self, ctx: &Context<'_>) -> Option<String> {
-        if self.collection_id.is_none() {
-            return None;
-        }
+    async fn rarity_score(&self) -> Option<String> {
+        self.rarity_score.as_ref().map(|e| e.to_plain_string())
+    }
 
-        let collection_id = self.collection_id.as_ref().unwrap();
-        let nft_id = self.id.as_str();
-
+    #[graphql(name = "top_offer")]
+    async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let res = db
-            .attributes()
-            .nft_rarity_scores(collection_id, nft_id)
-            .await;
+        let res = db.bids().fetch_nft_top_offer(&self.id).await;
 
         if res.is_err() {
             return None;

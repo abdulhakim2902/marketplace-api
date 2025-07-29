@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{nft::Nft, nft_info::NftInfo, nft_listing::NftListing, nft_offer::NftOffer},
+    api::responses::{nft::Nft, nft_listing::NftListing, nft_offer::NftOffer},
     db::nft::Nft as DbNft,
 };
 use anyhow::Context;
@@ -16,11 +16,15 @@ pub trait INfts: Send + Sync {
         items: Vec<DbNft>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_nft_by_id(&self, id: &str) -> anyhow::Result<Nft>;
+    async fn fetch_nfts(
+        &self,
+        id: Option<String>,
+        collection_id: Option<String>,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<Nft>>;
 
     async fn fetch_total_owners(&self, collection_id: &str) -> anyhow::Result<i64>;
-
-    async fn fetch_nft_info(&self, id: &str) -> anyhow::Result<NftInfo>;
 
     async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>>;
 
@@ -138,11 +142,65 @@ impl INfts for Nfts {
         Ok(res)
     }
 
-    async fn fetch_nft_by_id(&self, id: &str) -> anyhow::Result<Nft> {
+    async fn fetch_nfts(
+        &self,
+        id: Option<String>,
+        collection_id: Option<String>,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<Nft>> {
         let res = sqlx::query_as!(
             Nft,
             r#"
-            SELECT
+            WITH
+                latest_prices AS (
+                    SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
+                    WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
+                    ORDER BY tp.token_address, tp.created_at DESC
+                ),
+                collection_nfts AS (
+                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts
+                    WHERE nfts.collection_id = $1
+                    GROUP BY nfts.collection_id
+                ),
+                collection_attributes AS (
+                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr
+                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
+                    WHERE atr.collection_id = $1
+                    GROUP by atr.collection_id, atr.attr_type, atr.value
+                ),
+                collection_rarities AS (
+                    SELECT
+                        ca.collection_id,
+                        ca.attr_type, 
+                        ca.value, 
+                        (ca.count / cn.count)           AS rarity,
+                        -log(2, ca.count / cn.count)    AS score
+                    FROM collection_attributes ca
+                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id
+                ),
+                nft_rarity_scores AS (
+                    SELECT attr.nft_id, SUM(cr.score) AS rarity_score FROM attributes attr
+                        JOIN collection_rarities cr ON cr.collection_id = attr.collection_id AND cr.attr_type = attr.attr_type AND cr.value = attr.value
+                    WHERE attr.collection_id = $1
+                    GROUP BY attr.collection_id, attr.nft_id
+                ),
+                listing_prices AS (
+                    SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time
+                    FROM listings l
+                    WHERE l.listed
+                    ORDER BY l.nft_id, l.price ASC
+                ),
+                sales AS (
+                    SELECT DISTINCT ON (a.nft_id) 
+                        a.nft_id, 
+                        a.block_time, 
+                        a.price 
+                    FROM activities a
+                    WHERE a.tx_type = 'buy'
+                    ORDER BY a.nft_id, a.block_time DESC
+                )
+            SELECT 
                 id,
                 name,
                 owner,
@@ -160,15 +218,35 @@ impl INfts for Nfts {
                 image_url,
                 royalty,
                 version,
-                updated_at
+                updated_at,
+                nr.rarity_score,
+                lp.price                AS list_price,
+                lp.price * ltp.price    AS list_usd_price,
+                CASE
+                WHEN lp.block_time IS NOT NULL
+                    THEN lp.block_time
+                    ELSE NULL
+                END                     AS listed_at,
+                s.price                 AS last_sale
             FROM nfts n
-            WHERE n.id = $1
+	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
+	            LEFT JOIN sales s ON s.nft_id = n.id
+                LEFT JOIN latest_prices ltp ON TRUE
+                LEFT JOIN nft_rarity_scores nr ON nr.nft_id = n.id
+            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR n.id = $1) 
+                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR n.collection_id = $2) 
+                AND (n.burned IS NULL OR NOT n.burned)
+            ORDER BY lp.price
+            LIMIT $3 OFFSET $4
             "#,
             id,
+            collection_id,
+            limit,
+            offset,
         )
-        .fetch_one(&*self.pool)
+        .fetch_all(&*self.pool)
         .await
-        .context("Failed to fetch nft info")?;
+        .context("Failed to fetch nfts")?;
 
         Ok(res)
     }
@@ -188,48 +266,6 @@ impl INfts for Nfts {
         .context("Failed to count nft metadata urls")?;
 
         Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_nft_info(&self, id: &str) -> anyhow::Result<NftInfo> {
-        let res = sqlx::query_as!(
-            NftInfo,
-            r#"
-            WITH 
-                listing_prices AS (
-                    SELECT l.nft_id, MIN(l.price) AS price
-                    FROM listings l
-                    WHERE l.nft_id = $1 AND l.listed
-                    GROUP BY l.nft_id
-                ),
-                top_bids AS (
-                    SELECT b.nft_id, MAX(b.price) AS price
-                    FROM bids b
-                    WHERE b.status = 'active'
-                        AND b.bid_type = 'solo'
-                        AND b.expired_at > NOW()
-                        AND b.nft_id = $1
-                    GROUP BY b.nft_id
-                )
-            SELECT
-                id,
-                name,
-                description,
-                image_url,
-                owner,
-                tb.price        AS top_offer,
-                lp.price        AS list_price
-            FROM nfts n
-                LEFT JOIN top_bids tb ON tb.nft_id = n.id
-                LEFT JOIN listing_prices lp ON lp.nft_id = n.id
-            WHERE n.id = $1 AND (n.burned IS NULL OR NOT n.burned)
-            "#,
-            id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch nft info")?;
-
-        Ok(res)
     }
 
     async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>> {

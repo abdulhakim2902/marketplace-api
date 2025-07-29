@@ -1,0 +1,157 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH\n                latest_prices AS (\n                    SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp\n                    WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'\n                    ORDER BY tp.token_address, tp.created_at DESC\n                ),\n                collection_nfts AS (\n                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts\n                    WHERE nfts.collection_id = $1\n                    GROUP BY nfts.collection_id\n                ),\n                collection_attributes AS (\n                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr\n                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id\n                    WHERE atr.collection_id = $1\n                    GROUP by atr.collection_id, atr.attr_type, atr.value\n                ),\n                collection_rarities AS (\n                    SELECT\n                        ca.collection_id,\n                        ca.attr_type, \n                        ca.value, \n                        (ca.count / cn.count)           AS rarity,\n                        -log(2, ca.count / cn.count)    AS score\n                    FROM collection_attributes ca\n                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id\n                ),\n                nft_rarity_scores AS (\n                    SELECT attr.nft_id, SUM(cr.score) AS rarity_score FROM attributes attr\n                        JOIN collection_rarities cr ON cr.collection_id = attr.collection_id AND cr.attr_type = attr.attr_type AND cr.value = attr.value\n                    WHERE attr.collection_id = $1\n                    GROUP BY attr.collection_id, attr.nft_id\n                ),\n                listing_prices AS (\n                    SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time\n                    FROM listings l\n                    WHERE l.listed\n                    ORDER BY l.nft_id, l.price ASC\n                ),\n                sales AS (\n                    SELECT DISTINCT ON (a.nft_id) \n                        a.nft_id, \n                        a.block_time, \n                        a.price \n                    FROM activities a\n                    WHERE a.tx_type = 'buy'\n                    ORDER BY a.nft_id, a.block_time DESC\n                )\n            SELECT \n                id,\n                name,\n                owner,\n                collection_id,\n                burned,\n                properties,\n                description,\n                background_color,\n                image_data,\n                animation_url,\n                youtube_url,\n                avatar_url,\n                external_url,\n                uri,\n                image_url,\n                royalty,\n                version,\n                updated_at,\n                nr.rarity_score,\n                lp.price                AS list_price,\n                lp.price * ltp.price    AS list_usd_price,\n                CASE\n                WHEN lp.block_time IS NOT NULL\n                    THEN lp.block_time\n                    ELSE NULL\n                END                     AS listed_at,\n                s.price                 AS last_sale\n            FROM nfts n\n\t            LEFT JOIN listing_prices lp ON lp.nft_id = n.id\n\t            LEFT JOIN sales s ON s.nft_id = n.id\n                LEFT JOIN latest_prices ltp ON TRUE\n                LEFT JOIN nft_rarity_scores nr ON nr.nft_id = n.id\n            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR n.id = $1) \n                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR n.collection_id = $2) \n                AND (n.burned IS NULL OR NOT n.burned)\n            ORDER BY lp.price\n            LIMIT $3 OFFSET $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "owner",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "burned",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "properties",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "description",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "background_color",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "image_data",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "animation_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "youtube_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "avatar_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "external_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "uri",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "image_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "royalty",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 16,
+        "name": "version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 17,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 18,
+        "name": "rarity_score",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 19,
+        "name": "list_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 20,
+        "name": "list_usd_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 21,
+        "name": "listed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 22,
+        "name": "last_sale",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      null,
+      null,
+      true
+    ]
+  },
+  "hash": "8fb439baa3be2eba2c3cf8df9095f1df017f3208f8d2468b36a86ed5fb9c48ae"
+}

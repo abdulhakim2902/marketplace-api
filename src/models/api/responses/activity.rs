@@ -102,12 +102,20 @@ impl Activity {
             return None;
         }
 
-        let nft_id = self.nft_id.as_ref().unwrap();
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        db.nfts().fetch_nft_by_id(nft_id).await.ok()
+        let res = db
+            .nfts()
+            .fetch_nfts(self.nft_id.clone(), self.collection_id.clone(), 1, 0)
+            .await;
+
+        if res.is_err() {
+            return None;
+        }
+
+        res.unwrap().first().cloned()
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<Collection> {

@@ -4,14 +4,12 @@ use crate::{
     database::{IDatabase, nfts::INfts},
     models::api::{
         requests::{filter_listing::FilterListing, filter_offer::FilterOffer},
-        responses::{nft_info::NftInfo, nft_listing::NftListing, nft_offer::NftOffer},
+        responses::{nft_listing::NftListing, nft_offer::NftOffer},
     },
 };
 
 #[async_trait::async_trait]
 pub trait INftService {
-    async fn fetch_info(&self, id: &str) -> anyhow::Result<NftInfo>;
-
     async fn fetch_nft_offers(
         &self,
         id: &str,
@@ -40,10 +38,6 @@ impl<TDb> INftService for NftService<TDb>
 where
     TDb: IDatabase + Send + Sync + 'static,
 {
-    async fn fetch_info(&self, id: &str) -> anyhow::Result<NftInfo> {
-        self.db.nfts().fetch_nft_info(id).await
-    }
-
     async fn fetch_nft_offers(
         &self,
         id: &str,

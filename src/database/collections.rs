@@ -10,7 +10,6 @@ use sqlx::{
 use crate::models::{
     api::responses::{
         collection::Collection,
-        collection_nft::CollectionNft,
         collection_nft_change::CollectionNftChange,
         collection_nft_distribution::{
             CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
@@ -40,17 +39,6 @@ pub trait ICollections: Send + Sync {
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<Collection>>;
-
-    async fn count(&self) -> anyhow::Result<i64>;
-
-    async fn fetch_collection_nfts(
-        &self,
-        id: &str,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<CollectionNft>>;
-
-    async fn count_collection_nfts(&self, id: &str) -> anyhow::Result<i64>;
 
     async fn fetch_collection_offers(
         &self,
@@ -216,11 +204,31 @@ impl ICollections for Collections {
         let res = sqlx::query_as!(
             Collection,
             r#"
-            WITH sales AS (
-                SELECT a.collection_id, SUM(a.price) AS volume FROM activities a
-                WHERE a.tx_type = 'buy'
-                GROUP BY a.collection_id
-            )
+            WITH 
+                sales AS (
+                    SELECT
+                        a.collection_id, 
+                        SUM(a.price)        AS volume,
+                        COUNT(*)            AS total
+                    FROM activities a
+                    WHERE a.tx_type = 'buy'
+                    GROUP BY a.collection_id
+                ),
+                listings AS (
+                    SELECT 
+                        l.collection_id,
+                        MIN(l.price)        AS floor,
+                        COUNT(*)            AS total
+                    FROM listings l
+                    WHERE l.listed
+                    GROUP BY l.collection_id
+                ),
+                nft_owners AS (
+                    SELECT n.collection_id, COUNT(DISTINCT n.owner) AS total
+                    FROM nfts n
+                    WHERE n.burned IS NULL OR NOT n.burned
+                    GROUP BY n.collection_id
+                ) 
             SELECT
                 c.id,
                 c.slug, 
@@ -233,9 +241,15 @@ impl ICollections for Collections {
                 c.discord,
                 c.twitter,
                 c.royalty,
-                s.volume            AS total_volume
+                s.volume            AS total_volume,
+                s.total             AS total_sale,
+                no.total            AS total_owner,
+                l.floor,
+                l.total             AS listed
             FROM collections c
                 LEFT JOIN sales s ON s.collection_id = c.id
+                LEFT JOIN listings l ON l.collection_id = c.id
+                LEFT JOIN nft_owners no ON no.collection_id = c.id
             WHERE $1::TEXT IS NULL OR $1::TEXT = '' OR c.id = $1::TEXT 
             ORDER BY s.volume DESC
             LIMIT $2 OFFSET $3
@@ -249,139 +263,6 @@ impl ICollections for Collections {
         .context("Failed to fetch collections")?;
 
         Ok(res)
-    }
-
-    async fn count(&self) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM collections
-            "#,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered collections")?;
-
-        Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_collection_nfts(
-        &self,
-        id: &str,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<CollectionNft>> {
-        let res = sqlx::query_as!(
-            CollectionNft,
-            r#"
-            WITH
-                latest_prices AS (
-                    SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
-                    WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
-                    ORDER BY tp.token_address, tp.created_at DESC
-                ),
-                collection_nfts AS (
-                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts
-                    WHERE nfts.collection_id = $1
-                    GROUP BY nfts.collection_id
-                ),
-                collection_attributes AS (
-                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr
-                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
-                    WHERE atr.collection_id = $1
-                    GROUP by atr.collection_id, atr.attr_type, atr.value
-                ),
-                collection_rarities AS (
-                    SELECT
-                        ca.collection_id,
-                        ca.attr_type, 
-                        ca.value, 
-                        (ca.count / cn.count)           AS rarity,
-                        -log(2, ca.count / cn.count)    AS score
-                    FROM collection_attributes ca
-                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id
-                ),
-                nft_rarity_scores AS (
-                    SELECT attr.nft_id, SUM(cr.score) AS rarity_score FROM attributes attr
-                        JOIN collection_rarities cr ON cr.collection_id = attr.collection_id AND cr.attr_type = attr.attr_type AND cr.value = attr.value
-                    WHERE attr.collection_id = $1
-                    GROUP BY attr.collection_id, attr.nft_id
-                ),
-                listing_prices AS (
-                    SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time
-                    FROM listings l
-                    WHERE l.listed
-                    ORDER BY l.nft_id, l.price ASC
-                ),
-                top_bids AS (
-                    SELECT b.nft_id, MAX(b.price) AS price
-                    FROM bids b
-                    WHERE b.status = 'active'
-                        AND b.bid_type = 'solo'
-                        AND b.expired_at > NOW()
-                    GROUP BY b.nft_id
-                ),
-                sales AS (
-                    SELECT DISTINCT ON (a.nft_id) 
-                        a.nft_id, 
-                        a.block_time, 
-                        a.price 
-                    FROM activities a
-                    WHERE a.tx_type = 'buy'
-                    ORDER BY a.nft_id, a.block_time DESC
-                )
-            SELECT 
-                n.id, 
-                n.name, 
-                n.image_url, 
-                n.owner, 
-                n.description,
-                n.royalty,
-                nr.rarity_score,
-                lp.price                AS listing_price,
-                lp.price * ltp.price    AS listing_usd_price,
-                s.price                 AS last_sale, 
-                CASE
-                WHEN lp.block_time IS NOT NULL
-                    THEN lp.block_time
-                    ELSE NULL
-                END                     AS listed_at,
-                tb.price                AS top_offer
-            FROM nfts n
-	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
-	            LEFT JOIN sales s ON s.nft_id = n.id
-                LEFT JOIN top_bids tb ON tb.nft_id = n.id
-                LEFT JOIN nft_rarity_scores nr ON nr.nft_id = n.id
-                LEFT JOIN latest_prices ltp ON TRUE
-            WHERE n.collection_id = $1 
-                AND (n.burned IS NULL OR NOT n.burned)
-            ORDER BY lp.price
-            LIMIT $2 OFFSET $3
-            "#,
-            id,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch nfts")?;
-
-        Ok(res)
-    }
-
-    async fn count_collection_nfts(&self, id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM nfts n
-            WHERE n.collection_id = $1 
-                AND (n.burned IS NULL OR NOT n.burned)
-            "#,
-            id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered collection nfts")?;
-
-        Ok(res.unwrap_or_default())
     }
 
     async fn fetch_collection_offers(
