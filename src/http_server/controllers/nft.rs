@@ -5,6 +5,7 @@ use axum::{
 };
 
 use crate::{
+    database::IDatabase,
     http_server::{
         controllers::InternalState,
         utils::{err_handler::response_unhandled_err, validator::QueryValidator},
@@ -19,8 +20,8 @@ use crate::{
     services::{IInternalServices, nft::INftService},
 };
 
-pub async fn info<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn info<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
 ) -> Response {
     match state.services.nft_service.fetch_info(&id).await {
@@ -29,8 +30,8 @@ pub async fn info<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn offers<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn offers<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterOffer>,
 ) -> Response {
@@ -45,8 +46,8 @@ pub async fn offers<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn activities<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn activities<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterActivity>,
 ) -> Response {
@@ -61,8 +62,8 @@ pub async fn activities<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn listings<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn listings<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterListing>,
 ) -> Response {

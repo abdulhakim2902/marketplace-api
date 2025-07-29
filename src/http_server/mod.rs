@@ -1,29 +1,46 @@
 pub mod controllers;
+pub mod graphql;
 pub mod utils;
 
 use std::sync::Arc;
 
+use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+use async_graphql_axum::GraphQL;
 use axum::{Router, extract::DefaultBodyLimit, routing::get};
 use tokio::net::TcpListener;
 
 use crate::{
     config::Config,
-    http_server::controllers::{collection, health, nft},
+    database::IDatabase,
+    http_server::{
+        controllers::{collection, health, nft},
+        graphql::{Query, graphql},
+    },
     services::{IInternalServices, Services},
     utils::shutdown_utils,
 };
 
-pub struct HttpServer<TInternalService: IInternalServices> {
+pub struct HttpServer<TDb: IDatabase, TInternalService: IInternalServices> {
+    db: Arc<TDb>,
     config: Arc<Config>,
     services: Arc<Services<TInternalService>>,
 }
 
-impl<TInternalService> HttpServer<TInternalService>
+impl<TDb, TInternalService> HttpServer<TDb, TInternalService>
 where
     TInternalService: IInternalServices + Send + 'static,
+    TDb: IDatabase + Send + Sync + 'static,
 {
-    pub fn new(config: Arc<Config>, services: Arc<Services<TInternalService>>) -> Self {
-        Self { config, services }
+    pub fn new(
+        db: Arc<TDb>,
+        config: Arc<Config>,
+        services: Arc<Services<TInternalService>>,
+    ) -> Self {
+        Self {
+            db,
+            config,
+            services,
+        }
     }
 
     pub async fn start(self) -> anyhow::Result<()> {
@@ -45,8 +62,13 @@ where
     }
 
     fn router(self: &Arc<Self>) -> Router {
+        let schema = Schema::build(Query, EmptyMutation, EmptySubscription)
+            .data(Arc::clone(&self.db))
+            .finish();
+
         Router::new()
             .route("/health", get(health::check))
+            .route("/gql", get(graphql).post_service(GraphQL::new(schema)))
             .nest(
                 "/api/v1",
                 Router::new()

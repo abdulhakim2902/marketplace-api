@@ -31,3 +31,5 @@ serde_with = "3.14.0"
 validator = { version = "0.20.0", features = ["derive"] }
 serde_qs = "0.15.0"
 moka = { version = "0.12.10", features = ["future"] }
+async-graphql = "7.0.17"
+async-graphql-axum = "7.0.17"

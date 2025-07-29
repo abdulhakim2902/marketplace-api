@@ -8,4 +8,4 @@ pub mod collection;
 pub mod health;
 pub mod nft;
 
-type InternalState<TInternalServices> = State<Arc<HttpServer<TInternalServices>>>;
+type InternalState<TDb, TInternalServices> = State<Arc<HttpServer<TDb, TInternalServices>>>;

@@ -101,3 +101,11 @@ where
     res.ok_or(anyhow!("Invalid interval format"))
         .map_err(serde::de::Error::custom)
 }
+
+pub fn default_limit() -> i64 {
+    10
+}
+
+pub fn default_offset() -> i64 {
+    0
+}

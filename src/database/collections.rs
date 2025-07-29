@@ -39,8 +39,8 @@ pub trait ICollections: Send + Sync {
     async fn filter(
         &self,
         interval: Option<PgInterval>,
-        page: i64,
-        size: i64,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<Collection>>;
 
     async fn count(&self) -> anyhow::Result<i64>;
@@ -223,8 +223,8 @@ impl ICollections for Collections {
     async fn filter(
         &self,
         interval: Option<PgInterval>,
-        page: i64,
-        size: i64,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<Collection>> {
         let res = sqlx::query_as!(
             Collection,
@@ -292,8 +292,8 @@ impl ICollections for Collections {
             LIMIT $2 OFFSET $3
             "#,
             interval,
-            size,
-            size * (page - 1),
+            limit,
+            offset,
         )
         .fetch_all(&*self.pool)
         .await

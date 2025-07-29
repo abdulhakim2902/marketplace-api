@@ -132,8 +132,7 @@ where
     ) -> anyhow::Result<(Vec<Collection>, i64)> {
         let repository = self.db.collections();
 
-        let filter_fut =
-            repository.filter(filter.interval, filter.paging.page, filter.paging.page_size);
+        let filter_fut = repository.filter(filter.interval, filter.limit, filter.offset);
         let count_fut = repository.count();
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);

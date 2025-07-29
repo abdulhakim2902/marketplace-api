@@ -22,15 +22,17 @@ use crate::{
     },
     http_server::HttpServer,
     services::{
-        InternalServices, Services, collection::CollectionService, health::HealthService,
-        nft::NftService,
+        InternalServices, Services, collection::CollectionService,
+        health::HealthService, nft::NftService,
     },
     utils::shutdown_utils,
     workers::Worker,
 };
 
-pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<InternalServices>)>
-{
+pub async fn init() -> anyhow::Result<(
+    Arc<Worker<Database, Cache>>,
+    HttpServer<Database, InternalServices>,
+)> {
     let config = Arc::new(init_config().context("Failed to initialize configuration")?);
     let pool = Arc::new(
         PgPoolOptions::new()
@@ -68,7 +70,7 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
             Arc::clone(&db),
             Arc::clone(&cache),
         )),
-        HttpServer::new(Arc::clone(&config), Arc::clone(&services)),
+        HttpServer::new(Arc::clone(&db), Arc::clone(&config), Arc::clone(&services)),
     ))
 }
 

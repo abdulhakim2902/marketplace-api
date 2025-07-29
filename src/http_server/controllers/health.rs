@@ -4,12 +4,13 @@ use axum::{
 };
 
 use crate::{
+    database::IDatabase,
     http_server::controllers::InternalState,
     services::{IInternalServices, health::IHealthService},
 };
 
-pub async fn check<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn check<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
 ) -> Response<String> {
     match state.services.health_service.is_healthy().await {
         true => Response::builder()

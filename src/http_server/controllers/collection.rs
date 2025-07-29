@@ -5,6 +5,7 @@ use axum::{
 };
 
 use crate::{
+    database::IDatabase,
     http_server::{
         controllers::InternalState,
         utils::{err_handler::response_unhandled_err, validator::QueryValidator},
@@ -23,8 +24,8 @@ use crate::{
     services::{IInternalServices, collection::ICollectionService},
 };
 
-pub async fn filter<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn filter<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     QueryValidator(query): QueryValidator<FilterCollection>,
 ) -> Response {
     match state
@@ -38,8 +39,8 @@ pub async fn filter<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn info<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn info<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
 ) -> Response {
     match state
@@ -53,8 +54,8 @@ pub async fn info<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn nfts<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn nfts<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterNft>,
 ) -> Response {
@@ -69,8 +70,8 @@ pub async fn nfts<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn offers<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn offers<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterOffer>,
 ) -> Response {
@@ -85,8 +86,8 @@ pub async fn offers<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn activities<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn activities<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterActivity>,
 ) -> Response {
@@ -101,8 +102,8 @@ pub async fn activities<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn floor_chart<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn floor_chart<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FloorChart>,
 ) -> Response {
@@ -117,8 +118,8 @@ pub async fn floor_chart<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn top_buyers<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn top_buyers<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterTopBuyer>,
 ) -> Response {
@@ -133,8 +134,8 @@ pub async fn top_buyers<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn top_sellers<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn top_sellers<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterTopSeller>,
 ) -> Response {
@@ -149,8 +150,8 @@ pub async fn top_sellers<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn nft_holders<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn nft_holders<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterNftHolder>,
 ) -> Response {
@@ -165,8 +166,8 @@ pub async fn nft_holders<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn nft_trendings<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn nft_trendings<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterNftTrending>,
 ) -> Response {
@@ -181,8 +182,8 @@ pub async fn nft_trendings<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn nft_amount_distribution<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn nft_amount_distribution<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
 ) -> Response {
     match state
@@ -196,8 +197,8 @@ pub async fn nft_amount_distribution<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn nft_period_distribution<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn nft_period_distribution<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
 ) -> Response {
     match state
@@ -211,8 +212,8 @@ pub async fn nft_period_distribution<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn profit_leaderboard<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn profit_leaderboard<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterProfitLeader>,
 ) -> Response {
@@ -227,8 +228,8 @@ pub async fn profit_leaderboard<TInternalService: IInternalServices>(
     }
 }
 
-pub async fn nft_change<TInternalService: IInternalServices>(
-    State(state): InternalState<TInternalService>,
+pub async fn nft_change<TDb: IDatabase, TInternalService: IInternalServices>(
+    State(state): InternalState<TDb, TInternalService>,
     Path(id): Path<String>,
     QueryValidator(query): QueryValidator<FilterNftChange>,
 ) -> Response {
