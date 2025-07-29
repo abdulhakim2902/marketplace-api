@@ -11,10 +11,7 @@ use crate::{
         utils::{err_handler::response_unhandled_err, validator::QueryValidator},
     },
     models::api::{
-        requests::{
-            filter_activity::FilterActivity, filter_listing::FilterListing,
-            filter_offer::FilterOffer,
-        },
+        requests::{filter_listing::FilterListing, filter_offer::FilterOffer},
         responses::{HttpResponse, HttpResponsePaging},
     },
     services::{IInternalServices, nft::INftService},
@@ -39,22 +36,6 @@ pub async fn offers<TDb: IDatabase, TInternalService: IInternalServices>(
         .services
         .nft_service
         .fetch_nft_offers(&id, &query)
-        .await
-    {
-        Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
-
-pub async fn activities<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    Path(id): Path<String>,
-    QueryValidator(query): QueryValidator<FilterActivity>,
-) -> Response {
-    match state
-        .services
-        .nft_service
-        .fetch_nft_activities(&id, &query)
         .await
     {
         Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),

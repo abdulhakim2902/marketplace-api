@@ -79,7 +79,6 @@ where
                             .route("/{id}", get(collection::info))
                             .route("/{id}/nfts", get(collection::nfts))
                             .route("/{id}/offers", get(collection::offers))
-                            .route("/{id}/activities", get(collection::activities))
                             .route("/{id}/floor-chart", get(collection::floor_chart))
                             .route("/{id}/top-buyers", get(collection::top_buyers))
                             .route("/{id}/top-sellers", get(collection::top_sellers))
@@ -104,8 +103,7 @@ where
                         Router::new()
                             .route("/{id}", get(nft::info))
                             .route("/{id}/offers", get(nft::offers))
-                            .route("/{id}/listings", get(nft::listings))
-                            .route("/{id}/activities", get(nft::activities)),
+                            .route("/{id}/listings", get(nft::listings)),
                     ),
             )
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))

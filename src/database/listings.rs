@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::models::db::listing::Listing as DbListing;
 use anyhow::Context;
+use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 #[async_trait::async_trait]
@@ -11,15 +12,17 @@ pub trait IListings: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         listings: Vec<DbListing>,
     ) -> anyhow::Result<PgQueryResult>;
+
+    async fn collection_floor(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
 }
 
 pub struct Listings {
-    _pool: Arc<PgPool>,
+    pool: Arc<PgPool>,
 }
 
 impl Listings {
     pub fn new(pool: Arc<PgPool>) -> Self {
-        Self { _pool: pool }
+        Self { pool }
     }
 }
 
@@ -83,6 +86,23 @@ impl IListings for Listings {
         .execute(&mut **tx)
         .await
         .context("Failed to insert listings")?;
+
+        Ok(res)
+    }
+
+    async fn collection_floor(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT MIN(l.price) AS floor
+            FROM listings l
+            WHERE l.listed AND l.collection_id = $1
+            GROUP BY l.collection_id
+            "#,
+            collection_id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count filtered nft activities")?;
 
         Ok(res)
     }

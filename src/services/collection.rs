@@ -4,16 +4,14 @@ use crate::{
     database::{IDatabase, collections::ICollections},
     models::api::{
         requests::{
-            filter_activity::FilterActivity, filter_collection::FilterCollection,
-            filter_nft::FilterNft, filter_nft_change::FilterNftChange,
-            filter_nft_holder::FilterNftHolder, filter_nft_trending::FilterNftTrending,
-            filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
-            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
-            floor_chart::FloorChart,
+            filter_collection::FilterCollection, filter_nft::FilterNft,
+            filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
+            filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
+            filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
+            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
         },
         responses::{
             collection::Collection,
-            collection_activity::CollectionActivity,
             collection_info::CollectionInfo,
             collection_nft::CollectionNft,
             collection_nft_change::CollectionNftChange,
@@ -51,12 +49,6 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterOffer,
     ) -> anyhow::Result<(Vec<CollectionOffer>, i64)>;
-
-    async fn fetch_collection_activities(
-        &self,
-        id: &str,
-        filter: &FilterActivity,
-    ) -> anyhow::Result<(Vec<CollectionActivity>, i64)>;
 
     async fn fetch_collection_floor_chart(
         &self,
@@ -173,23 +165,6 @@ where
             repository.fetch_collection_offers(id, filter.paging.page, filter.paging.page_size);
 
         let count_fut = repository.count_collection_offers(id);
-
-        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
-        let (data, count) = (data_res?, count_res?);
-
-        Ok((data, count))
-    }
-
-    async fn fetch_collection_activities(
-        &self,
-        id: &str,
-        filter: &FilterActivity,
-    ) -> anyhow::Result<(Vec<CollectionActivity>, i64)> {
-        let repository = self.db.collections();
-
-        let filter_fut = repository.fetch_collection_activities(id, filter.limit, filter.offset);
-
-        let count_fut = repository.count_collection_activities(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);
