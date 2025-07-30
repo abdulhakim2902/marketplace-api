@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{
+    db::activity::Activity as DbActivity,
+    schema::{
         activity::Activity, collection::CollectionSale, data_point::DataPoint,
         nft_change::NftChange, profit_leaderboard::ProfitLeaderboard, top_buyer::TopBuyer,
         top_seller::TopSeller,
     },
-    db::activity::Activity as DbActivity,
 };
 use anyhow::Context;
 use bigdecimal::BigDecimal;

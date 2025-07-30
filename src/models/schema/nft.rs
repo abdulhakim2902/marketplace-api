@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{Database, IDatabase, bids::IBids, collections::ICollections},
-    models::api::responses::collection::Collection,
+    models::schema::collection::Collection,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

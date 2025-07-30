@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     database::{Database, IDatabase, collections::ICollections, nfts::INfts},
-    models::api::responses::{collection::Collection, nft::Nft},
+    models::schema::{collection::Collection, nft::Nft},
 };
 use async_graphql::Context;
 use bigdecimal::BigDecimal;

@@ -4,7 +4,6 @@ use axum::extract::State;
 
 use crate::http_server::HttpServer;
 
-pub mod collection;
 pub mod health;
 pub mod nft;
 

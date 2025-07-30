@@ -12,6 +12,7 @@ pub mod db;
 pub mod marketplace;
 pub mod nft_metadata;
 pub mod resources;
+pub mod schema;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EventModel {

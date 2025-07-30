@@ -13,7 +13,7 @@ use crate::{
     config::Config,
     database::IDatabase,
     http_server::{
-        controllers::{collection, health, nft},
+        controllers::{health, nft},
         graphql::{Query, graphql},
     },
     services::{IInternalServices, Services},
@@ -71,15 +71,10 @@ where
             .route("/gql", get(graphql).post_service(GraphQL::new(schema)))
             .nest(
                 "/api/v1",
-                Router::new()
-                    .nest(
-                        "/collections",
-                        Router::new().route("/{id}/offers", get(collection::offers)),
-                    )
-                    .nest(
-                        "/nfts",
-                        Router::new().route("/{id}/offers", get(nft::offers)),
-                    ),
+                Router::new().nest(
+                    "/nfts",
+                    Router::new().route("/{id}/offers", get(nft::offers)),
+                ),
             )
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
             .with_state(Arc::clone(self))

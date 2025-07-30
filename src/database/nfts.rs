@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{
+    api::responses::nft_offer::NftOffer,
+    db::nft::Nft as DbNft,
+    schema::{
         nft::Nft,
         nft_distribution::{NftAmountDistribution, NftPeriodDistribution},
         nft_holder::NftHolder,
-        nft_offer::NftOffer,
     },
-    db::nft::Nft as DbNft,
 };
 use anyhow::Context;
 use chrono::Utc;

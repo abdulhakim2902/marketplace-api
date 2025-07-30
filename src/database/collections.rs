@@ -4,11 +4,8 @@ use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 use crate::models::{
-    api::responses::{
-        collection::Collection, collection_offer::CollectionOffer,
-        collection_trending::CollectionTrending,
-    },
     db::collection::Collection as DbCollection,
+    schema::{collection::Collection, collection_trending::CollectionTrending},
 };
 
 #[async_trait::async_trait]
@@ -32,15 +29,6 @@ pub trait ICollections: Send + Sync {
         page: i64,
         size: i64,
     ) -> anyhow::Result<Vec<CollectionTrending>>;
-
-    async fn fetch_collection_offers(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionOffer>>;
-
-    async fn count_collection_offers(&self, id: &str) -> anyhow::Result<i64>;
 }
 
 pub struct Collections {
@@ -229,18 +217,5 @@ impl ICollections for Collections {
         .context("Failed to fetch collection nft trendings")?;
 
         Ok(res)
-    }
-
-    async fn fetch_collection_offers(
-        &self,
-        _id: &str,
-        _page: i64,
-        _size: i64,
-    ) -> anyhow::Result<Vec<CollectionOffer>> {
-        Ok(Vec::new())
-    }
-
-    async fn count_collection_offers(&self, _id: &str) -> anyhow::Result<i64> {
-        Ok(10)
     }
 }

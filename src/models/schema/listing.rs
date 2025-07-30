@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{Database, IDatabase, collections::ICollections, nfts::INfts},
-    models::api::responses::{collection::Collection, nft::Nft},
+    models::schema::{collection::Collection, nft::Nft},
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

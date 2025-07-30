@@ -5,7 +5,7 @@ use crate::{
         Database, IDatabase, activities::IActivities, collections::ICollections,
         listings::IListings, nfts::INfts,
     },
-    models::api::responses::{
+    models::schema::{
         activity::Activity,
         collection::Collection,
         collection_trending::CollectionTrending,

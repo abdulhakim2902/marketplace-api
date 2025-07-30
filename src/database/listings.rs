@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::{api::responses::listing::Listing, db::listing::Listing as DbListing};
+use crate::models::{db::listing::Listing as DbListing, schema::listing::Listing};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
