@@ -1,79 +1,23 @@
 use std::sync::Arc;
 
-use async_graphql::Context;
-use bigdecimal::BigDecimal;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-
 use crate::{
     database::{Database, IDatabase, collections::ICollections, nfts::INfts},
     models::api::responses::{collection::Collection, nft::Nft},
 };
+use async_graphql::Context;
+use bigdecimal::BigDecimal;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Listing {
-    pub block_height: Option<i64>,
-    pub block_time: Option<DateTime<Utc>>,
-    pub market_contract_id: Option<String>,
-    pub listed: Option<bool>,
-    pub market_name: Option<String>,
-    pub collection_id: Option<String>,
+pub struct CollectionTrending {
     pub nft_id: Option<String>,
-    pub nonce: Option<String>,
-    pub price: Option<BigDecimal>,
-    pub usd_price: Option<BigDecimal>,
-    pub seller: Option<String>,
-    pub tx_index: Option<i64>,
+    pub collection_id: Option<String>,
+    pub tx_frequency: Option<i64>,
+    pub last_price: Option<BigDecimal>,
 }
 
 #[async_graphql::Object]
-impl Listing {
-    #[graphql(name = "block_height")]
-    async fn block_height(&self) -> Option<i64> {
-        self.block_height
-    }
-
-    #[graphql(name = "block_time")]
-    async fn block_time(&self) -> Option<String> {
-        self.block_time.as_ref().map(|e| e.to_string())
-    }
-
-    #[graphql(name = "market_contract_id")]
-    async fn market_contract_id(&self) -> Option<&str> {
-        self.market_contract_id.as_ref().map(|e| e.as_str())
-    }
-
-    async fn listed(&self) -> Option<bool> {
-        self.listed
-    }
-
-    #[graphql(name = "market_name")]
-    async fn market_name(&self) -> Option<&str> {
-        self.market_name.as_ref().map(|e| e.as_str())
-    }
-
-    async fn nonce(&self) -> Option<&str> {
-        self.nonce.as_ref().map(|e| e.as_str())
-    }
-
-    async fn price(&self) -> Option<String> {
-        self.price.as_ref().map(|e| e.to_string())
-    }
-
-    #[graphql(name = "usd_price")]
-    async fn usd_price(&self) -> Option<String> {
-        self.usd_price.as_ref().map(|e| e.to_string())
-    }
-
-    async fn seller(&self) -> Option<&str> {
-        self.seller.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "tx_index")]
-    async fn tx_index(&self) -> Option<i64> {
-        self.tx_index
-    }
-
+impl CollectionTrending {
     #[graphql(name = "collection_id")]
     async fn collection_id(&self) -> Option<&str> {
         self.collection_id.as_ref().map(|e| e.as_str())
@@ -82,6 +26,16 @@ impl Listing {
     #[graphql(name = "nft_id")]
     async fn nft_id(&self) -> Option<&str> {
         self.nft_id.as_ref().map(|e| e.as_str())
+    }
+
+    #[graphql(name = "tx_frequency")]
+    async fn tx_frequency(&self) -> Option<i64> {
+        self.tx_frequency
+    }
+
+    #[graphql(name = "last_price")]
+    async fn last_price(&self) -> Option<String> {
+        self.last_price.as_ref().map(|e| e.to_string())
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<Collection> {

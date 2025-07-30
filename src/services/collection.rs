@@ -5,9 +5,8 @@ use crate::{
     models::api::{
         requests::{
             filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
-            filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
-            filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
-            filter_top_seller::FilterTopSeller,
+            filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
+            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
         },
         responses::{
             collection_nft_change::CollectionNftChange,
@@ -15,7 +14,6 @@ use crate::{
                 CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
             },
             collection_nft_holder::CollectionNftHolder,
-            collection_nft_trending::CollectionNftTrending,
             collection_offer::CollectionOffer,
             collection_profit_leaderboard::CollectionProfitLeaderboard,
             collection_top_buyer::CollectionTopBuyer,
@@ -49,12 +47,6 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterNftHolder,
     ) -> anyhow::Result<(Vec<CollectionNftHolder>, i64)>;
-
-    async fn fetch_collection_trending_nfts(
-        &self,
-        id: &str,
-        filter: &FilterNftTrending,
-    ) -> anyhow::Result<(Vec<CollectionNftTrending>, i64)>;
 
     async fn fetch_collection_nft_amount_distribution(
         &self,
@@ -148,27 +140,6 @@ where
         );
 
         let count_fut = repository.count_collection_nft_holders(id);
-
-        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
-        let (data, count) = (data_res?, count_res?);
-
-        Ok((data, count))
-    }
-
-    async fn fetch_collection_trending_nfts(
-        &self,
-        id: &str,
-        filter: &FilterNftTrending,
-    ) -> anyhow::Result<(Vec<CollectionNftTrending>, i64)> {
-        let repository = self.db.collections();
-
-        let filter_fut = repository.fetch_collection_trending_nfts(
-            id,
-            filter.paging.page,
-            filter.paging.page_size,
-        );
-
-        let count_fut = repository.count_collection_trending_nfts(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);

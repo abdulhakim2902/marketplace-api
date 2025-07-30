@@ -14,11 +14,11 @@ use crate::models::{
             CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
         },
         collection_nft_holder::CollectionNftHolder,
-        collection_nft_trending::CollectionNftTrending,
         collection_offer::CollectionOffer,
         collection_profit_leaderboard::CollectionProfitLeaderboard,
         collection_top_buyer::CollectionTopBuyer,
         collection_top_seller::CollectionTopSeller,
+        collection_trending::CollectionTrending,
     },
     db::collection::Collection as DbCollection,
 };
@@ -68,12 +68,12 @@ pub trait ICollections: Send + Sync {
 
     async fn count_collection_nft_holders(&self, id: &str) -> anyhow::Result<i64>;
 
-    async fn fetch_collection_trending_nfts(
+    async fn fetch_collection_trending(
         &self,
         id: &str,
         page: i64,
         size: i64,
-    ) -> anyhow::Result<Vec<CollectionNftTrending>>;
+    ) -> anyhow::Result<Vec<CollectionTrending>>;
 
     async fn count_collection_trending_nfts(&self, id: &str) -> anyhow::Result<i64>;
 
@@ -255,6 +255,50 @@ impl ICollections for Collections {
         Ok(res)
     }
 
+    async fn fetch_collection_trending(
+        &self,
+        id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<CollectionTrending>> {
+        let res = sqlx::query_as!(
+            CollectionTrending,
+            r#"
+            WITH 
+                nft_activities AS (
+                    SELECT a.nft_id, COUNT(*) FROM activities a
+                    WHERE a.tx_type IN ('mint', 'buy', 'transfer') AND a.collection_id = $1
+                    GROUP BY a.nft_id
+                ),
+                price_activities AS (
+                    SELECT DISTINCT ON (a.nft_id) a.nft_id, a,price FROM activities a
+                    WHERE a.tx_type IN ('mint', 'buy', 'transfer') 
+                        AND a.collection_id = $1
+                        AND a.price > 0
+                    ORDER BY a.nft_id, a.block_time DESC
+                )
+            SELECT 
+                n.id                AS nft_id,
+                n.collection_id     AS collection_id,
+                na.count            AS tx_frequency,
+                pa.price            AS last_price
+            FROM nfts n
+                LEFT JOIN nft_activities na ON na.nft_id = n.id
+                LEFT JOIN price_activities pa ON na.nft_id = n.id
+            ORDER BY na.count DESC
+            LIMIT $2 OFFSET $3
+            "#,
+            id,
+            limit,
+            offset,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection nft trendings")?;
+
+        Ok(res)
+    }
+
     async fn fetch_collection_offers(
         &self,
         _id: &str,
@@ -408,50 +452,6 @@ impl ICollections for Collections {
         .context("Failed to count filtered collections")?;
 
         Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_collection_trending_nfts(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionNftTrending>> {
-        let res = sqlx::query_as!(
-            CollectionNftTrending,
-            r#"
-            WITH 
-                nft_activities AS (
-                    SELECT a.nft_id, COUNT(*) FROM activities a
-                    WHERE a.tx_type IN ('mint', 'buy', 'transfer') AND a.collection_id = $1
-                    GROUP BY a.nft_id
-                ),
-                price_activities AS (
-                    SELECT DISTINCT ON (a.nft_id) a.nft_id, a,price FROM activities a
-                    WHERE a.tx_type IN ('mint', 'buy', 'transfer') 
-                        AND a.collection_id = $1
-                        AND a.price > 0
-                    ORDER BY a.nft_id, a.block_time DESC
-                )
-            SELECT 
-                n.name              AS nft_name,
-                n.image_url         AS nft_image_url,
-                na.count            AS tx_frequency,
-                pa.price            AS last_price
-            FROM nfts n
-                LEFT JOIN nft_activities na ON na.nft_id = n.id
-                LEFT JOIN price_activities pa ON na.nft_id = n.id
-            ORDER BY na.count DESC
-            LIMIT $2 OFFSET $3
-            "#,
-            id,
-            size,
-            size * (page - 1),
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection nft trendings")?;
-
-        Ok(res)
     }
 
     async fn count_collection_trending_nfts(&self, id: &str) -> anyhow::Result<i64> {
