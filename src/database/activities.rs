@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::models::{
     db::activity::DbActivity,
     schema::{
-        activity::ActivitySchema, collection::CollectionSale, data_point::DataPointSchema,
+        activity::ActivitySchema, collection::CollectionSaleSchema, data_point::DataPointSchema,
         nft_change::NftChangeSchema, profit_leaderboard::ProfitLeaderboardSchema,
         top_buyer::TopBuyerSchema, top_seller::TopSellerSchema,
     },
@@ -43,7 +43,7 @@ pub trait IActivities: Send + Sync {
         &self,
         collection_id: &str,
         interval: Option<PgInterval>,
-    ) -> anyhow::Result<CollectionSale>;
+    ) -> anyhow::Result<CollectionSaleSchema>;
 
     async fn fetch_floor_chart(
         &self,
@@ -229,9 +229,9 @@ impl IActivities for Activities {
         &self,
         collection_id: &str,
         interval: Option<PgInterval>,
-    ) -> anyhow::Result<CollectionSale> {
+    ) -> anyhow::Result<CollectionSaleSchema> {
         let res = sqlx::query_as!(
-            CollectionSale,
+            CollectionSaleSchema,
             r#"
             SELECT COUNT(*) AS total, SUM(a.price) AS volume, SUM(a.usd_price) AS volume_usd
             FROM activities a

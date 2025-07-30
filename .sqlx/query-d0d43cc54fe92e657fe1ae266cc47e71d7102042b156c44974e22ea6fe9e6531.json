@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            WITH latest_prices AS (\n                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp\n                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'\n            )\n            SELECT \n                b.*, \n                b.price * lp.price AS usd_price\n            FROM bids b\n                LEFT JOIN latest_prices lp ON TRUE\n            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)\n                AND ($2::TEXT IS NULL OR $1::TEXT = '' OR b.collection_id = $2)\n            LIMIT $3 OFFSET $4\n            ",
+  "query": "\n            WITH latest_prices AS (\n                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp\n                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'\n            )\n            SELECT \n                b.*, \n                b.price * lp.price AS usd_price\n            FROM bids b\n                LEFT JOIN latest_prices lp ON TRUE\n            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)\n                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR b.collection_id = $2)\n                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)\n                AND (\n                    ($4 = 'active' AND (b.expired_at IS NULL OR b.expired_at > NOW())) OR\n                    ($4::TEXT IS NULL OR $4::TEXT = '' OR b.status = $4)\n                )\n                AND ($5::TEXT IS NULL OR $5::TEXT = '' OR b.bid_type = $5)\n            LIMIT $6 OFFSET $7\n            ",
   "describe": {
     "columns": [
       {
@@ -103,6 +103,9 @@
       "Left": [
         "Text",
         "Text",
+        "Text",
+        "Text",
+        "Text",
         "Int8",
         "Int8"
       ]
@@ -129,5 +132,5 @@
       null
     ]
   },
-  "hash": "b6428d5f8975a22a5f615467a49513653e5e777f33cc249dc9373e6887bdf47e"
+  "hash": "d0d43cc54fe92e657fe1ae266cc47e71d7102042b156c44974e22ea6fe9e6531"
 }

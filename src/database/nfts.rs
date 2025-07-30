@@ -24,6 +24,7 @@ pub trait INfts: Send + Sync {
         &self,
         id: Option<String>,
         collection_id: Option<String>,
+        wallet_address: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>>;
@@ -147,6 +148,7 @@ impl INfts for Nfts {
         &self,
         id: Option<String>,
         collection_id: Option<String>,
+        wallet_address: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>> {
@@ -158,33 +160,6 @@ impl INfts for Nfts {
                     SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
                     WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
                     ORDER BY tp.token_address, tp.created_at DESC
-                ),
-                collection_nfts AS (
-                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts
-                    WHERE nfts.collection_id = $1
-                    GROUP BY nfts.collection_id
-                ),
-                collection_attributes AS (
-                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr
-                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
-                    WHERE atr.collection_id = $1
-                    GROUP by atr.collection_id, atr.attr_type, atr.value
-                ),
-                collection_rarities AS (
-                    SELECT
-                        ca.collection_id,
-                        ca.attr_type, 
-                        ca.value, 
-                        (ca.count / cn.count)           AS rarity,
-                        -log(2, ca.count / cn.count)    AS score
-                    FROM collection_attributes ca
-                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id
-                ),
-                nft_rarity_scores AS (
-                    SELECT attr.nft_id, SUM(cr.score) AS rarity_score FROM attributes attr
-                        JOIN collection_rarities cr ON cr.collection_id = attr.collection_id AND cr.attr_type = attr.attr_type AND cr.value = attr.value
-                    WHERE attr.collection_id = $1
-                    GROUP BY attr.collection_id, attr.nft_id
                 ),
                 listing_prices AS (
                     SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time
@@ -220,7 +195,6 @@ impl INfts for Nfts {
                 royalty,
                 version,
                 updated_at,
-                nr.rarity_score,
                 lp.price                AS list_price,
                 lp.price * ltp.price    AS list_usd_price,
                 CASE
@@ -233,15 +207,16 @@ impl INfts for Nfts {
 	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
 	            LEFT JOIN sales s ON s.nft_id = n.id
                 LEFT JOIN latest_prices ltp ON TRUE
-                LEFT JOIN nft_rarity_scores nr ON nr.nft_id = n.id
             WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR n.id = $1) 
                 AND ($2::TEXT IS NULL OR $2::TEXT = '' OR n.collection_id = $2) 
+                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR n.owner = $3) 
                 AND (n.burned IS NULL OR NOT n.burned)
             ORDER BY lp.price
-            LIMIT $3 OFFSET $4
+            LIMIT $4 OFFSET $5
             "#,
             id,
             collection_id,
+            wallet_address,
             limit,
             offset,
         )

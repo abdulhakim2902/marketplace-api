@@ -1,7 +1,11 @@
-use async_graphql::InputObject;
+use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+
+use crate::models::schema::{
+    collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema,
+};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct BidSchema {
@@ -107,14 +111,16 @@ impl BidSchema {
         self.bid_type.as_ref().map(|e| e.as_str())
     }
 
-    #[graphql(name = "total_collection_trait")]
-    async fn total_collection_trait(&self) -> i64 {
-        10
+    async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
+        if self.nft_id.is_none() || self.collection_id.is_none() {
+            return None;
+        }
+
+        fetch_nft(ctx, self.nft_id.clone(), self.collection_id.clone()).await
     }
 
-    #[graphql(name = "total_nft_trait")]
-    async fn total_nft_trait(&self) -> i64 {
-        5
+    async fn collecton(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
+        fetch_collection(ctx, self.collection_id.clone()).await
     }
 }
 
@@ -131,4 +137,8 @@ pub struct FilterBidSchema {
 pub struct BidWhereSchema {
     pub nft_id: Option<String>,
     pub collection_id: Option<String>,
+    pub wallet_address: Option<String>,
+    pub status: Option<String>,
+    #[graphql(name = "type")]
+    pub bid_type: Option<String>,
 }

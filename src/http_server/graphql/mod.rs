@@ -93,7 +93,13 @@ impl Query {
         let offset = filter.offset.unwrap_or(0);
 
         db.nfts()
-            .fetch_nfts(query.nft_id, query.collection_id, limit, offset)
+            .fetch_nfts(
+                query.nft_id,
+                query.collection_id,
+                query.wallet_address,
+                limit,
+                offset,
+            )
             .await
             .expect("Failed to fetch nfts")
     }
@@ -131,7 +137,15 @@ impl Query {
         let offset = filter.offset.unwrap_or(0);
 
         db.bids()
-            .fetch_bids(query.collection_id, query.nft_id, limit, offset)
+            .fetch_bids(
+                query.wallet_address,
+                query.collection_id,
+                query.nft_id,
+                query.status,
+                query.bid_type,
+                limit,
+                offset,
+            )
             .await
             .expect("Failed to fetch bids")
     }

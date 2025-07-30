@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
 use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
-use crate::{
-    database::{Database, IDatabase, activities::IActivities, bids::IBids},
-    utils::string_utils,
+use crate::models::schema::{
+    fetch_collection_past_floor, fetch_collection_sale, fetch_collection_top_offer,
+    fetch_total_collection_offer, fetch_total_collection_trait,
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
@@ -65,25 +63,6 @@ impl CollectionSchema {
         self.listed
     }
 
-    #[graphql(name = "top_offer")]
-    async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let res = db.bids().fetch_collection_top_offer(collection_id).await;
-        if res.is_err() {
-            return None;
-        }
-
-        res.unwrap().map(|e| e.to_plain_string())
-    }
-
     async fn verified(&self) -> Option<bool> {
         self.verified
     }
@@ -104,44 +83,6 @@ impl CollectionSchema {
         self.royalty.as_ref().map(|e| e.to_plain_string())
     }
 
-    #[graphql(name = "past_floor")]
-    async fn past_floor(&self, ctx: &Context<'_>, interval: Option<String>) -> Option<String> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
-            .expect("Invalid interval");
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let res = db.activities().fetch_past_floor(collection_id, i).await;
-        if res.is_err() {
-            None
-        } else {
-            res.unwrap().map(|e| e.to_plain_string())
-        }
-    }
-
-    async fn sale(&self, ctx: &Context<'_>, interval: Option<String>) -> Option<CollectionSale> {
-        if self.id.is_none() {
-            return None;
-        }
-
-        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
-            .expect("Invalid interval");
-
-        let collection_id = self.id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        db.activities().fetch_sale(collection_id, i).await.ok()
-    }
-
     #[graphql(name = "total_volume")]
     async fn total_volume(&self) -> Option<String> {
         self.total_volume.as_ref().map(|e| e.to_plain_string())
@@ -156,17 +97,45 @@ impl CollectionSchema {
     async fn total_owner(&self) -> Option<i64> {
         self.total_owner
     }
+
+    async fn sale(
+        &self,
+        ctx: &Context<'_>,
+        interval: Option<String>,
+    ) -> Option<CollectionSaleSchema> {
+        fetch_collection_sale(ctx, self.id.clone(), interval).await
+    }
+
+    #[graphql(name = "top_offer")]
+    async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
+        fetch_collection_top_offer(ctx, self.id.clone()).await
+    }
+
+    #[graphql(name = "past_floor")]
+    async fn past_floor(&self, ctx: &Context<'_>, interval: Option<String>) -> Option<String> {
+        fetch_collection_past_floor(ctx, self.id.clone(), interval).await
+    }
+
+    #[graphql(name = "total_trait")]
+    async fn total_trait(&self, ctx: &Context<'_>) -> Option<i64> {
+        fetch_total_collection_trait(ctx, self.id.clone()).await
+    }
+
+    #[graphql(name = "total_offer")]
+    async fn total_offer(&self, ctx: &Context<'_>) -> Option<String> {
+        fetch_total_collection_offer(ctx, self.id.clone()).await
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
-pub struct CollectionSale {
+pub struct CollectionSaleSchema {
     pub total: Option<i64>,
     pub volume: Option<BigDecimal>,
     pub volume_usd: Option<BigDecimal>,
 }
 
 #[async_graphql::Object]
-impl CollectionSale {
+impl CollectionSaleSchema {
     async fn total(&self) -> Option<i64> {
         self.total
     }

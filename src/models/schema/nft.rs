@@ -1,13 +1,10 @@
-use std::sync::Arc;
-
 use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    database::{Database, IDatabase, bids::IBids, collections::ICollections},
-    models::schema::collection::CollectionSchema,
+use crate::models::schema::{
+    collection::CollectionSchema, fetch_collection, fetch_nft_rarity_score, fetch_nft_top_offer,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -30,7 +27,6 @@ pub struct NftSchema {
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
     pub updated_at: Option<DateTime<Utc>>,
-    pub rarity_score: Option<BigDecimal>,
     pub last_sale: Option<BigDecimal>,
     pub listed_at: Option<DateTime<Utc>>,
     pub list_price: Option<BigDecimal>,
@@ -138,45 +134,17 @@ impl NftSchema {
     }
 
     #[graphql(name = "rarity_score")]
-    async fn rarity_score(&self) -> Option<String> {
-        self.rarity_score.as_ref().map(|e| e.to_plain_string())
+    async fn rarity_score(&self, ctx: &Context<'_>) -> Option<String> {
+        fetch_nft_rarity_score(ctx, &self.id, self.collection_id.clone()).await
     }
 
     #[graphql(name = "top_offer")]
     async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let res = db.bids().fetch_nft_top_offer(&self.id).await;
-
-        if res.is_err() {
-            return None;
-        }
-
-        res.unwrap().map(|e| e.to_plain_string())
+        fetch_nft_top_offer(ctx, &self.id).await
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        if self.collection_id.is_none() {
-            return None;
-        }
-
-        let collection_id = self.collection_id.as_ref().unwrap();
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let res = db
-            .collections()
-            .fetch_collections(Some(collection_id.to_string()), 1, 0)
-            .await;
-
-        if res.is_err() {
-            return None;
-        }
-
-        res.unwrap().first().cloned()
+        fetch_collection(ctx, self.collection_id.clone()).await
     }
 }
 
@@ -191,6 +159,7 @@ pub struct FilterNftSchema {
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
 pub struct NftWhereSchema {
+    pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
 }

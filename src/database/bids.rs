@@ -16,8 +16,11 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
+        wallet_address: Option<String>,
         collection_id: Option<String>,
         nft_id: Option<String>,
+        status: Option<String>,
+        bid_type: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>>;
@@ -28,6 +31,11 @@ pub trait IBids: Send + Sync {
     ) -> anyhow::Result<Option<BigDecimal>>;
 
     async fn fetch_nft_top_offer(&self, nft_id: &str) -> anyhow::Result<Option<BigDecimal>>;
+
+    async fn fetch_total_collection_offer(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Option<BigDecimal>>;
 }
 
 pub struct Bids {
@@ -120,8 +128,11 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
+        wallet_address: Option<String>,
         collection_id: Option<String>,
         nft_id: Option<String>,
+        status: Option<String>,
+        bid_type: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>> {
@@ -138,11 +149,20 @@ impl IBids for Bids {
             FROM bids b
                 LEFT JOIN latest_prices lp ON TRUE
             WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)
-                AND ($2::TEXT IS NULL OR $1::TEXT = '' OR b.collection_id = $2)
-            LIMIT $3 OFFSET $4
+                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR b.collection_id = $2)
+                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)
+                AND (
+                    ($4 = 'active' AND (b.expired_at IS NULL OR b.expired_at > NOW())) OR
+                    ($4::TEXT IS NULL OR $4::TEXT = '' OR b.status = $4)
+                )
+                AND ($5::TEXT IS NULL OR $5::TEXT = '' OR b.bid_type = $5)
+            LIMIT $6 OFFSET $7
             "#,
             nft_id,
             collection_id,
+            wallet_address,
+            status,
+            bid_type,
             limit,
             offset,
         )
@@ -188,6 +208,28 @@ impl IBids for Bids {
             GROUP BY b.nft_id
             "#,
             nft_id,
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count filtered collections")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_total_collection_offer(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Option<BigDecimal>> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT SUM(b.price)
+            FROM bids b
+            WHERE b.collection_id = $1
+                AND b.status = 'active'
+                AND b.expired_at > NOW()
+            GROUP BY b.collection_id
+            "#,
+            collection_id,
         )
         .fetch_one(&*self.pool)
         .await

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT SUM(b.price)\n            FROM bids b\n            WHERE b.collection_id = $1\n                AND b.status = 'active'\n                AND b.expired_at > NOW()\n            GROUP BY b.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sum",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d262775c2769b12e2c148e33252847df693309af72ebacbba5bdae29c36e6ec8"
+}
