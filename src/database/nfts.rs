@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use crate::models::{
     api::responses::nft_offer::NftOffer,
-    db::nft::Nft as DbNft,
+    db::nft::DbNft,
     schema::{
-        nft::Nft,
-        nft_distribution::{NftAmountDistribution, NftPeriodDistribution},
-        nft_holder::NftHolder,
+        nft::NftSchema,
+        nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
+        nft_holder::NftHolderSchema,
     },
 };
 use anyhow::Context;
@@ -27,7 +27,7 @@ pub trait INfts: Send + Sync {
         collection_id: Option<String>,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<Nft>>;
+    ) -> anyhow::Result<Vec<NftSchema>>;
 
     async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>>;
 
@@ -47,17 +47,17 @@ pub trait INfts: Send + Sync {
         collection_id: &str,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<NftHolder>>;
+    ) -> anyhow::Result<Vec<NftHolderSchema>>;
 
     async fn fetch_nft_amount_distribution(
         &self,
         collection_id: &str,
-    ) -> anyhow::Result<NftAmountDistribution>;
+    ) -> anyhow::Result<NftAmountDistributionSchema>;
 
     async fn fetch_nft_period_distribution(
         &self,
         collection_id: &str,
-    ) -> anyhow::Result<NftPeriodDistribution>;
+    ) -> anyhow::Result<NftPeriodDistributionSchema>;
 }
 
 pub struct Nfts {
@@ -159,9 +159,9 @@ impl INfts for Nfts {
         collection_id: Option<String>,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<Nft>> {
+    ) -> anyhow::Result<Vec<NftSchema>> {
         let res = sqlx::query_as!(
-            Nft,
+            NftSchema,
             r#"
             WITH
                 latest_prices AS (
@@ -357,9 +357,9 @@ impl INfts for Nfts {
         collection_id: &str,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<NftHolder>> {
+    ) -> anyhow::Result<Vec<NftHolderSchema>> {
         let res = sqlx::query_as!(
-            NftHolder,
+            NftHolderSchema,
             r#"
             WITH 
                 mint_activities AS (
@@ -421,9 +421,9 @@ impl INfts for Nfts {
     async fn fetch_nft_amount_distribution(
         &self,
         collection_id: &str,
-    ) -> anyhow::Result<NftAmountDistribution> {
+    ) -> anyhow::Result<NftAmountDistributionSchema> {
         let res = sqlx::query_as!(
-            NftAmountDistribution,
+            NftAmountDistributionSchema,
             r#"
             WITH nft_distributions AS (
                 SELECT n.collection_id, n.owner, COUNT(*) FROM nfts n
@@ -482,9 +482,9 @@ impl INfts for Nfts {
     async fn fetch_nft_period_distribution(
         &self,
         id: &str,
-    ) -> anyhow::Result<NftPeriodDistribution> {
+    ) -> anyhow::Result<NftPeriodDistributionSchema> {
         let res = sqlx::query_as!(
-            NftPeriodDistribution,
+            NftPeriodDistributionSchema,
             r#"
             WITH
                 nft_periods AS (

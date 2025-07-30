@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{Database, IDatabase, collections::ICollections, nfts::INfts},
-    models::schema::{collection::Collection, nft::Nft},
+    models::schema::{collection::CollectionSchema, nft::NftSchema},
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Listing {
+pub struct ListingSchema {
     pub block_height: Option<i64>,
     pub block_time: Option<DateTime<Utc>>,
     pub market_contract_id: Option<String>,
@@ -27,7 +27,7 @@ pub struct Listing {
 }
 
 #[async_graphql::Object]
-impl Listing {
+impl ListingSchema {
     #[graphql(name = "block_height")]
     async fn block_height(&self) -> Option<i64> {
         self.block_height
@@ -84,7 +84,7 @@ impl Listing {
         self.nft_id.as_ref().map(|e| e.as_str())
     }
 
-    async fn collection(&self, ctx: &Context<'_>) -> Option<Collection> {
+    async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         if self.collection_id.is_none() {
             return None;
         }
@@ -106,7 +106,7 @@ impl Listing {
         res.unwrap().first().cloned()
     }
 
-    async fn nft(&self, ctx: &Context<'_>) -> Option<Nft> {
+    async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
         if self.nft_id.is_none() {
             return None;
         }

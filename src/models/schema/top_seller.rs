@@ -2,14 +2,14 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TopSeller {
+pub struct TopSellerSchema {
     pub seller: Option<String>,
     pub sold: Option<i64>,
     pub volume: Option<BigDecimal>,
 }
 
 #[async_graphql::Object]
-impl TopSeller {
+impl TopSellerSchema {
     async fn sold(&self) -> Option<i64> {
         self.sold
     }

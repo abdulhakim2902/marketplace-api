@@ -1,6 +1,6 @@
 use crate::{
     config::marketplace_config::MarketplaceEventType,
-    models::db::{activity::Activity, bid::Bid, listing::Listing},
+    models::db::{activity::DbActivity, bid::DbBid, listing::DbListing},
 };
 use aptos_indexer_processor_sdk::{
     aptos_indexer_transaction_stream::utils::time::parse_timestamp_secs, utils::extract::hash_str,
@@ -44,7 +44,7 @@ pub struct NftMarketplaceActivity {
     pub bid_key: Option<i64>,
 }
 
-impl From<NftMarketplaceActivity> for Activity {
+impl From<NftMarketplaceActivity> for DbActivity {
     fn from(value: NftMarketplaceActivity) -> Self {
         Self {
             tx_index: value.get_tx_index(),
@@ -65,13 +65,13 @@ impl From<NftMarketplaceActivity> for Activity {
     }
 }
 
-impl From<NftMarketplaceActivity> for Bid {
+impl From<NftMarketplaceActivity> for DbBid {
     fn from(value: NftMarketplaceActivity) -> Self {
         Self {
             id: value.get_bid_id(),
             created_tx_id: value.get_created_txn_id(),
             accepted_tx_id: value.get_accepted_txn_id(),
-            canceled_tx_id: value.get_cancelled_txn_id(),
+            cancelled_tx_id: value.get_cancelled_txn_id(),
             bid_type: value.get_bid_type(),
             status: value.get_bid_status(),
             price: Some(value.get_price()),
@@ -89,7 +89,7 @@ impl From<NftMarketplaceActivity> for Bid {
     }
 }
 
-impl From<NftMarketplaceActivity> for Listing {
+impl From<NftMarketplaceActivity> for DbListing {
     fn from(value: NftMarketplaceActivity) -> Self {
         Self {
             tx_index: Some(value.get_tx_index()),
@@ -159,7 +159,7 @@ impl MarketplaceModel for NftMarketplaceActivity {
     }
 
     // This is a function that is used to check if we have all the necessary fields to insert the model into the database.
-    // Activity table uses txn_version, index, and marketplace as the primary key, so it's rare that we need to check if it's valid.
+    // DbActivity table uses txn_version, index, and marketplace as the primary key, so it's rare that we need to check if it's valid.
     // So we use this function to check if has the contract_address and marketplace. to make sure we can easily filter out marketplaces that don't exist.
     // TODO: if we want to be more strict, we can have a whitelist of marketplaces that are allowed to be inserted into the database.
     fn is_valid(&self) -> bool {

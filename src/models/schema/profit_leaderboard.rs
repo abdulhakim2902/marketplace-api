@@ -2,7 +2,7 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct ProfitLeaderboard {
+pub struct ProfitLeaderboardSchema {
     pub address: Option<String>,
     pub spent: Option<BigDecimal>,
     pub bought: Option<i64>,
@@ -11,7 +11,7 @@ pub struct ProfitLeaderboard {
 }
 
 #[async_graphql::Object]
-impl ProfitLeaderboard {
+impl ProfitLeaderboardSchema {
     async fn address(&self) -> Option<&str> {
         self.address.as_ref().map(|e| e.as_str())
     }

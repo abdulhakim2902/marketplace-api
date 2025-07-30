@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::{
-    api::responses::attribute::Attribute, db::attribute::Attribute as DbAttribute,
-};
+use crate::models::{api::responses::attribute::Attribute, db::attribute::DbAttribute};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};

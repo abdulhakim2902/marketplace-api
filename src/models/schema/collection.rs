@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
-pub struct Collection {
+pub struct CollectionSchema {
     pub id: Option<String>,
     pub slug: Option<String>,
     pub supply: Option<i64>,
@@ -31,7 +31,7 @@ pub struct Collection {
 }
 
 #[async_graphql::Object]
-impl Collection {
+impl CollectionSchema {
     async fn id(&self) -> Option<&str> {
         self.id.as_ref().map(|e| e.as_str())
     }

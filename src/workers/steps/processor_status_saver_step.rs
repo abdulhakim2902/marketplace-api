@@ -8,7 +8,7 @@ use aptos_indexer_processor_sdk::{
 
 use crate::{
     database::{IDatabase, processor_status::IProcessorStatus},
-    models::db::processor_status::ProcessorStatus,
+    models::db::processor_status::DbProcessorStatus,
 };
 
 pub struct DbProcessorStatusSaver<TDb: IDatabase> {
@@ -35,7 +35,7 @@ impl<TDb: IDatabase> ProcessorStatusSaver for DbProcessorStatusSaver<TDb> {
             .as_ref()
             .map(|ts| parse_timestamp(ts, last_success_version as i64));
 
-        let status = ProcessorStatus {
+        let status = DbProcessorStatus {
             processor: self.name.clone(),
             last_success_version: last_success_version as i64,
             last_transaction_timestamp,

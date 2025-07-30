@@ -3,11 +3,11 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Bid {
+pub struct DbBid {
     pub id: Option<String>,
     pub bidder: Option<String>,
     pub accepted_tx_id: Option<String>,
-    pub canceled_tx_id: Option<String>,
+    pub cancelled_tx_id: Option<String>,
     pub collection_id: Option<String>,
     pub created_tx_id: Option<String>,
     pub expired_at: Option<NaiveDateTime>,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::db::processor_status::ProcessorStatus as DbProcessorStatus;
+use crate::models::db::processor_status::DbProcessorStatus;
 use anyhow::Context;
 use sqlx::{PgPool, postgres::PgQueryResult};
 

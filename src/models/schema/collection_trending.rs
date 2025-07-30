@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use crate::{
     database::{Database, IDatabase, collections::ICollections, nfts::INfts},
-    models::schema::{collection::Collection, nft::Nft},
+    models::schema::{collection::CollectionSchema, nft::NftSchema},
 };
 use async_graphql::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct CollectionTrending {
+pub struct CollectionTrendingSchema {
     pub nft_id: Option<String>,
     pub collection_id: Option<String>,
     pub tx_frequency: Option<i64>,
@@ -17,7 +17,7 @@ pub struct CollectionTrending {
 }
 
 #[async_graphql::Object]
-impl CollectionTrending {
+impl CollectionTrendingSchema {
     #[graphql(name = "collection_id")]
     async fn collection_id(&self) -> Option<&str> {
         self.collection_id.as_ref().map(|e| e.as_str())
@@ -38,7 +38,7 @@ impl CollectionTrending {
         self.last_price.as_ref().map(|e| e.to_string())
     }
 
-    async fn collection(&self, ctx: &Context<'_>) -> Option<Collection> {
+    async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         if self.collection_id.is_none() {
             return None;
         }
@@ -60,7 +60,7 @@ impl CollectionTrending {
         res.unwrap().first().cloned()
     }
 
-    async fn nft(&self, ctx: &Context<'_>) -> Option<Nft> {
+    async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
         if self.nft_id.is_none() {
             return None;
         }

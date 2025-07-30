@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS bids (
   id VARCHAR(66) NOT NULL,
   bidder VARCHAR(66) NOT NULL,
   accepted_tx_id VARCHAR(66) DEFAULT NULL,
-  canceled_tx_id VARCHAR(66) DEFAULT NULL,
+  cancelled_tx_id VARCHAR(66) DEFAULT NULL,
   collection_id VARCHAR(66) DEFAULT NULL,
   created_tx_id VARCHAR(66) DEFAULT NULL,
   expired_at timestamp(6) WITH time zone DEFAULT NULL,

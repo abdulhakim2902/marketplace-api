@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use crate::models::{
-    db::activity::Activity as DbActivity,
+    db::activity::DbActivity,
     schema::{
-        activity::Activity, collection::CollectionSale, data_point::DataPoint,
-        nft_change::NftChange, profit_leaderboard::ProfitLeaderboard, top_buyer::TopBuyer,
-        top_seller::TopSeller,
+        activity::ActivitySchema, collection::CollectionSale, data_point::DataPointSchema,
+        nft_change::NftChangeSchema, profit_leaderboard::ProfitLeaderboardSchema,
+        top_buyer::TopBuyerSchema, top_seller::TopSellerSchema,
     },
 };
 use anyhow::Context;
@@ -24,7 +24,11 @@ pub trait IActivities: Send + Sync {
         items: Vec<DbActivity>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_activities(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Activity>>;
+    async fn fetch_activities(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<ActivitySchema>>;
 
     async fn fetch_past_floor(
         &self,
@@ -44,26 +48,26 @@ pub trait IActivities: Send + Sync {
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
         interval: PgInterval,
-    ) -> anyhow::Result<Vec<DataPoint>>;
+    ) -> anyhow::Result<Vec<DataPointSchema>>;
 
     async fn fetch_top_buyers(
         &self,
         collection_id: &str,
         interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopBuyer>>;
+    ) -> anyhow::Result<Vec<TopBuyerSchema>>;
 
     async fn fetch_top_sellers(
         &self,
         collection_id: &str,
         interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopSeller>>;
+    ) -> anyhow::Result<Vec<TopSellerSchema>>;
 
     async fn fetch_profit_leaderboard(
         &self,
         collection_id: &str,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<ProfitLeaderboard>>;
+    ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>>;
 
     async fn fetch_nft_changes(
         &self,
@@ -71,7 +75,7 @@ pub trait IActivities: Send + Sync {
         interval: Option<PgInterval>,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<NftChange>>;
+    ) -> anyhow::Result<Vec<NftChangeSchema>>;
 }
 
 pub struct Activities {
@@ -144,9 +148,13 @@ impl IActivities for Activities {
         Ok(res)
     }
 
-    async fn fetch_activities(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Activity>> {
+    async fn fetch_activities(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<ActivitySchema>> {
         let res = sqlx::query_as!(
-            Activity,
+            ActivitySchema,
             r#"
             SELECT 
                 a.tx_type,
@@ -231,9 +239,9 @@ impl IActivities for Activities {
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
         interval: PgInterval,
-    ) -> anyhow::Result<Vec<DataPoint>> {
+    ) -> anyhow::Result<Vec<DataPointSchema>> {
         let res = sqlx::query_as!(
-            DataPoint,
+            DataPointSchema,
             r#"
             WITH 
                 time_series AS (
@@ -293,9 +301,9 @@ impl IActivities for Activities {
         &self,
         collection_id: &str,
         interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopBuyer>> {
+    ) -> anyhow::Result<Vec<TopBuyerSchema>> {
         let res = sqlx::query_as!(
-            TopBuyer,
+            TopBuyerSchema,
             r#"
             SELECT
                 a.receiver      AS buyer, 
@@ -323,9 +331,9 @@ impl IActivities for Activities {
         &self,
         collection_id: &str,
         interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopSeller>> {
+    ) -> anyhow::Result<Vec<TopSellerSchema>> {
         let res = sqlx::query_as!(
-            TopSeller,
+            TopSellerSchema,
             r#"
             SELECT
                 a.sender            AS seller, 
@@ -354,9 +362,9 @@ impl IActivities for Activities {
         collection_id: &str,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<ProfitLeaderboard>> {
+    ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>> {
         let res = sqlx::query_as!(
-            ProfitLeaderboard,
+            ProfitLeaderboardSchema,
             r#"
             WITH
                 bought_activities AS (
@@ -402,9 +410,9 @@ impl IActivities for Activities {
         interval: Option<PgInterval>,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<NftChange>> {
+    ) -> anyhow::Result<Vec<NftChangeSchema>> {
         let res = sqlx::query_as!(
-            NftChange,
+            NftChangeSchema,
             r#"
             WITH 
                 current_nft_owners AS (

@@ -2,7 +2,7 @@ use crate::{
     cache::ICache,
     database::{IDatabase, token_prices::ITokenPrices},
     models::{
-        db::{activity::Activity, bid::Bid, listing::Listing},
+        db::{activity::DbActivity, bid::DbBid, listing::DbListing},
         marketplace::{BidModel, ListingModel, NftMarketplaceActivity},
     },
 };
@@ -22,22 +22,22 @@ const APT_TOKEN_ADDR: &str = "0x000000000000000000000000000000000000000000000000
 
 #[derive(Clone, Debug, Default)]
 pub struct NFTAccumulator {
-    activities: HashMap<i64, Activity>,
-    bids: HashMap<BidIdType, Bid>,
-    listings: HashMap<ListingIdType, Listing>,
+    activities: HashMap<i64, DbActivity>,
+    bids: HashMap<BidIdType, DbBid>,
+    listings: HashMap<ListingIdType, DbListing>,
 }
 
 impl NFTAccumulator {
     pub fn fold_activity(&mut self, activity: &NftMarketplaceActivity) {
         let key = activity.get_tx_index();
-        let activity: Activity = activity.to_owned().into();
+        let activity: DbActivity = activity.to_owned().into();
 
         self.activities.insert(key, activity);
     }
 
     pub fn fold_bidding(&mut self, activity: &NftMarketplaceActivity) {
         if activity.is_valid_bid() {
-            let bid: Bid = activity.to_owned().into();
+            let bid: DbBid = activity.to_owned().into();
             let key = (
                 bid.market_contract_id.clone(),
                 bid.id.clone(),
@@ -46,7 +46,7 @@ impl NFTAccumulator {
 
             self.bids
                 .entry(key)
-                .and_modify(|existing: &mut Bid| {
+                .and_modify(|existing: &mut DbBid| {
                     if let Some(nonce) = bid.nonce.as_ref() {
                         existing.nonce = Some(nonce.to_string());
                     }
@@ -60,8 +60,8 @@ impl NFTAccumulator {
                         existing.status = Some("matched".to_string());
                     }
 
-                    if let Some(tx_id) = bid.canceled_tx_id.as_ref() {
-                        existing.canceled_tx_id = Some(tx_id.to_string());
+                    if let Some(tx_id) = bid.cancelled_tx_id.as_ref() {
+                        existing.cancelled_tx_id = Some(tx_id.to_string());
                         existing.status = Some("cancelled".to_string());
                     }
 
@@ -75,11 +75,11 @@ impl NFTAccumulator {
 
     pub fn fold_listing(&mut self, activity: &NftMarketplaceActivity) {
         if activity.is_valid_listing() {
-            let listing: Listing = activity.to_owned().into();
+            let listing: DbListing = activity.to_owned().into();
             let key = (listing.market_contract_id.clone(), listing.nft_id.clone());
             self.listings
                 .entry(key)
-                .and_modify(|existing: &mut Listing| {
+                .and_modify(|existing: &mut DbListing| {
                     let is_listed = listing.listed.unwrap_or(false);
                     let is_latest = listing
                         .block_time
@@ -110,7 +110,7 @@ impl NFTAccumulator {
         }
     }
 
-    pub fn drain(&mut self) -> (Vec<Activity>, Vec<Bid>, Vec<Listing>) {
+    pub fn drain(&mut self) -> (Vec<DbActivity>, Vec<DbBid>, Vec<DbListing>) {
         (
             self.activities.drain().map(|(_, v)| v).collect(),
             self.bids.drain().map(|(_, v)| v).collect(),
@@ -146,7 +146,7 @@ where
     TCache: 'static,
 {
     type Input = Vec<Vec<NftMarketplaceActivity>>;
-    type Output = (Vec<Activity>, Vec<Bid>, Vec<Listing>);
+    type Output = (Vec<DbActivity>, Vec<DbBid>, Vec<DbListing>);
     type RunType = AsyncRunType;
 
     async fn process(

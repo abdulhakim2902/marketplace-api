@@ -1,4 +1,5 @@
 pub mod activity;
+pub mod bid;
 pub mod collection;
 pub mod collection_trending;
 pub mod data_point;

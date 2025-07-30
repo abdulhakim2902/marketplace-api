@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     config::marketplace_config::MarketplaceEventType,
-    models::{EventModel, db::nft::Nft},
+    models::{EventModel, db::nft::DbNft},
     utils::{
         object_utils::ObjectAggregatedData,
         token_utils::{TokenEvent, V2TokenEvent},
@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Activity {
+pub struct DbActivity {
     pub tx_type: Option<String>,
     pub tx_index: i64,
     pub tx_id: String,
@@ -31,7 +31,7 @@ pub struct Activity {
     pub amount: Option<i64>,
 }
 
-impl Activity {
+impl DbActivity {
     pub fn get_action_from_token_event_v1(
         event: &EventModel,
         txn_id: &str,
@@ -41,7 +41,7 @@ impl Activity {
         let token_event = TokenEvent::from_event(&event_type, &event.data.to_string(), txn_version);
         if let Some(token_event) = token_event? {
             let token_activity = match &token_event {
-                TokenEvent::Mint(inner) => Some(Activity {
+                TokenEvent::Mint(inner) => Some(DbActivity {
                     tx_id: txn_id.to_string(),
                     tx_index: event.get_tx_index(),
                     block_time: Some(event.block_timestamp),
@@ -52,7 +52,7 @@ impl Activity {
                     amount: Some(1),
                     ..Default::default()
                 }),
-                TokenEvent::MintTokenEvent(inner) => Some(Activity {
+                TokenEvent::MintTokenEvent(inner) => Some(DbActivity {
                     tx_id: txn_id.to_string(),
                     tx_index: event.get_tx_index(),
                     block_time: Some(event.block_timestamp),
@@ -63,7 +63,7 @@ impl Activity {
                     nft_id: Some(inner.id.to_addr()),
                     ..Default::default()
                 }),
-                TokenEvent::Burn(inner) => Some(Activity {
+                TokenEvent::Burn(inner) => Some(DbActivity {
                     tx_id: txn_id.to_string(),
                     tx_index: event.get_tx_index(),
                     block_time: Some(event.block_timestamp),
@@ -75,7 +75,7 @@ impl Activity {
                     amount: Some(1),
                     ..Default::default()
                 }),
-                TokenEvent::BurnTokenEvent(inner) => Some(Activity {
+                TokenEvent::BurnTokenEvent(inner) => Some(DbActivity {
                     tx_id: txn_id.to_string(),
                     tx_index: event.get_tx_index(),
                     block_time: Some(event.block_timestamp),
@@ -119,7 +119,7 @@ impl Activity {
 
             if let Some(object_data) = object_metadata.get(&token_addr) {
                 let token_activity = match token_event {
-                    V2TokenEvent::Mint(mint) => Some(Activity {
+                    V2TokenEvent::Mint(mint) => Some(DbActivity {
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_height: Some(event.transaction_block_height),
@@ -131,7 +131,7 @@ impl Activity {
                         nft_id: Some(mint.get_token_address()),
                         ..Default::default()
                     }),
-                    V2TokenEvent::MintEvent(mint) => Some(Activity {
+                    V2TokenEvent::MintEvent(mint) => Some(DbActivity {
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_height: Some(event.transaction_block_height),
@@ -143,7 +143,7 @@ impl Activity {
                         nft_id: Some(mint.get_token_address()),
                         ..Default::default()
                     }),
-                    V2TokenEvent::Burn(burn) => Some(Activity {
+                    V2TokenEvent::Burn(burn) => Some(DbActivity {
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_height: Some(event.transaction_block_height),
@@ -155,7 +155,7 @@ impl Activity {
                         nft_id: Some(burn.get_token_address()),
                         ..Default::default()
                     }),
-                    V2TokenEvent::BurnEvent(burn) => Some(Activity {
+                    V2TokenEvent::BurnEvent(burn) => Some(DbActivity {
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_height: Some(event.transaction_block_height),
@@ -169,7 +169,7 @@ impl Activity {
                     }),
                     V2TokenEvent::TransferEvent(transfer) => {
                         if let Some(token) = &object_data.token {
-                            Some(Activity {
+                            Some(DbActivity {
                                 tx_id: txn_id.to_string(),
                                 tx_index: event.get_tx_index(),
                                 block_height: Some(event.transaction_block_height),
@@ -197,8 +197,8 @@ impl Activity {
     }
 }
 
-impl From<Activity> for Nft {
-    fn from(value: Activity) -> Self {
+impl From<DbActivity> for DbNft {
+    fn from(value: DbActivity) -> Self {
         Self {
             id: value.nft_id.unwrap(),
             burned: Some(true),

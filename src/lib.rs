@@ -21,10 +21,7 @@ use crate::{
         processor_status::ProcessorStatus, token_prices::TokenPrices,
     },
     http_server::HttpServer,
-    services::{
-        InternalServices, Services, collection::CollectionService, health::HealthService,
-        nft::NftService,
-    },
+    services::{InternalServices, Services, health::HealthService, nft::NftService},
     utils::shutdown_utils,
     workers::Worker,
 };
@@ -76,14 +73,9 @@ pub async fn init() -> anyhow::Result<(
 
 fn init_services(db: Arc<Database>) -> Arc<Services<InternalServices>> {
     let health_service = Arc::new(HealthService::new(Arc::clone(&db)));
-    let collection_service = Arc::new(CollectionService::new(Arc::clone(&db)));
     let nft_service = Arc::new(NftService::new(Arc::clone(&db)));
 
-    Arc::new(Services::new(
-        health_service,
-        collection_service,
-        nft_service,
-    ))
+    Arc::new(Services::new(health_service, nft_service))
 }
 
 fn init_config() -> anyhow::Result<Config> {

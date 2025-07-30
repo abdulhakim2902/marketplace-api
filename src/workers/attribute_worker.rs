@@ -5,7 +5,7 @@ use reqwest::Client;
 
 use crate::{
     database::{IDatabase, attributes::IAttributes, nfts::INfts},
-    models::{db::attribute::Attribute, nft_metadata::NFTMetadata},
+    models::{db::attribute::DbAttribute, nft_metadata::NFTMetadata},
     utils::shutdown_utils,
 };
 
@@ -110,7 +110,7 @@ where
                     }
 
                     for attribute in nft_metadata.attributes {
-                        let attribute = Attribute {
+                        let attribute = DbAttribute {
                             collection_id: nft.collection_id.clone(),
                             nft_id: Some(nft.id.clone()),
                             attr_type: Some(attribute.trait_type.to_lowercase()),

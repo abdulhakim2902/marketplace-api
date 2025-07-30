@@ -16,7 +16,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Nft {
+pub struct DbNft {
     pub id: String,
     pub name: Option<String>,
     pub owner: Option<String>,
@@ -37,7 +37,7 @@ pub struct Nft {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-impl Nft {
+impl DbNft {
     pub fn get_from_write_resource(
         wr: &WriteResource,
         object_metadata: &AHashMap<String, ObjectAggregatedData>,
@@ -45,7 +45,7 @@ impl Nft {
         if let Some(inner) = TokenResourceData::from_write_resource(wr)? {
             let token_addr = standardize_address(&wr.address);
 
-            let mut nft = Nft {
+            let mut nft = DbNft {
                 id: token_addr.clone(),
                 collection_id: Some(inner.get_collection_address()),
                 name: Some(inner.name),
@@ -129,7 +129,7 @@ impl Nft {
                         }
                     };
 
-                    let mut nft = Nft {
+                    let mut nft = DbNft {
                         id: token_data_id_struct.to_addr(),
                         owner: owner_address,
                         collection_id: Some(token_data_id_struct.get_collection_addr()),

@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{Database, IDatabase, bids::IBids, collections::ICollections},
-    models::schema::collection::Collection,
+    models::schema::collection::CollectionSchema,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Nft {
+pub struct NftSchema {
     pub id: String,
     pub name: Option<String>,
     pub owner: Option<String>,
@@ -38,7 +38,7 @@ pub struct Nft {
 }
 
 #[async_graphql::Object]
-impl Nft {
+impl NftSchema {
     async fn id(&self) -> &str {
         &self.id
     }
@@ -157,7 +157,7 @@ impl Nft {
         res.unwrap().map(|e| e.to_plain_string())
     }
 
-    async fn collection(&self, ctx: &Context<'_>) -> Option<Collection> {
+    async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         if self.collection_id.is_none() {
             return None;
         }

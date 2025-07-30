@@ -16,7 +16,7 @@ use bigdecimal::{BigDecimal, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Collection {
+pub struct DbCollection {
     pub id: String,
     pub slug: Option<String>,
     pub supply: Option<i64>,
@@ -30,7 +30,7 @@ pub struct Collection {
     pub royalty: Option<BigDecimal>,
 }
 
-impl Collection {
+impl DbCollection {
     pub fn get_from_write_table_item(
         table_item: &WriteTableItem,
         txn_version: i64,
@@ -60,7 +60,7 @@ impl Collection {
 
                     // TODO: collection slug
 
-                    let collection = Collection {
+                    let collection = DbCollection {
                         id: collection_addr.clone(),
                         slug: Some(collection_addr),
                         title: Some(collection_data.name.clone()),
@@ -85,7 +85,7 @@ impl Collection {
         if let Some(inner) = CollectionResourceData::from_write_resource(wr)? {
             // TODO: collection slug
             let address = standardize_address(&wr.address);
-            let mut collection = Collection {
+            let mut collection = DbCollection {
                 id: address.clone(),
                 slug: Some(address.clone()),
                 title: Some(inner.name),

@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{Database, IDatabase, collections::ICollections, nfts::INfts},
-    models::schema::{collection::Collection, nft::Nft},
+    models::schema::{collection::CollectionSchema, nft::NftSchema},
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Activity {
+pub struct ActivitySchema {
     pub tx_type: Option<String>,
     pub tx_index: i64,
     pub tx_id: String,
@@ -29,7 +29,7 @@ pub struct Activity {
 }
 
 #[async_graphql::Object]
-impl Activity {
+impl ActivitySchema {
     #[graphql(name = "tx_type")]
     async fn tx_type(&self) -> Option<&str> {
         self.tx_type.as_ref().map(|e| e.as_str())
@@ -97,7 +97,7 @@ impl Activity {
         self.amount
     }
 
-    async fn nft(&self, ctx: &Context<'_>) -> Option<Nft> {
+    async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
         if self.nft_id.is_none() {
             return None;
         }
@@ -118,7 +118,7 @@ impl Activity {
         res.unwrap().first().cloned()
     }
 
-    async fn collection(&self, ctx: &Context<'_>) -> Option<Collection> {
+    async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         if self.collection_id.is_none() {
             return None;
         }

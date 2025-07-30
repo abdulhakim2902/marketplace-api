@@ -4,8 +4,8 @@ use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 use crate::models::{
-    db::collection::Collection as DbCollection,
-    schema::{collection::Collection, collection_trending::CollectionTrending},
+    db::collection::DbCollection,
+    schema::{collection::CollectionSchema, collection_trending::CollectionTrendingSchema},
 };
 
 #[async_trait::async_trait]
@@ -21,14 +21,14 @@ pub trait ICollections: Send + Sync {
         id: Option<String>,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<Collection>>;
+    ) -> anyhow::Result<Vec<CollectionSchema>>;
 
     async fn fetch_collection_trending(
         &self,
         id: &str,
         page: i64,
         size: i64,
-    ) -> anyhow::Result<Vec<CollectionTrending>>;
+    ) -> anyhow::Result<Vec<CollectionTrendingSchema>>;
 }
 
 pub struct Collections {
@@ -110,9 +110,9 @@ impl ICollections for Collections {
         id: Option<String>,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<Collection>> {
+    ) -> anyhow::Result<Vec<CollectionSchema>> {
         let res = sqlx::query_as!(
-            Collection,
+            CollectionSchema,
             r#"
             WITH 
                 sales AS (
@@ -180,9 +180,9 @@ impl ICollections for Collections {
         id: &str,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<CollectionTrending>> {
+    ) -> anyhow::Result<Vec<CollectionTrendingSchema>> {
         let res = sqlx::query_as!(
-            CollectionTrending,
+            CollectionTrendingSchema,
             r#"
             WITH 
                 nft_activities AS (

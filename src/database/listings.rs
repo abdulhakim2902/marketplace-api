@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::{db::listing::Listing as DbListing, schema::listing::Listing};
+use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -18,7 +18,7 @@ pub trait IListings: Send + Sync {
         is_listed: Option<bool>,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<Listing>>;
+    ) -> anyhow::Result<Vec<ListingSchema>>;
 }
 
 pub struct Listings {
@@ -101,9 +101,9 @@ impl IListings for Listings {
         is_listed: Option<bool>,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<Listing>> {
+    ) -> anyhow::Result<Vec<ListingSchema>> {
         let res = sqlx::query_as!(
-            Listing,
+            ListingSchema,
             r#"
             WITH latest_prices AS (
                 SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp

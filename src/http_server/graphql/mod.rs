@@ -6,18 +6,18 @@ use crate::{
         listings::IListings, nfts::INfts,
     },
     models::schema::{
-        activity::Activity,
-        collection::Collection,
-        collection_trending::CollectionTrending,
-        data_point::DataPoint,
-        listing::Listing,
-        nft::Nft,
-        nft_change::NftChange,
-        nft_distribution::{NftAmountDistribution, NftPeriodDistribution},
-        nft_holder::NftHolder,
-        profit_leaderboard::ProfitLeaderboard,
-        top_buyer::TopBuyer,
-        top_seller::TopSeller,
+        activity::ActivitySchema,
+        collection::CollectionSchema,
+        collection_trending::CollectionTrendingSchema,
+        data_point::DataPointSchema,
+        listing::ListingSchema,
+        nft::NftSchema,
+        nft_change::NftChangeSchema,
+        nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
+        nft_holder::NftHolderSchema,
+        profit_leaderboard::ProfitLeaderboardSchema,
+        top_buyer::TopBuyerSchema,
+        top_seller::TopSellerSchema,
     },
     utils::string_utils,
 };
@@ -37,7 +37,7 @@ impl Query {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Vec<Activity> {
+    ) -> Vec<ActivitySchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -57,7 +57,7 @@ impl Query {
         id: Option<String>,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Vec<Collection> {
+    ) -> Vec<CollectionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -77,7 +77,7 @@ impl Query {
         id: String,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Vec<CollectionTrending> {
+    ) -> Vec<CollectionTrendingSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -96,7 +96,7 @@ impl Query {
         ctx: &Context<'_>,
         collection_id: String,
         interval: Option<String>,
-    ) -> Vec<TopBuyer> {
+    ) -> Vec<TopBuyerSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -115,7 +115,7 @@ impl Query {
         ctx: &Context<'_>,
         collection_id: String,
         interval: Option<String>,
-    ) -> Vec<TopSeller> {
+    ) -> Vec<TopSellerSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -135,7 +135,7 @@ impl Query {
         collection_id: String,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Vec<NftHolder> {
+    ) -> Vec<NftHolderSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -153,7 +153,7 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         collection_id: String,
-    ) -> NftAmountDistribution {
+    ) -> NftAmountDistributionSchema {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -168,7 +168,7 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         collection_id: String,
-    ) -> NftPeriodDistribution {
+    ) -> NftPeriodDistributionSchema {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -185,7 +185,7 @@ impl Query {
         collection_id: String,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Vec<ProfitLeaderboard> {
+    ) -> Vec<ProfitLeaderboardSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -206,7 +206,7 @@ impl Query {
         interval: Option<String>,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Vec<NftChange> {
+    ) -> Vec<NftChangeSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -230,7 +230,7 @@ impl Query {
         collection_id: Option<String>,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Vec<Nft> {
+    ) -> Vec<NftSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -251,7 +251,7 @@ impl Query {
         is_listed: Option<bool>,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Vec<Listing> {
+    ) -> Vec<ListingSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -272,7 +272,7 @@ impl Query {
         start_time_in_ms: i64,
         end_time_in_ms: i64,
         interval: String,
-    ) -> Vec<DataPoint> {
+    ) -> Vec<DataPointSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");

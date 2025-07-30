@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct NftAmountDistribution {
+pub struct NftAmountDistributionSchema {
     pub range_1: Option<i64>,
     pub range_2_to_3: Option<i64>,
     pub range_4_to_10: Option<i64>,
@@ -11,7 +11,7 @@ pub struct NftAmountDistribution {
 }
 
 #[async_graphql::Object]
-impl NftAmountDistribution {
+impl NftAmountDistributionSchema {
     #[graphql(name = "range_1")]
     async fn range_1(&self) -> Option<i64> {
         self.range_1
@@ -44,7 +44,7 @@ impl NftAmountDistribution {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct NftPeriodDistribution {
+pub struct NftPeriodDistributionSchema {
     pub range_lt_24h: Option<i64>,
     pub range_1d_to_7d: Option<i64>,
     pub range_7d_to_30d: Option<i64>,
@@ -54,7 +54,7 @@ pub struct NftPeriodDistribution {
 }
 
 #[async_graphql::Object]
-impl NftPeriodDistribution {
+impl NftPeriodDistributionSchema {
     #[graphql(name = "range_lt_24h")]
     async fn range_lt_24h(&self) -> Option<i64> {
         self.range_lt_24h

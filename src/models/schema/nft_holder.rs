@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct NftHolder {
+pub struct NftHolderSchema {
     pub address: Option<String>,
     pub quantity: Option<i64>,
     pub mint: Option<i64>,
@@ -10,7 +10,7 @@ pub struct NftHolder {
 }
 
 #[async_graphql::Object]
-impl NftHolder {
+impl NftHolderSchema {
     async fn address(&self) -> Option<&str> {
         self.address.as_ref().map(|e| e.as_str())
     }

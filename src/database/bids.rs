@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::db::bid::Bid;
+use crate::models::db::bid::DbBid;
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
@@ -10,7 +10,7 @@ pub trait IBids: Send + Sync {
     async fn tx_insert_bids(
         &self,
         tx: &mut Transaction<'_, Postgres>,
-        bids: Vec<Bid>,
+        bids: Vec<DbBid>,
     ) -> anyhow::Result<PgQueryResult>;
 
     async fn fetch_collection_top_offer(
@@ -36,7 +36,7 @@ impl IBids for Bids {
     async fn tx_insert_bids(
         &self,
         tx: &mut Transaction<'_, Postgres>,
-        items: Vec<Bid>,
+        items: Vec<DbBid>,
     ) -> anyhow::Result<PgQueryResult> {
         if items.is_empty() {
             return Ok(PgQueryResult::default());
@@ -48,7 +48,7 @@ impl IBids for Bids {
                 id,
                 bidder, 
                 accepted_tx_id, 
-                canceled_tx_id, 
+                cancelled_tx_id, 
                 collection_id, 
                 created_tx_id, 
                 expired_at, 
@@ -69,7 +69,7 @@ impl IBids for Bids {
             b.push_bind(item.id.clone());
             b.push_bind(item.bidder.clone());
             b.push_bind(item.accepted_tx_id.clone());
-            b.push_bind(item.canceled_tx_id.clone());
+            b.push_bind(item.cancelled_tx_id.clone());
             b.push_bind(item.collection_id.clone());
             b.push_bind(item.created_tx_id.clone());
             b.push_bind(item.expired_at);
@@ -93,7 +93,7 @@ impl IBids for Bids {
                 nonce = EXCLUDED.nonce,
                 created_tx_id = COALESCE(EXCLUDED.created_tx_id, bids.created_tx_id),
                 accepted_tx_id = COALESCE(EXCLUDED.accepted_tx_id, bids.accepted_tx_id),
-                canceled_tx_id = COALESCE(EXCLUDED.canceled_tx_id, bids.canceled_tx_id),
+                cancelled_tx_id = COALESCE(EXCLUDED.cancelled_tx_id, bids.cancelled_tx_id),
                 nft_id = COALESCE(EXCLUDED.nft_id, bids.nft_id),
                 receiver = EXCLUDED.receiver
             "#,

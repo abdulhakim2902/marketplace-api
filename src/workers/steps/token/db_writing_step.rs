@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     database::{IDatabase, activities::IActivities, collections::ICollections, nfts::INfts},
-    models::db::{activity::Activity, collection::Collection, nft::Nft},
+    models::db::{activity::DbActivity, collection::DbCollection, nft::DbNft},
 };
 use aptos_indexer_processor_sdk::{
     traits::{AsyncStep, NamedStep, Processable, async_step::AsyncRunType},
@@ -25,7 +25,7 @@ impl<TDb: IDatabase> Processable for DBWritingStep<TDb>
 where
     TDb: Send + Sync,
 {
-    type Input = (Vec<Activity>, Vec<Collection>, Vec<Nft>);
+    type Input = (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>);
     type Output = ();
     type RunType = AsyncRunType;
 

@@ -2,7 +2,7 @@ use crate::{
     config::marketplace_config::MarketplaceEventType,
     models::{
         EventModel,
-        db::{activity::Activity, collection::Collection, nft::Nft},
+        db::{activity::DbActivity, collection::DbCollection, nft::DbNft},
         resources::{FromWriteResource, V2TokenResource},
     },
     utils::{
@@ -23,10 +23,10 @@ pub struct TokenExtractor
 where
     Self: Sized + Send + 'static,
 {
-    current_collections: AHashMap<String, Collection>,
-    current_nfts: AHashMap<String, Nft>,
-    current_burn_nfts: AHashMap<String, Nft>,
-    current_activities: AHashMap<i64, Activity>,
+    current_collections: AHashMap<String, DbCollection>,
+    current_nfts: AHashMap<String, DbNft>,
+    current_burn_nfts: AHashMap<String, DbNft>,
+    current_activities: AHashMap<i64, DbActivity>,
 }
 
 impl TokenExtractor {
@@ -43,7 +43,7 @@ impl TokenExtractor {
 #[async_trait::async_trait]
 impl Processable for TokenExtractor {
     type Input = Vec<Transaction>;
-    type Output = (Vec<Activity>, Vec<Collection>, Vec<Nft>);
+    type Output = (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>);
     type RunType = AsyncRunType;
 
     async fn process(
@@ -170,9 +170,12 @@ impl Processable for TokenExtractor {
                     })?;
 
                     if let Some(event) = event_model {
-                        let action_v1 =
-                            Activity::get_action_from_token_event_v1(&event, &txn_id, txn_version)
-                                .unwrap();
+                        let action_v1 = DbActivity::get_action_from_token_event_v1(
+                            &event,
+                            &txn_id,
+                            txn_version,
+                        )
+                        .unwrap();
 
                         if let Some(mut activity) = action_v1 {
                             let tx_type = activity.tx_type.as_ref().unwrap().to_string();
@@ -183,7 +186,7 @@ impl Processable for TokenExtractor {
                                     nft.burned = Some(true);
                                     nft.owner = None;
                                 } else {
-                                    let nft: Nft = activity.clone().into();
+                                    let nft: DbNft = activity.clone().into();
                                     self.current_burn_nfts.insert(nft.id.clone(), nft);
                                 }
                             }
@@ -201,7 +204,7 @@ impl Processable for TokenExtractor {
                             self.current_activities.insert(activity.tx_index, activity);
                         }
 
-                        let action_v2 = Activity::get_action_from_token_event_v2(
+                        let action_v2 = DbActivity::get_action_from_token_event_v2(
                             &event,
                             &txn_id,
                             txn_version,
@@ -219,7 +222,7 @@ impl Processable for TokenExtractor {
                                     nft.burned = Some(true);
                                     nft.owner = None;
                                 } else {
-                                    let nft: Nft = activity.clone().into();
+                                    let nft: DbNft = activity.clone().into();
                                     self.current_burn_nfts.insert(nft.id.clone(), nft);
                                 }
                             }
@@ -232,7 +235,7 @@ impl Processable for TokenExtractor {
                 for wsc in txn_info.changes.iter() {
                     match wsc.change.as_ref().unwrap() {
                         Change::WriteTableItem(table_item) => {
-                            let collection_result = Collection::get_from_write_table_item(
+                            let collection_result = DbCollection::get_from_write_table_item(
                                 table_item,
                                 txn_version,
                                 &table_handler_to_owner,
@@ -244,7 +247,7 @@ impl Processable for TokenExtractor {
                                     .insert(collection.id.clone(), collection);
                             }
 
-                            let nft_result = Nft::get_from_write_table_item(
+                            let nft_result = DbNft::get_from_write_table_item(
                                 table_item,
                                 txn_version,
                                 &table_handler_to_owner,
@@ -262,7 +265,7 @@ impl Processable for TokenExtractor {
                             }
                         }
                         Change::WriteResource(resource) => {
-                            let colletion_result = Collection::get_from_write_resource(
+                            let colletion_result = DbCollection::get_from_write_resource(
                                 resource,
                                 &token_metadata_helper,
                             )
@@ -274,7 +277,7 @@ impl Processable for TokenExtractor {
                             }
 
                             let nft_result =
-                                Nft::get_from_write_resource(resource, &token_metadata_helper)
+                                DbNft::get_from_write_resource(resource, &token_metadata_helper)
                                     .unwrap();
 
                             if let Some(mut nft) = nft_result {
@@ -311,18 +314,18 @@ impl NamedStep for TokenExtractor {
 }
 
 impl TokenExtractor {
-    fn drain(&mut self) -> (Vec<Activity>, Vec<Collection>, Vec<Nft>) {
+    fn drain(&mut self) -> (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>) {
         let mut nfts = self
             .current_nfts
             .drain()
             .map(|(_, v)| v)
-            .collect::<Vec<Nft>>();
+            .collect::<Vec<DbNft>>();
 
         let burn_nfts = self
             .current_burn_nfts
             .drain()
             .map(|(_, v)| v)
-            .collect::<Vec<Nft>>();
+            .collect::<Vec<DbNft>>();
 
         nfts.extend(burn_nfts);
 

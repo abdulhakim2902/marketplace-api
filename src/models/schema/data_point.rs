@@ -3,13 +3,13 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
-pub struct DataPoint {
+pub struct DataPointSchema {
     pub x: Option<DateTime<Utc>>,
     pub y: Option<BigDecimal>,
 }
 
 #[async_graphql::Object]
-impl DataPoint {
+impl DataPointSchema {
     async fn x(&self) -> Option<String> {
         self.x.as_ref().map(|e| e.to_string())
     }

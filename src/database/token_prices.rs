@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
-use crate::models::db::token_price::TokenPrice;
+use crate::models::db::token_price::DbTokenPrice;
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use sqlx::{PgPool, postgres::PgQueryResult};
 
 #[async_trait::async_trait]
 pub trait ITokenPrices: Send + Sync {
-    async fn insert_token_price(&self, token_price: &TokenPrice) -> anyhow::Result<PgQueryResult>;
+    async fn insert_token_price(&self, token_price: &DbTokenPrice)
+    -> anyhow::Result<PgQueryResult>;
 
     async fn get_token_price(&self, token_addr: &str) -> anyhow::Result<BigDecimal>;
 }
@@ -24,7 +25,10 @@ impl TokenPrices {
 
 #[async_trait::async_trait]
 impl ITokenPrices for TokenPrices {
-    async fn insert_token_price(&self, token_price: &TokenPrice) -> anyhow::Result<PgQueryResult> {
+    async fn insert_token_price(
+        &self,
+        token_price: &DbTokenPrice,
+    ) -> anyhow::Result<PgQueryResult> {
         let res = sqlx::query!(
             r#"
             INSERT INTO token_prices (token_address, price, created_at) 

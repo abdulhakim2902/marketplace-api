@@ -1,7 +1,7 @@
 use crate::{
     cache::ICache,
     database::{IDatabase, token_prices::ITokenPrices},
-    models::db::token_price::TokenPrice,
+    models::db::token_price::DbTokenPrice,
     utils::shutdown_utils,
 };
 use aptos_indexer_processor_sdk::utils::convert::deserialize_from_string;
@@ -111,7 +111,7 @@ where
             .await;
         self.db
             .token_prices()
-            .insert_token_price(&TokenPrice {
+            .insert_token_price(&DbTokenPrice {
                 token_address: value.result.base_currency,
                 price: value.result.price,
                 created_at: rounded,
