@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use crate::{
     database::{
-        Database, IDatabase, activities::IActivities, collections::ICollections, nfts::INfts,
+        Database, IDatabase, activities::IActivities, collections::ICollections,
+        listings::IListings, nfts::INfts,
     },
     models::api::responses::{
-        activity::Activity, collection::Collection, data_point::DataPoint, nft::Nft,
+        activity::Activity, collection::Collection, data_point::DataPoint, listing::Listing,
+        nft::Nft,
     },
     utils::string_utils,
 };
@@ -76,6 +78,27 @@ impl Query {
 
         db.nfts()
             .fetch_nfts(id, collection_id, limit, offset)
+            .await
+            .expect("Failed to fetch nfts")
+    }
+
+    async fn listings(
+        &self,
+        ctx: &Context<'_>,
+        nft_id: Option<String>,
+        is_listed: Option<bool>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Vec<Listing> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
+        db.listings()
+            .fetch_listings(nft_id, is_listed, limit, offset)
             .await
             .expect("Failed to fetch nfts")
     }

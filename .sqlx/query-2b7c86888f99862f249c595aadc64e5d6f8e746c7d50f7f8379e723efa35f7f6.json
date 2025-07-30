@@ -1,0 +1,91 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH latest_prices AS (\n                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp\n                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'\n                ORDER BY tp.token_address, tp.created_at DESC\n            )\n            SELECT\n                l.block_height,\n                l.block_time,\n                l.market_contract_id,\n                l.listed,\n                l.market_name,\n                l.collection_id,\n                l.nft_id,\n                l.nonce,\n                l.price,\n                l.price * lp.price      AS usd_price,\n                l.seller,\n                l.tx_index\n            FROM listings l\n                LEFT JOIN latest_prices lp ON TRUE\n            WHERE ($1::TEXT IS NULL OR $1 = '' OR l.nft_id = $1) \n                AND $2::BOOL IS NULL OR l.listed = $2\n            LIMIT $3 OFFSET $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "block_height",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "block_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "market_contract_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "listed",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "market_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "nft_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "nonce",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "usd_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 10,
+        "name": "seller",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "tx_index",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      null,
+      true,
+      true
+    ]
+  },
+  "hash": "2b7c86888f99862f249c595aadc64e5d6f8e746c7d50f7f8379e723efa35f7f6"
+}

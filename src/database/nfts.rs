@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{nft::Nft, nft_listing::NftListing, nft_offer::NftOffer},
+    api::responses::{nft::Nft, nft_offer::NftOffer},
     db::nft::Nft as DbNft,
 };
 use anyhow::Context;
@@ -24,20 +24,9 @@ pub trait INfts: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<Nft>>;
 
-    async fn fetch_total_owners(&self, collection_id: &str) -> anyhow::Result<i64>;
-
     async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>>;
 
     async fn count_nft_metadata_urls(&self) -> anyhow::Result<i64>;
-
-    async fn fetch_nft_listings(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<NftListing>>;
-
-    async fn count_nft_listings(&self, id: &str) -> anyhow::Result<i64>;
 
     async fn fetch_nft_offers(
         &self,
@@ -251,23 +240,6 @@ impl INfts for Nfts {
         Ok(res)
     }
 
-    async fn fetch_total_owners(&self, collection_id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(DISTINCT n.owner)
-            FROM nfts n
-            WHERE n.collection_id = $1
-            GROUP BY n.collection_id
-            "#,
-            collection_id
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count nft metadata urls")?;
-
-        Ok(res.unwrap_or_default())
-    }
-
     async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>> {
         let res = sqlx::query_as!(
             DbNft,
@@ -297,57 +269,6 @@ impl INfts for Nfts {
         .fetch_one(&*self.pool)
         .await
         .context("Failed to count nft metadata urls")?;
-
-        Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_nft_listings(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<NftListing>> {
-        let res = sqlx::query_as!(
-            NftListing,
-            r#"
-            WITH latest_prices AS (
-                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
-                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
-                ORDER BY tp.token_address, tp.created_at DESC
-            )
-            SELECT
-                l.price,
-                l.market_name,
-                l.market_contract_id,
-                l.seller                                     AS from,
-                l.price * lp.price                           AS usd_price
-            FROM listings l
-                LEFT JOIN latest_prices lp ON TRUE
-            WHERE l.nft_id = $1 AND l.listed
-            LIMIT $2 OFFSET $3
-            "#,
-            id,
-            size,
-            size * (page - 1),
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch nft listings")?;
-
-        Ok(res)
-    }
-
-    async fn count_nft_listings(&self, id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM listings l
-            WHERE l.nft_id = $1 AND l.listed
-            "#,
-            id
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered nft listings")?;
 
         Ok(res.unwrap_or_default())
     }

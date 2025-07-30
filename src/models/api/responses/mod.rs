@@ -10,8 +10,8 @@ pub mod collection_profit_leaderboard;
 pub mod collection_top_buyer;
 pub mod collection_top_seller;
 pub mod data_point;
+pub mod listing;
 pub mod nft;
-pub mod nft_listing;
 pub mod nft_offer;
 
 use serde::Serialize;

@@ -119,7 +119,7 @@ impl Activity {
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<Collection> {
-        if self.nft_id.is_none() {
+        if self.collection_id.is_none() {
             return None;
         }
 

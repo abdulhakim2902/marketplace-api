@@ -134,7 +134,7 @@ impl IBids for Bids {
             r#"
             SELECT MAX(b.price)
             FROM bids b
-            WHERE b.collection_id = $1
+            WHERE b.nft_id = $1
                 AND b.status = 'active'
                 AND b.bid_type = 'solo'
                 AND b.expired_at > NOW()

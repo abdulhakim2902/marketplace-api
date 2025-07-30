@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use crate::models::db::listing::Listing as DbListing;
+use crate::models::{api::responses::listing::Listing, db::listing::Listing as DbListing};
 use anyhow::Context;
-use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 #[async_trait::async_trait]
@@ -13,12 +12,13 @@ pub trait IListings: Send + Sync {
         listings: Vec<DbListing>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_collection_floor(
+    async fn fetch_listings(
         &self,
-        collection_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>>;
-
-    async fn fetch_total_listed(&self, collection_id: &str) -> anyhow::Result<i64>;
+        nft_id: Option<String>,
+        is_listed: Option<bool>,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<Listing>>;
 }
 
 pub struct Listings {
@@ -95,40 +95,49 @@ impl IListings for Listings {
         Ok(res)
     }
 
-    async fn fetch_collection_floor(
+    async fn fetch_listings(
         &self,
-        collection_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>> {
-        let res = sqlx::query_scalar!(
+        nft_id: Option<String>,
+        is_listed: Option<bool>,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<Listing>> {
+        let res = sqlx::query_as!(
+            Listing,
             r#"
-            SELECT MIN(l.price) AS floor
+            WITH latest_prices AS (
+                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
+                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
+                ORDER BY tp.token_address, tp.created_at DESC
+            )
+            SELECT
+                l.block_height,
+                l.block_time,
+                l.market_contract_id,
+                l.listed,
+                l.market_name,
+                l.collection_id,
+                l.nft_id,
+                l.nonce,
+                l.price,
+                l.price * lp.price      AS usd_price,
+                l.seller,
+                l.tx_index
             FROM listings l
-            WHERE l.listed AND l.collection_id = $1
-            GROUP BY l.collection_id
+                LEFT JOIN latest_prices lp ON TRUE
+            WHERE ($1::TEXT IS NULL OR $1 = '' OR l.nft_id = $1) 
+                AND $2::BOOL IS NULL OR l.listed = $2
+            LIMIT $3 OFFSET $4
             "#,
-            collection_id
+            nft_id,
+            is_listed,
+            limit,
+           offset,
         )
-        .fetch_one(&*self.pool)
+        .fetch_all(&*self.pool)
         .await
-        .context("Failed to fetch collection floor")?;
+        .context("Failed to fetch nft listings")?;
 
         Ok(res)
-    }
-
-    async fn fetch_total_listed(&self, collection_id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*)
-            FROM listings l
-            WHERE l.listed AND l.collection_id = $1
-            GROUP BY l.collection_id
-            "#,
-            collection_id
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch total listed")?;
-
-        Ok(res.unwrap_or_default())
     }
 }

@@ -96,9 +96,7 @@ where
                     )
                     .nest(
                         "/nfts",
-                        Router::new()
-                            .route("/{id}/offers", get(nft::offers))
-                            .route("/{id}/listings", get(nft::listings)),
+                        Router::new().route("/{id}/offers", get(nft::offers)),
                     ),
             )
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
