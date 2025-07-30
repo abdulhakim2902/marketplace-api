@@ -7,8 +7,6 @@ use validator::{Validate, ValidationError, ValidationErrors};
 
 use crate::utils::string_utils;
 
-pub mod filter_activity;
-pub mod filter_nft_change;
 pub mod filter_offer;
 
 #[serde_as]
@@ -58,18 +56,6 @@ impl TimeRange {
         } else {
             Ok(())
         }
-    }
-}
-
-fn deserialize_option_pg_interval<'de, D>(deserializer: D) -> Result<Option<PgInterval>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let o: Option<String> = Option::deserialize(deserializer)?;
-    if let Some(s) = o {
-        string_utils::str_to_pginterval(&s).map_err(serde::de::Error::custom)
-    } else {
-        Ok(None)
     }
 }
 

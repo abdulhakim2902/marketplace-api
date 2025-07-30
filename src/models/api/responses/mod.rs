@@ -7,6 +7,7 @@ pub mod collection_trending;
 pub mod data_point;
 pub mod listing;
 pub mod nft;
+pub mod nft_change;
 pub mod nft_distribution;
 pub mod nft_holder;
 pub mod nft_offer;

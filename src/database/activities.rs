@@ -3,7 +3,8 @@ use std::sync::Arc;
 use crate::models::{
     api::responses::{
         activity::Activity, collection::CollectionSale, data_point::DataPoint,
-        profit_leaderboard::ProfitLeaderboard, top_buyer::TopBuyer, top_seller::TopSeller,
+        nft_change::NftChange, profit_leaderboard::ProfitLeaderboard, top_buyer::TopBuyer,
+        top_seller::TopSeller,
     },
     db::activity::Activity as DbActivity,
 };
@@ -59,10 +60,18 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_profit_leaderboard(
         &self,
-        id: &str,
+        collection_id: &str,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ProfitLeaderboard>>;
+
+    async fn fetch_nft_changes(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<NftChange>>;
 }
 
 pub struct Activities {
@@ -342,7 +351,7 @@ impl IActivities for Activities {
 
     async fn fetch_profit_leaderboard(
         &self,
-        id: &str,
+        collection_id: &str,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ProfitLeaderboard>> {
@@ -377,10 +386,69 @@ impl IActivities for Activities {
             WHERE ua.address IS NOT NULL
             LIMIT $2 OFFSET $3
             "#,
-            id,
+            collection_id,
             limit,
             offset,
         ).fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection profit leaders")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_nft_changes(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<NftChange>> {
+        let res = sqlx::query_as!(
+            NftChange,
+            r#"
+            WITH 
+                current_nft_owners AS (
+                    SELECT n.owner, COUNT(*) FROM nfts n
+                    WHERE n.burned IS NULL OR NOT n.burned AND n.collection_id = $1
+                    GROUP BY n.collection_id, n.owner
+                ),
+                transfer_in AS (
+                    SELECT a.collection_id, a.receiver AS address, COUNT(*) FROM activities a
+                    WHERE ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL) 
+                        AND a.tx_type IN ('transfer', 'buy')
+                        AND a.collection_id = $1
+                    GROUP BY a.collection_id, a.receiver
+                ),
+                transfer_out AS (
+                    SELECT a.collection_id, a.sender AS address, COUNT(*) FROM activities a
+                    WHERE ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL) 
+                        AND a.tx_type IN ('transfer', 'buy')
+                        AND a.collection_id = $1
+                    GROUP BY a.collection_id, a.sender
+                ),
+                unique_addresses AS (
+                    SELECT tin.address FROM transfer_in tin
+                    UNION
+                    SELECT tout.address FROM transfer_out tout
+                )
+            SELECT 
+                ua.address, 
+                (COALESCE(tout.count, 0) - COALESCE(tin.count, 0)) 	AS change,
+                COALESCE(co.count, 0) 								AS quantity	
+            FROM unique_addresses ua
+                LEFT JOIN transfer_in tin ON tin.address = ua.address
+                LEFT JOIN transfer_out tout ON tout.address = ua.address
+                LEFT JOIN current_nft_owners co ON co.owner = ua.address
+            WHERE ua.address IS NOT NULL
+            ORDER BY change DESC
+            LIMIT $3 OFFSET $4
+            "#,
+            collection_id,
+            interval,
+            limit,
+            offset,
+        )
+        .fetch_all(&*self.pool)
         .await
         .context("Failed to fetch collection profit leaders")?;
 

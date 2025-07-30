@@ -12,6 +12,7 @@ use crate::{
         data_point::DataPoint,
         listing::Listing,
         nft::Nft,
+        nft_change::NftChange,
         nft_distribution::{NftAmountDistribution, NftPeriodDistribution},
         nft_holder::NftHolder,
         profit_leaderboard::ProfitLeaderboard,
@@ -194,6 +195,30 @@ impl Query {
 
         db.activities()
             .fetch_profit_leaderboard(&collection_id, limit, offset)
+            .await
+            .expect("Failed to fetch collection nft period distribution")
+    }
+
+    async fn collection_nft_changes(
+        &self,
+        ctx: &Context<'_>,
+        collection_id: String,
+        interval: Option<String>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Vec<NftChange> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
+            .expect("Invalid interval");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
+        db.activities()
+            .fetch_nft_changes(&collection_id, i, limit, offset)
             .await
             .expect("Failed to fetch collection nft period distribution")
     }

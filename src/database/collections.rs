@@ -1,15 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use sqlx::{
-    PgPool, Postgres, QueryBuilder, Transaction,
-    postgres::{PgQueryResult, types::PgInterval},
-};
+use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 use crate::models::{
     api::responses::{
-        collection::Collection, collection_nft_change::CollectionNftChange,
-        collection_offer::CollectionOffer, collection_trending::CollectionTrending,
+        collection::Collection, collection_offer::CollectionOffer,
+        collection_trending::CollectionTrending,
     },
     db::collection::Collection as DbCollection,
 };
@@ -44,20 +41,6 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionOffer>>;
 
     async fn count_collection_offers(&self, id: &str) -> anyhow::Result<i64>;
-
-    async fn fetch_collection_nft_change(
-        &self,
-        id: &str,
-        interval: Option<PgInterval>,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionNftChange>>;
-
-    async fn count_collection_nft_change(
-        &self,
-        id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<i64>;
 }
 
 pub struct Collections {
@@ -259,97 +242,5 @@ impl ICollections for Collections {
 
     async fn count_collection_offers(&self, _id: &str) -> anyhow::Result<i64> {
         Ok(10)
-    }
-
-    async fn fetch_collection_nft_change(
-        &self,
-        id: &str,
-        interval: Option<PgInterval>,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionNftChange>> {
-        let res = sqlx::query_as!(
-            CollectionNftChange,
-            r#"
-            WITH 
-                current_nft_owners AS (
-                    SELECT n.owner, COUNT(*) FROM nfts n
-                    WHERE n.burned IS NULL OR NOT n.burned AND n.collection_id = $1
-                    GROUP BY n.collection_id, n.owner
-                ),
-                transfer_in AS (
-                    SELECT a.collection_id, a.receiver AS address, COUNT(*) FROM activities a
-                    WHERE a.block_time >= NOW() - $2::INTERVAL 
-                        AND a.tx_type = 'transfer'
-                        AND a.collection_id = $1
-                    GROUP BY a.collection_id, a.receiver
-                ),
-                transfer_out AS (
-                    SELECT a.collection_id, a.sender AS address, COUNT(*) FROM activities a
-                    WHERE a.block_time >= NOW() - $2::INTERVAL 
-                        AND a.tx_type = 'transfer'
-                        AND a.collection_id = $1
-                    GROUP BY a.collection_id, a.sender
-                ),
-                unique_addresses AS (
-                    SELECT tin.address FROM transfer_in tin
-                    UNION
-                    SELECT tout.address FROM transfer_out tout
-                )
-            SELECT 
-                ua.address, 
-                (COALESCE(tout.count, 0) - COALESCE(tin.count, 0)) 	AS change,
-                COALESCE(co.count, 0) 								AS quantity	
-            FROM unique_addresses ua
-                LEFT JOIN transfer_in tin ON tin.address = ua.address
-                LEFT JOIN transfer_out tout ON tout.address = ua.address
-                LEFT JOIN current_nft_owners co ON co.owner = ua.address
-            WHERE ua.address IS NOT NULL
-            ORDER BY change DESC
-            LIMIT $3 OFFSET $4
-            "#,
-            id,
-            interval,
-            size,
-            size * (page - 1),
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection profit leaders")?;
-
-        Ok(res)
-    }
-
-    async fn count_collection_nft_change(
-        &self,
-        id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            WITH addresses AS (
-                SELECT a.receiver AS address FROM activities a
-                WHERE a.block_time >= NOW() - $2::INTERVAL 
-                    AND a.tx_type = 'transfer'
-                    AND a.collection_id = $1
-                GROUP BY a.collection_id, a.receiver
-                UNION
-                SELECT a.sender AS address FROM activities a
-                WHERE a.block_time >= NOW() - $2::INTERVAL 
-                    AND a.tx_type = 'transfer'
-                    AND a.collection_id = $1
-                GROUP BY a.collection_id, a.sender
-            )
-            SELECT COUNT(*) FROM addresses
-            WHERE addresses.address IS NOT NULL
-            "#,
-            id,
-            interval,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count collection profit leaderboard")?;
-
-        Ok(res.unwrap_or_default())
     }
 }
