@@ -76,8 +76,6 @@ where
                         "/collections",
                         Router::new()
                             .route("/{id}/offers", get(collection::offers))
-                            .route("/{id}/top-buyers", get(collection::top_buyers))
-                            .route("/{id}/top-sellers", get(collection::top_sellers))
                             .route("/{id}/nft-holders", get(collection::nft_holders))
                             .route("/{id}/nft-change", get(collection::nft_change))
                             .route(

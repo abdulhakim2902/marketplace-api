@@ -14,7 +14,6 @@ use crate::{
         requests::{
             filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
             filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
-            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
         },
         responses::{HttpResponse, HttpResponsePaging},
     },
@@ -33,38 +32,6 @@ pub async fn offers<TDb: IDatabase, TInternalService: IInternalServices>(
         .await
     {
         Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
-
-pub async fn top_buyers<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    Path(id): Path<String>,
-    QueryValidator(query): QueryValidator<FilterTopBuyer>,
-) -> Response {
-    match state
-        .services
-        .collection_service
-        .fetch_collection_top_buyer(&id, &query)
-        .await
-    {
-        Ok(data) => Json(HttpResponse { data }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
-
-pub async fn top_sellers<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    Path(id): Path<String>,
-    QueryValidator(query): QueryValidator<FilterTopSeller>,
-) -> Response {
-    match state
-        .services
-        .collection_service
-        .fetch_collection_top_seller(&id, &query)
-        .await
-    {
-        Ok(data) => Json(HttpResponse { data }).into_response(),
         Err(err) => response_unhandled_err(err),
     }
 }

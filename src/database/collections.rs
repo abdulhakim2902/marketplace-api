@@ -16,8 +16,6 @@ use crate::models::{
         collection_nft_holder::CollectionNftHolder,
         collection_offer::CollectionOffer,
         collection_profit_leaderboard::CollectionProfitLeaderboard,
-        collection_top_buyer::CollectionTopBuyer,
-        collection_top_seller::CollectionTopSeller,
         collection_trending::CollectionTrending,
     },
     db::collection::Collection as DbCollection,
@@ -38,6 +36,13 @@ pub trait ICollections: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<Collection>>;
 
+    async fn fetch_collection_trending(
+        &self,
+        id: &str,
+        page: i64,
+        size: i64,
+    ) -> anyhow::Result<Vec<CollectionTrending>>;
+
     async fn fetch_collection_offers(
         &self,
         id: &str,
@@ -47,18 +52,6 @@ pub trait ICollections: Send + Sync {
 
     async fn count_collection_offers(&self, id: &str) -> anyhow::Result<i64>;
 
-    async fn fetch_collection_top_buyers(
-        &self,
-        id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<CollectionTopBuyer>>;
-
-    async fn fetch_collection_top_sellers(
-        &self,
-        id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<CollectionTopSeller>>;
-
     async fn fetch_collection_nft_holders(
         &self,
         id: &str,
@@ -67,15 +60,6 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionNftHolder>>;
 
     async fn count_collection_nft_holders(&self, id: &str) -> anyhow::Result<i64>;
-
-    async fn fetch_collection_trending(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionTrending>>;
-
-    async fn count_collection_trending_nfts(&self, id: &str) -> anyhow::Result<i64>;
 
     async fn fetch_collection_nft_amount_distribution(
         &self,
@@ -312,66 +296,6 @@ impl ICollections for Collections {
         Ok(10)
     }
 
-    async fn fetch_collection_top_buyers(
-        &self,
-        id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<CollectionTopBuyer>> {
-        let res = sqlx::query_as!(
-            CollectionTopBuyer,
-            r#"
-            SELECT 
-                a.receiver      AS buyer, 
-                COUNT(*)        AS bought, 
-                SUM(a.price)    AS volume
-            FROM activities a
-            WHERE a.tx_type = 'buy'
-                AND a.collection_id = $1
-                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-            GROUP BY a.receiver
-            ORDER BY bought DESC, volume DESC
-            LIMIT 10
-            "#,
-            id,
-            interval,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection top buyers")?;
-
-        Ok(res)
-    }
-
-    async fn fetch_collection_top_sellers(
-        &self,
-        id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<CollectionTopSeller>> {
-        let res = sqlx::query_as!(
-            CollectionTopSeller,
-            r#"
-            SELECT 
-                a.sender        AS seller, 
-                COUNT(*)        AS sold, 
-                SUM(a.price)    AS volume
-            FROM activities a
-            WHERE a.tx_type = 'buy'
-                AND a.collection_id = $1
-                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-            GROUP BY a.sender
-            ORDER BY sold DESC, volume DESC
-            LIMIT 10
-            "#,
-            id,
-            interval,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection top sellers")?;
-
-        Ok(res)
-    }
-
     async fn fetch_collection_nft_holders(
         &self,
         id: &str,
@@ -450,21 +374,6 @@ impl ICollections for Collections {
         .fetch_one(&*self.pool)
         .await
         .context("Failed to count filtered collections")?;
-
-        Ok(res.unwrap_or_default())
-    }
-
-    async fn count_collection_trending_nfts(&self, id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM nfts n
-            WHERE n.collection_id = $1 AND (n.burned IS NULL OR NOT n.burned)
-            "#,
-            id
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered collection nft trendings")?;
 
         Ok(res.unwrap_or_default())
     }

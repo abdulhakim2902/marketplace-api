@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                a.collection_id,\n                a.sender            AS seller, \n                COUNT(*)            AS sold, \n                SUM(a.price)        AS volume\n            FROM activities a\n            WHERE a.tx_type = 'buy'\n                AND a.collection_id = $1\n                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)\n            GROUP BY a.collection_id, a.sender\n            ORDER BY sold DESC, volume DESC\n            LIMIT 10\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "seller",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "sold",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "volume",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Interval"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "c70e7e1339e9ca99c91402778c29b03855606098836a308d7264cc0062c1a40f"
+}

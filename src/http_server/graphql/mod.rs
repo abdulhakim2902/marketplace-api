@@ -7,7 +7,8 @@ use crate::{
     },
     models::api::responses::{
         activity::Activity, collection::Collection, collection_trending::CollectionTrending,
-        data_point::DataPoint, listing::Listing, nft::Nft,
+        data_point::DataPoint, listing::Listing, nft::Nft, top_buyer::TopBuyer,
+        top_seller::TopSeller,
     },
     utils::string_utils,
 };
@@ -77,6 +78,44 @@ impl Query {
 
         db.collections()
             .fetch_collection_trending(&id, limit, offset)
+            .await
+            .expect("Failed to fetch collections")
+    }
+
+    async fn collection_top_buyer(
+        &self,
+        ctx: &Context<'_>,
+        collection_id: String,
+        interval: Option<String>,
+    ) -> Vec<TopBuyer> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
+            .expect("Invalid interval");
+
+        db.activities()
+            .fetch_top_buyers(&collection_id, i)
+            .await
+            .expect("Failed to fetch collections")
+    }
+
+    async fn collection_top_seller(
+        &self,
+        ctx: &Context<'_>,
+        collection_id: String,
+        interval: Option<String>,
+    ) -> Vec<TopSeller> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
+            .expect("Invalid interval");
+
+        db.activities()
+            .fetch_top_sellers(&collection_id, i)
             .await
             .expect("Failed to fetch collections")
     }

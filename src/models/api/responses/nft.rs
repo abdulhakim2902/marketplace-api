@@ -5,7 +5,10 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::database::{Database, IDatabase, bids::IBids};
+use crate::{
+    database::{Database, IDatabase, bids::IBids, collections::ICollections},
+    models::api::responses::collection::Collection,
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Nft {
@@ -152,5 +155,27 @@ impl Nft {
         }
 
         res.unwrap().map(|e| e.to_plain_string())
+    }
+
+    async fn collection(&self, ctx: &Context<'_>) -> Option<Collection> {
+        if self.collection_id.is_none() {
+            return None;
+        }
+
+        let collection_id = self.collection_id.as_ref().unwrap();
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let res = db
+            .collections()
+            .fetch_collections(Some(collection_id.to_string()), 1, 0)
+            .await;
+
+        if res.is_err() {
+            return None;
+        }
+
+        res.unwrap().first().cloned()
     }
 }

@@ -6,7 +6,6 @@ use crate::{
         requests::{
             filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
             filter_offer::FilterOffer, filter_profit_leaderboard::FilterProfitLeader,
-            filter_top_buyer::FilterTopBuyer, filter_top_seller::FilterTopSeller,
         },
         responses::{
             collection_nft_change::CollectionNftChange,
@@ -16,8 +15,6 @@ use crate::{
             collection_nft_holder::CollectionNftHolder,
             collection_offer::CollectionOffer,
             collection_profit_leaderboard::CollectionProfitLeaderboard,
-            collection_top_buyer::CollectionTopBuyer,
-            collection_top_seller::CollectionTopSeller,
         },
     },
 };
@@ -29,18 +26,6 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterOffer,
     ) -> anyhow::Result<(Vec<CollectionOffer>, i64)>;
-
-    async fn fetch_collection_top_buyer(
-        &self,
-        id: &str,
-        filter: &FilterTopBuyer,
-    ) -> anyhow::Result<Vec<CollectionTopBuyer>>;
-
-    async fn fetch_collection_top_seller(
-        &self,
-        id: &str,
-        filter: &FilterTopSeller,
-    ) -> anyhow::Result<Vec<CollectionTopSeller>>;
 
     async fn fetch_collection_nft_holders(
         &self,
@@ -102,28 +87,6 @@ where
         let (data, count) = (data_res?, count_res?);
 
         Ok((data, count))
-    }
-
-    async fn fetch_collection_top_buyer(
-        &self,
-        id: &str,
-        filter: &FilterTopBuyer,
-    ) -> anyhow::Result<Vec<CollectionTopBuyer>> {
-        self.db
-            .collections()
-            .fetch_collection_top_buyers(id, filter.interval)
-            .await
-    }
-
-    async fn fetch_collection_top_seller(
-        &self,
-        id: &str,
-        filter: &FilterTopSeller,
-    ) -> anyhow::Result<Vec<CollectionTopSeller>> {
-        self.db
-            .collections()
-            .fetch_collection_top_sellers(id, filter.interval)
-            .await
     }
 
     async fn fetch_collection_nft_holders(

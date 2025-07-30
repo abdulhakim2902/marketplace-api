@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{activity::Activity, collection::CollectionSale, data_point::DataPoint},
+    api::responses::{
+        activity::Activity, collection::CollectionSale, data_point::DataPoint, top_buyer::TopBuyer,
+        top_seller::TopSeller,
+    },
     db::activity::Activity as DbActivity,
 };
 use anyhow::Context;
@@ -41,6 +44,18 @@ pub trait IActivities: Send + Sync {
         end_time: DateTime<Utc>,
         interval: PgInterval,
     ) -> anyhow::Result<Vec<DataPoint>>;
+
+    async fn fetch_top_buyers(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<Vec<TopBuyer>>;
+
+    async fn fetch_top_sellers(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<Vec<TopSeller>>;
 }
 
 pub struct Activities {
@@ -254,6 +269,68 @@ impl IActivities for Activities {
         .fetch_all(&*self.pool)
         .await
         .context("Failed to fetch collection floor chart")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_top_buyers(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<Vec<TopBuyer>> {
+        let res = sqlx::query_as!(
+            TopBuyer,
+            r#"
+            SELECT
+                a.collection_id,
+                a.receiver      AS buyer, 
+                COUNT(*)        AS bought, 
+                SUM(a.price)    AS volume
+            FROM activities a
+            WHERE a.tx_type = 'buy'
+                AND a.collection_id = $1
+                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
+            GROUP BY a.collection_id, a.receiver
+            ORDER BY bought DESC, volume DESC
+            LIMIT 10
+            "#,
+            collection_id,
+            interval,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection top buyers")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_top_sellers(
+        &self,
+        collection_id: &str,
+        interval: Option<PgInterval>,
+    ) -> anyhow::Result<Vec<TopSeller>> {
+        let res = sqlx::query_as!(
+            TopSeller,
+            r#"
+            SELECT
+                a.collection_id,
+                a.sender            AS seller, 
+                COUNT(*)            AS sold, 
+                SUM(a.price)        AS volume
+            FROM activities a
+            WHERE a.tx_type = 'buy'
+                AND a.collection_id = $1
+                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
+            GROUP BY a.collection_id, a.sender
+            ORDER BY sold DESC, volume DESC
+            LIMIT 10
+            "#,
+            collection_id,
+            interval,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection top buyers")?;
 
         Ok(res)
     }

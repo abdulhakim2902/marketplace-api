@@ -12,8 +12,6 @@ pub mod filter_nft_change;
 pub mod filter_nft_holder;
 pub mod filter_offer;
 pub mod filter_profit_leaderboard;
-pub mod filter_top_buyer;
-pub mod filter_top_seller;
 
 #[serde_as]
 #[derive(Deserialize, Debug, Clone, Validate, Default)]
