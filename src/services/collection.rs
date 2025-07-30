@@ -8,11 +8,7 @@ use crate::{
             filter_profit_leaderboard::FilterProfitLeader,
         },
         responses::{
-            collection_nft_change::CollectionNftChange,
-            collection_nft_distribution::{
-                CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
-            },
-            collection_offer::CollectionOffer,
+            collection_nft_change::CollectionNftChange, collection_offer::CollectionOffer,
             collection_profit_leaderboard::CollectionProfitLeaderboard,
         },
     },
@@ -25,16 +21,6 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterOffer,
     ) -> anyhow::Result<(Vec<CollectionOffer>, i64)>;
-
-    async fn fetch_collection_nft_amount_distribution(
-        &self,
-        id: &str,
-    ) -> anyhow::Result<CollectionNftAmountDistribution>;
-
-    async fn fetch_collection_nft_period_distribution(
-        &self,
-        id: &str,
-    ) -> anyhow::Result<CollectionNftPeriodDistribution>;
 
     async fn fetch_collection_profit_leaderboard(
         &self,
@@ -80,26 +66,6 @@ where
         let (data, count) = (data_res?, count_res?);
 
         Ok((data, count))
-    }
-
-    async fn fetch_collection_nft_amount_distribution(
-        &self,
-        id: &str,
-    ) -> anyhow::Result<CollectionNftAmountDistribution> {
-        self.db
-            .collections()
-            .fetch_collection_nft_amount_distribution(id)
-            .await
-    }
-
-    async fn fetch_collection_nft_period_distribution(
-        &self,
-        id: &str,
-    ) -> anyhow::Result<CollectionNftPeriodDistribution> {
-        self.db
-            .collections()
-            .fetch_collection_nft_period_distribution(id)
-            .await
     }
 
     async fn fetch_collection_profit_leaderboard(

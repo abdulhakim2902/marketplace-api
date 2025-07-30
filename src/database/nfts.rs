@@ -1,7 +1,12 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{nft::Nft, nft_holder::NftHolder, nft_offer::NftOffer},
+    api::responses::{
+        nft::Nft,
+        nft_distribution::{NftAmountDistribution, NftPeriodDistribution},
+        nft_holder::NftHolder,
+        nft_offer::NftOffer,
+    },
     db::nft::Nft as DbNft,
 };
 use anyhow::Context;
@@ -43,6 +48,16 @@ pub trait INfts: Send + Sync {
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftHolder>>;
+
+    async fn fetch_nft_amount_distribution(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<NftAmountDistribution>;
+
+    async fn fetch_nft_period_distribution(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<NftPeriodDistribution>;
 }
 
 pub struct Nfts {
@@ -399,6 +414,135 @@ impl INfts for Nfts {
         .fetch_all(&*self.pool)
         .await
         .context("Failed to fetch collection nft holders")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_nft_amount_distribution(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<NftAmountDistribution> {
+        let res = sqlx::query_as!(
+            NftAmountDistribution,
+            r#"
+            WITH nft_distributions AS (
+                SELECT n.collection_id, n.owner, COUNT(*) FROM nfts n
+                WHERE n.collection_id = $1
+                GROUP BY n.collection_id, n.owner
+            )
+            SELECT 
+                SUM(
+                    CASE 
+                        WHEN nd.count = 1 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_1,
+                SUM(
+                    CASE 
+                        WHEN nd.count = 2 OR nd.count = 3 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_2_to_3,
+                SUM(
+                    CASE 
+                        WHEN nd.count >= 4 AND nd.count <= 10 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_4_to_10,
+                SUM(
+                    CASE 
+                        WHEN nd.count >= 11 AND nd.count <= 50 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_11_to_50,
+                SUM(
+                    CASE 
+                        WHEN nd.count >= 50 AND nd.count <= 100 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_51_to_100,
+                SUM(
+                    CASE 
+                        WHEN nd.count > 100 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_gt_100
+            FROM nft_distributions nd
+            GROUP BY nd.collection_id
+            "#,
+            collection_id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch nft amount distribution")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_nft_period_distribution(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<NftPeriodDistribution> {
+        let res = sqlx::query_as!(
+            NftPeriodDistribution,
+            r#"
+            WITH
+                nft_periods AS (
+                    SELECT DISTINCT ON(a.collection_id, a.nft_id) 
+                        a.collection_id, 
+                        a.nft_id,
+                        (EXTRACT(EPOCH FROM a.block_time) - COALESCE(EXTRACT(EPOCH FROM a2.block_time), 0)) AS period 
+                    FROM activities a
+                        LEFT JOIN activities a2 ON a2.receiver = a.sender AND a2.collection_id = a.collection_id AND a2.nft_id = a.nft_id
+                    WHERE a.collection_id = $1
+                        AND a.tx_type IN ('buy', 'transfer', 'mint')
+                    ORDER BY a.collection_id, a.nft_id, a.block_time DESC
+                )
+            SELECT
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 1 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_lt_24h,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) >= 1 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 7 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_1d_to_7d,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) >= 7 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 30 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_7d_to_30d,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) >= 1 AND np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) < 3 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_1m_to_3m,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) >= 3 AND np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) < 1 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_3m_to_1y,
+                SUM(
+                    CASE 
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) >= 3 THEN 1
+                        ELSE 0
+                    END
+                ) AS range_gte_1y
+            FROM nft_periods np
+            GROUP BY np.collection_id
+            "#,
+            id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch nft period distribution")?;
 
         Ok(res)
     }

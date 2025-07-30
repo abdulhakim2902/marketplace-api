@@ -15,7 +15,7 @@ use crate::{
             filter_nft_change::FilterNftChange, filter_offer::FilterOffer,
             filter_profit_leaderboard::FilterProfitLeader,
         },
-        responses::{HttpResponse, HttpResponsePaging},
+        responses::HttpResponsePaging,
     },
     services::{IInternalServices, collection::ICollectionService},
 };
@@ -32,36 +32,6 @@ pub async fn offers<TDb: IDatabase, TInternalService: IInternalServices>(
         .await
     {
         Ok((data, total)) => Json(HttpResponsePaging { data, total }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
-
-pub async fn nft_amount_distribution<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    Path(id): Path<String>,
-) -> Response {
-    match state
-        .services
-        .collection_service
-        .fetch_collection_nft_amount_distribution(&id)
-        .await
-    {
-        Ok(data) => Json(HttpResponse { data }).into_response(),
-        Err(err) => response_unhandled_err(err),
-    }
-}
-
-pub async fn nft_period_distribution<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-    Path(id): Path<String>,
-) -> Response {
-    match state
-        .services
-        .collection_service
-        .fetch_collection_nft_period_distribution(&id)
-        .await
-    {
-        Ok(data) => Json(HttpResponse { data }).into_response(),
         Err(err) => response_unhandled_err(err),
     }
 }

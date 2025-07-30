@@ -80,14 +80,6 @@ where
                             .route(
                                 "/{id}/profit-leaderboard",
                                 get(collection::profit_leaderboard),
-                            )
-                            .route(
-                                "/{id}/nft-amount-distribution",
-                                get(collection::nft_amount_distribution),
-                            )
-                            .route(
-                                "/{id}/nft-period-distribution",
-                                get(collection::nft_period_distribution),
                             ),
                     )
                     .nest(

@@ -6,9 +6,16 @@ use crate::{
         listings::IListings, nfts::INfts,
     },
     models::api::responses::{
-        activity::Activity, collection::Collection, collection_trending::CollectionTrending,
-        data_point::DataPoint, listing::Listing, nft::Nft, nft_holder::NftHolder,
-        top_buyer::TopBuyer, top_seller::TopSeller,
+        activity::Activity,
+        collection::Collection,
+        collection_trending::CollectionTrending,
+        data_point::DataPoint,
+        listing::Listing,
+        nft::Nft,
+        nft_distribution::{NftAmountDistribution, NftPeriodDistribution},
+        nft_holder::NftHolder,
+        top_buyer::TopBuyer,
+        top_seller::TopSeller,
     },
     utils::string_utils,
 };
@@ -138,6 +145,36 @@ impl Query {
             .fetch_nft_holders(&collection_id, limit, offset)
             .await
             .expect("Failed to fetch nft holders")
+    }
+
+    async fn collection_nft_amount_distribution(
+        &self,
+        ctx: &Context<'_>,
+        collection_id: String,
+    ) -> NftAmountDistribution {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.nfts()
+            .fetch_nft_amount_distribution(&collection_id)
+            .await
+            .expect("Failed to fetch collection nft amount distribution")
+    }
+
+    async fn collection_nft_period_distribution(
+        &self,
+        ctx: &Context<'_>,
+        collection_id: String,
+    ) -> NftPeriodDistribution {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.nfts()
+            .fetch_nft_period_distribution(&collection_id)
+            .await
+            .expect("Failed to fetch collection nft period distribution")
     }
 
     async fn nfts(
