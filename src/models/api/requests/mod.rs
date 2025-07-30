@@ -16,7 +16,6 @@ pub mod filter_offer;
 pub mod filter_profit_leaderboard;
 pub mod filter_top_buyer;
 pub mod filter_top_seller;
-pub mod floor_chart;
 
 #[serde_as]
 #[derive(Deserialize, Debug, Clone, Validate, Default)]

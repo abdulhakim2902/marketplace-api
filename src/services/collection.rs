@@ -7,7 +7,7 @@ use crate::{
             filter_nft_change::FilterNftChange, filter_nft_holder::FilterNftHolder,
             filter_nft_trending::FilterNftTrending, filter_offer::FilterOffer,
             filter_profit_leaderboard::FilterProfitLeader, filter_top_buyer::FilterTopBuyer,
-            filter_top_seller::FilterTopSeller, floor_chart::FloorChart,
+            filter_top_seller::FilterTopSeller,
         },
         responses::{
             collection_nft_change::CollectionNftChange,
@@ -20,7 +20,6 @@ use crate::{
             collection_profit_leaderboard::CollectionProfitLeaderboard,
             collection_top_buyer::CollectionTopBuyer,
             collection_top_seller::CollectionTopSeller,
-            data_point::DataPoint,
         },
     },
 };
@@ -32,12 +31,6 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterOffer,
     ) -> anyhow::Result<(Vec<CollectionOffer>, i64)>;
-
-    async fn fetch_collection_floor_chart(
-        &self,
-        id: &str,
-        floor_chart: &FloorChart,
-    ) -> anyhow::Result<Vec<DataPoint>>;
 
     async fn fetch_collection_top_buyer(
         &self,
@@ -117,22 +110,6 @@ where
         let (data, count) = (data_res?, count_res?);
 
         Ok((data, count))
-    }
-
-    async fn fetch_collection_floor_chart(
-        &self,
-        id: &str,
-        floor_chart: &FloorChart,
-    ) -> anyhow::Result<Vec<DataPoint>> {
-        self.db
-            .collections()
-            .fetch_collection_floor_chart(
-                id,
-                floor_chart.time_range.start_time,
-                floor_chart.time_range.end_time,
-                floor_chart.time_range.interval,
-            )
-            .await
     }
 
     async fn fetch_collection_top_buyer(
