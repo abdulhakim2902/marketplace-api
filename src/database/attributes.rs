@@ -20,6 +20,10 @@ pub trait IAttributes: Send + Sync {
         collection_id: &str,
         nft_id: &str,
     ) -> anyhow::Result<Option<BigDecimal>>;
+
+    async fn total_collection_trait(&self, collection_id: &str) -> anyhow::Result<i64>;
+
+    async fn total_nft_trait(&self, collection_id: &str) -> anyhow::Result<i64>;
 }
 
 pub struct Attributes {
@@ -161,5 +165,36 @@ impl IAttributes for Attributes {
         .context("Failed to calculate nft_rarity_scores")?;
 
         Ok(res)
+    }
+
+    async fn total_collection_trait(&self, collection_id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM attributes
+            WHERE collection_id = $1
+            GROUP BY collection_id, attr_type
+            "#,
+            collection_id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch collection trait")?;
+
+        Ok(res.unwrap_or_default())
+    }
+
+    async fn total_nft_trait(&self, nft_id: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM attributes
+            WHERE nft_id = $1
+            "#,
+            nft_id,
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to fetch collection trait")?;
+
+        Ok(res.unwrap_or_default())
     }
 }

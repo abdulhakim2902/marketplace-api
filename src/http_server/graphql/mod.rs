@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     database::{
-        activities::IActivities, bids::IBids, collections::ICollections, listings::IListings, nfts::INfts, Database, IDatabase
+        Database, IDatabase, activities::IActivities, bids::IBids, collections::ICollections,
+        listings::IListings, nfts::INfts,
     },
     models::schema::{
         activity::ActivitySchema,

@@ -139,9 +139,11 @@ impl IBids for Bids {
             FROM bids b
                 LEFT JOIN latest_prices lp ON TRUE
             WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)
-            LIMIT $2 OFFSET $3
+                AND ($2::TEXT IS NULL OR $1::TEXT = '' OR b.collection_id = $2)
+            LIMIT $3 OFFSET $4
             "#,
             filter.nft_id,
+            filter.collection_id,
             limit,
             offset,
         )

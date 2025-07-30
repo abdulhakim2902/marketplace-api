@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            WITH latest_prices AS (\n                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp\n                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'\n            )\n            SELECT \n                b.*, \n                b.price * lp.price AS usd_price\n            FROM bids b\n                LEFT JOIN latest_prices lp ON TRUE\n            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)\n            LIMIT $2 OFFSET $3\n            ",
+  "query": "\n            WITH latest_prices AS (\n                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp\n                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'\n            )\n            SELECT \n                b.*, \n                b.price * lp.price AS usd_price\n            FROM bids b\n                LEFT JOIN latest_prices lp ON TRUE\n            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)\n                AND ($2::TEXT IS NULL OR $1::TEXT = '' OR b.collection_id = $2)\n            LIMIT $3 OFFSET $4\n            ",
   "describe": {
     "columns": [
       {
@@ -102,6 +102,7 @@
     "parameters": {
       "Left": [
         "Text",
+        "Text",
         "Int8",
         "Int8"
       ]
@@ -128,5 +129,5 @@
       null
     ]
   },
-  "hash": "bfa69efca1106ae1f857ca5d7f1e8eca88ce3efb431af5243b6921a2864609ba"
+  "hash": "b6428d5f8975a22a5f615467a49513653e5e777f33cc249dc9373e6887bdf47e"
 }

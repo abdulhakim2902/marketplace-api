@@ -30,7 +30,7 @@ pub struct ActivitySchema {
 
 #[async_graphql::Object]
 impl ActivitySchema {
-    #[graphql(name = "tx_type")]
+    #[graphql(name = "type")]
     async fn tx_type(&self) -> Option<&str> {
         self.tx_type.as_ref().map(|e| e.as_str())
     }

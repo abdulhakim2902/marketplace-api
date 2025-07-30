@@ -28,8 +28,9 @@ pub struct BidSchema {
 
 #[async_graphql::Object]
 impl BidSchema {
-    async fn id(&self) -> Option<&str> {
-        self.id.as_ref().map(|e| e.as_str())
+    #[graphql(name = "collection_id")]
+    async fn collection_id(&self) -> Option<&str> {
+        self.collection_id.as_ref().map(|e| e.as_str())
     }
 
     async fn bidder(&self) -> Option<&str> {
@@ -101,8 +102,19 @@ impl BidSchema {
         self.status.as_ref().map(|e| e.as_str())
     }
 
+    #[graphql(name = "type")]
     async fn bid_type(&self) -> Option<&str> {
         self.bid_type.as_ref().map(|e| e.as_str())
+    }
+
+    #[graphql(name = "total_collection_trait")]
+    async fn total_collection_trait(&self) -> i64 {
+        10
+    }
+
+    #[graphql(name = "total_nft_trait")]
+    async fn total_nft_trait(&self) -> i64 {
+        5
     }
 }
 
@@ -110,4 +122,5 @@ impl BidSchema {
 #[graphql(rename_fields = "snake_case")]
 pub struct FilterBidSchema {
     pub nft_id: Option<String>,
+    pub collection_id: Option<String>,
 }

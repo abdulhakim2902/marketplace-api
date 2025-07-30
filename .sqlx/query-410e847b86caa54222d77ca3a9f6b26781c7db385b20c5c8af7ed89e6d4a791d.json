@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) FROM attributes\n            WHERE collection_id = $1\n            GROUP BY collection_id, attr_type\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "410e847b86caa54222d77ca3a9f6b26781c7db385b20c5c8af7ed89e6d4a791d"
+}

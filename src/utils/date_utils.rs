@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserializer, Deserialize};
+use serde::{Deserialize, Deserializer};
 
 pub fn deserialize_i64_to_datetime<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
 where
