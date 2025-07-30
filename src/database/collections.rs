@@ -9,9 +9,7 @@ use sqlx::{
 use crate::models::{
     api::responses::{
         collection::Collection, collection_nft_change::CollectionNftChange,
-        collection_offer::CollectionOffer,
-        collection_profit_leaderboard::CollectionProfitLeaderboard,
-        collection_trending::CollectionTrending,
+        collection_offer::CollectionOffer, collection_trending::CollectionTrending,
     },
     db::collection::Collection as DbCollection,
 };
@@ -46,15 +44,6 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionOffer>>;
 
     async fn count_collection_offers(&self, id: &str) -> anyhow::Result<i64>;
-
-    async fn fetch_collection_profit_leaderboard(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionProfitLeaderboard>>;
-
-    async fn count_collection_profit_leaderboard(&self, id: &str) -> anyhow::Result<i64>;
 
     async fn fetch_collection_nft_change(
         &self,
@@ -270,79 +259,6 @@ impl ICollections for Collections {
 
     async fn count_collection_offers(&self, _id: &str) -> anyhow::Result<i64> {
         Ok(10)
-    }
-
-    async fn fetch_collection_profit_leaderboard(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionProfitLeaderboard>> {
-        let res = sqlx::query_as!(
-            CollectionProfitLeaderboard,
-            r#"
-            WITH
-                bought_activities AS (
-                    SELECT a.collection_id, a.receiver AS address, COUNT(*) AS bought, SUM(price) AS price FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
-                    GROUP BY a.collection_id, a.receiver 
-                ),
-                sold_activities AS (
-                    SELECT a.collection_id, a.sender AS address, COUNT(*) AS sold, SUM(price) AS price FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
-                    GROUP BY a.collection_id, a.sender
-                ),
-                unique_addresses AS (
-                    SELECT ba.address FROM bought_activities ba
-                    UNION
-                    SELECT sa.address FROM sold_activities sa
-                )
-            SELECT
-                ua.address,
-                ba.bought, 
-                sa.sold, 
-                ba.price                                                                AS spent,
-                (COALESCE(sa.price, 0) - COALESCE(ba.price, 0)) 	                    AS total_profit,
-                (COALESCE(sa.price, 0) - COALESCE(ba.price, 0)) / NULLIF (ba.price, 0) 	AS profit_percentage
-            FROM unique_addresses ua
-                LEFT JOIN bought_activities ba ON ba.address = ua.address
-                LEFT JOIN sold_activities sa ON sa.address = ua.address
-            WHERE ua.address IS NOT NULL
-            ORDER BY total_profit DESC
-            LIMIT $2 OFFSET $3
-            "#,
-            id,
-            size,
-            size * (page - 1),
-        ).fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection profit leaders")?;
-
-        Ok(res)
-    }
-
-    async fn count_collection_profit_leaderboard(&self, id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            WITH addresses AS (
-                SELECT a.receiver AS address FROM activities a
-                WHERE a.tx_type = 'buy' AND a.collection_id = $1
-                GROUP BY a.collection_id, a.receiver 
-                UNION
-                SELECT a.sender AS address FROM activities a
-                WHERE a.tx_type = 'buy' AND a.collection_id = $1
-                GROUP BY a.collection_id, a.sender
-            )
-            SELECT COUNT(*) FROM addresses
-            WHERE addresses.address IS NOT NULL
-            "#,
-            id
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count collection profit leaderboard")?;
-
-        Ok(res.unwrap_or_default())
     }
 
     async fn fetch_collection_nft_change(

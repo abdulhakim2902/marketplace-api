@@ -3,13 +3,9 @@ use std::sync::Arc;
 use crate::{
     database::{IDatabase, collections::ICollections},
     models::api::{
-        requests::{
-            filter_nft_change::FilterNftChange, filter_offer::FilterOffer,
-            filter_profit_leaderboard::FilterProfitLeader,
-        },
+        requests::{filter_nft_change::FilterNftChange, filter_offer::FilterOffer},
         responses::{
             collection_nft_change::CollectionNftChange, collection_offer::CollectionOffer,
-            collection_profit_leaderboard::CollectionProfitLeaderboard,
         },
     },
 };
@@ -21,12 +17,6 @@ pub trait ICollectionService {
         id: &str,
         filter: &FilterOffer,
     ) -> anyhow::Result<(Vec<CollectionOffer>, i64)>;
-
-    async fn fetch_collection_profit_leaderboard(
-        &self,
-        id: &str,
-        filter: &FilterProfitLeader,
-    ) -> anyhow::Result<(Vec<CollectionProfitLeaderboard>, i64)>;
 
     async fn fetch_collection_nft_change(
         &self,
@@ -61,27 +51,6 @@ where
             repository.fetch_collection_offers(id, filter.paging.page, filter.paging.page_size);
 
         let count_fut = repository.count_collection_offers(id);
-
-        let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
-        let (data, count) = (data_res?, count_res?);
-
-        Ok((data, count))
-    }
-
-    async fn fetch_collection_profit_leaderboard(
-        &self,
-        id: &str,
-        filter: &FilterProfitLeader,
-    ) -> anyhow::Result<(Vec<CollectionProfitLeaderboard>, i64)> {
-        let repository = self.db.collections();
-
-        let filter_fut = repository.fetch_collection_profit_leaderboard(
-            id,
-            filter.paging.page,
-            filter.paging.page_size,
-        );
-
-        let count_fut = repository.count_collection_profit_leaderboard(id);
 
         let (data_res, count_res) = tokio::join!(filter_fut, count_fut);
         let (data, count) = (data_res?, count_res?);

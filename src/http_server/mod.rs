@@ -76,11 +76,7 @@ where
                         "/collections",
                         Router::new()
                             .route("/{id}/offers", get(collection::offers))
-                            .route("/{id}/nft-change", get(collection::nft_change))
-                            .route(
-                                "/{id}/profit-leaderboard",
-                                get(collection::profit_leaderboard),
-                            ),
+                            .route("/{id}/nft-change", get(collection::nft_change)),
                     )
                     .nest(
                         "/nfts",

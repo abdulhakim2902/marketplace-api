@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::models::{
     api::responses::{
-        activity::Activity, collection::CollectionSale, data_point::DataPoint, top_buyer::TopBuyer,
-        top_seller::TopSeller,
+        activity::Activity, collection::CollectionSale, data_point::DataPoint,
+        profit_leaderboard::ProfitLeaderboard, top_buyer::TopBuyer, top_seller::TopSeller,
     },
     db::activity::Activity as DbActivity,
 };
@@ -56,6 +56,13 @@ pub trait IActivities: Send + Sync {
         collection_id: &str,
         interval: Option<PgInterval>,
     ) -> anyhow::Result<Vec<TopSeller>>;
+
+    async fn fetch_profit_leaderboard(
+        &self,
+        id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<ProfitLeaderboard>>;
 }
 
 pub struct Activities {
@@ -329,6 +336,53 @@ impl IActivities for Activities {
         .fetch_all(&*self.pool)
         .await
         .context("Failed to fetch collection top buyers")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_profit_leaderboard(
+        &self,
+        id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<ProfitLeaderboard>> {
+        let res = sqlx::query_as!(
+            ProfitLeaderboard,
+            r#"
+            WITH
+                bought_activities AS (
+                    SELECT a.collection_id, a.receiver AS address, COUNT(*) AS bought, SUM(price) AS price FROM activities a
+                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    GROUP BY a.collection_id, a.receiver 
+                ),
+                sold_activities AS (
+                    SELECT a.collection_id, a.sender AS address, COUNT(*) AS sold, SUM(price) AS price FROM activities a
+                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    GROUP BY a.collection_id, a.sender
+                ),
+                unique_addresses AS (
+                    SELECT ba.address FROM bought_activities ba
+                    UNION
+                    SELECT sa.address FROM sold_activities sa
+                )
+            SELECT
+                ua.address,
+                ba.bought, 
+                sa.sold, 
+                ba.price                                                                AS spent,
+                (COALESCE(sa.price, 0) - COALESCE(ba.price, 0)) 	                    AS total_profit
+            FROM unique_addresses ua
+                LEFT JOIN bought_activities ba ON ba.address = ua.address
+                LEFT JOIN sold_activities sa ON sa.address = ua.address
+            WHERE ua.address IS NOT NULL
+            LIMIT $2 OFFSET $3
+            "#,
+            id,
+            limit,
+            offset,
+        ).fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection profit leaders")?;
 
         Ok(res)
     }

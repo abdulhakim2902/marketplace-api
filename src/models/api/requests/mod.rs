@@ -10,7 +10,6 @@ use crate::utils::string_utils;
 pub mod filter_activity;
 pub mod filter_nft_change;
 pub mod filter_offer;
-pub mod filter_profit_leaderboard;
 
 #[serde_as]
 #[derive(Deserialize, Debug, Clone, Validate, Default)]
