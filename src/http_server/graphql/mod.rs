@@ -49,7 +49,13 @@ impl Query {
         let offset = filter.offset.unwrap_or(0);
 
         db.activities()
-            .fetch_activities(query.collection_id, query.nft_id, limit, offset)
+            .fetch_activities(
+                query.wallet_address,
+                query.collection_id,
+                query.nft_id,
+                limit,
+                offset,
+            )
             .await
             .expect("Failed to fetch activites")
     }

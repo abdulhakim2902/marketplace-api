@@ -26,6 +26,7 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_activities(
         &self,
+        wallet_address: Option<String>,
         collection_id: Option<String>,
         nft_id: Option<String>,
         limit: i64,
@@ -152,6 +153,7 @@ impl IActivities for Activities {
 
     async fn fetch_activities(
         &self,
+        wallet_address: Option<String>,
         collection_id: Option<String>,
         nft_id: Option<String>,
         limit: i64,
@@ -176,11 +178,13 @@ impl IActivities for Activities {
                 a.block_height,
                 a.amount
             FROM activities a
-            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR a.collection_id = $1)
-                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR a.nft_id = $2)
+            WHERE (($1::TEXT IS NULL OR $1::TEXT = '' OR a.sender = $1) OR ($1::TEXT IS NULL OR $1::TEXT = '' OR a.receiver = $1))
+                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR a.collection_id = $2)
+                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR a.nft_id = $3)
             ORDER BY a.block_time
-            LIMIT $3 OFFSET $4
+            LIMIT $4 OFFSET $5
             "#,
+            wallet_address,
             collection_id,
             nft_id,
             limit,

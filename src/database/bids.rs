@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::{
-    db::bid::DbBid,
-    schema::bid::BidSchema,
-};
+use crate::models::{db::bid::DbBid, schema::bid::BidSchema};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use chrono::Utc;

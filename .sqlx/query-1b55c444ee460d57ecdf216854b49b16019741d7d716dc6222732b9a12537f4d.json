@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT \n                a.tx_type,\n                a.tx_index,\n                a.tx_id,\n                a.sender,\n                a.receiver,\n                a.price,\n                a.usd_price,\n                a.market_name,\n                a.market_contract_id,\n                a.nft_id,\n                a.collection_id,\n                a.block_time,\n                a.block_height,\n                a.amount\n            FROM activities a\n            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR a.collection_id = $1)\n                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR a.nft_id = $2)\n            ORDER BY a.block_time\n            LIMIT $3 OFFSET $4\n            ",
+  "query": "\n            SELECT \n                a.tx_type,\n                a.tx_index,\n                a.tx_id,\n                a.sender,\n                a.receiver,\n                a.price,\n                a.usd_price,\n                a.market_name,\n                a.market_contract_id,\n                a.nft_id,\n                a.collection_id,\n                a.block_time,\n                a.block_height,\n                a.amount\n            FROM activities a\n            WHERE (($1::TEXT IS NULL OR $1::TEXT = '' OR a.sender = $1) OR ($1::TEXT IS NULL OR $1::TEXT = '' OR a.receiver = $1))\n                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR a.collection_id = $2)\n                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR a.nft_id = $3)\n            ORDER BY a.block_time\n            LIMIT $4 OFFSET $5\n            ",
   "describe": {
     "columns": [
       {
@@ -78,6 +78,7 @@
       "Left": [
         "Text",
         "Text",
+        "Text",
         "Int8",
         "Int8"
       ]
@@ -99,5 +100,5 @@
       true
     ]
   },
-  "hash": "14af0ad6439508e247bda22c4a752f3f9f02736ad4f2aa81dd48b3085ea278ec"
+  "hash": "1b55c444ee460d57ecdf216854b49b16019741d7d716dc6222732b9a12537f4d"
 }
