@@ -1,6 +1,5 @@
 pub mod attribute;
 pub mod collection_offer;
-pub mod nft_offer;
 
 use serde::Serialize;
 

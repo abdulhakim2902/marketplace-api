@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use crate::{
     database::{
-        Database, IDatabase, activities::IActivities, collections::ICollections,
-        listings::IListings, nfts::INfts,
+        activities::IActivities, bids::IBids, collections::ICollections, listings::IListings, nfts::INfts, Database, IDatabase
     },
     models::schema::{
         activity::ActivitySchema,
+        bid::{BidSchema, FilterBidSchema},
         collection::CollectionSchema,
         collection_trending::CollectionTrendingSchema,
         data_point::DataPointSchema,
@@ -289,5 +289,27 @@ impl Query {
             .fetch_floor_chart(&collection_id, start_date, end_date, i)
             .await
             .expect("Failed to fetch nfts")
+    }
+
+    async fn offers(
+        &self,
+        ctx: &Context<'_>,
+        filter: Option<FilterBidSchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Vec<BidSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
+        let filter = filter.unwrap_or_default();
+
+        db.bids()
+            .fetch_bids(&filter, limit, offset)
+            .await
+            .expect("Failed to fetch bids")
     }
 }

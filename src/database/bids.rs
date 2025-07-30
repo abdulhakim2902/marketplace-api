@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
-use crate::models::db::bid::DbBid;
+use crate::models::{
+    db::bid::DbBid,
+    schema::bid::{BidSchema, FilterBidSchema},
+};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
+use chrono::Utc;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 #[async_trait::async_trait]
@@ -12,6 +16,13 @@ pub trait IBids: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         bids: Vec<DbBid>,
     ) -> anyhow::Result<PgQueryResult>;
+
+    async fn fetch_bids(
+        &self,
+        filter: &FilterBidSchema,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<BidSchema>>;
 
     async fn fetch_collection_top_offer(
         &self,
@@ -61,7 +72,8 @@ impl IBids for Bids {
                 receiver, 
                 remaining_count, 
                 status,
-                bid_type
+                bid_type,
+                updated_at
             )
             "#,
         )
@@ -83,6 +95,7 @@ impl IBids for Bids {
             b.push_bind(item.remaining_count);
             b.push_bind(item.status.clone());
             b.push_bind(item.bid_type.clone());
+            b.push_bind(Utc::now());
         })
         .push(
             r#"
@@ -95,13 +108,46 @@ impl IBids for Bids {
                 accepted_tx_id = COALESCE(EXCLUDED.accepted_tx_id, bids.accepted_tx_id),
                 cancelled_tx_id = COALESCE(EXCLUDED.cancelled_tx_id, bids.cancelled_tx_id),
                 nft_id = COALESCE(EXCLUDED.nft_id, bids.nft_id),
-                receiver = EXCLUDED.receiver
+                receiver = EXCLUDED.receiver,
+                updated_at = EXCLUDED.updated_at
             "#,
         )
         .build()
         .execute(&mut **tx)
         .await
         .context("Failed to insert bids")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_bids(
+        &self,
+        filter: &FilterBidSchema,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<BidSchema>> {
+        let res = sqlx::query_as!(
+            BidSchema,
+            r#"
+            WITH latest_prices AS (
+                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
+                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
+            )
+            SELECT 
+                b.*, 
+                b.price * lp.price AS usd_price
+            FROM bids b
+                LEFT JOIN latest_prices lp ON TRUE
+            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)
+            LIMIT $2 OFFSET $3
+            "#,
+            filter.nft_id,
+            limit,
+            offset,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fecth bids")?;
 
         Ok(res)
     }

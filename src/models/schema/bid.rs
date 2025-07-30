@@ -1,3 +1,4 @@
+use async_graphql::InputObject;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,9 @@ pub struct BidSchema {
     pub remaining_count: Option<i64>,
     pub status: Option<String>,
     pub bid_type: Option<String>,
+    pub price_str: Option<String>,
+    pub usd_price: Option<BigDecimal>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[async_graphql::Object]
@@ -52,6 +56,11 @@ impl BidSchema {
         self.expired_at.as_ref().map(|e| e.to_string())
     }
 
+    #[graphql(name = "updated_at")]
+    async fn updated_at(&self) -> Option<String> {
+        self.updated_at.as_ref().map(|e| e.to_string())
+    }
+
     #[graphql(name = "market_contract_id")]
     async fn market_contract_id(&self) -> Option<&str> {
         self.market_contract_id.as_ref().map(|e| e.as_str())
@@ -75,6 +84,11 @@ impl BidSchema {
         self.price.as_ref().map(|e| e.to_string())
     }
 
+    #[graphql(name = "usd_price")]
+    async fn usd_price(&self) -> Option<String> {
+        self.usd_price.as_ref().map(|e| e.to_string())
+    }
+
     async fn receiver(&self) -> Option<&str> {
         self.receiver.as_ref().map(|e| e.as_str())
     }
@@ -90,4 +104,10 @@ impl BidSchema {
     async fn bid_type(&self) -> Option<&str> {
         self.bid_type.as_ref().map(|e| e.as_str())
     }
+}
+
+#[derive(InputObject, Default, Debug)]
+#[graphql(rename_fields = "snake_case")]
+pub struct FilterBidSchema {
+    pub nft_id: Option<String>,
 }

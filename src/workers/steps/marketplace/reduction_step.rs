@@ -53,6 +53,7 @@ impl NFTAccumulator {
 
                     if let Some(tx_id) = bid.created_tx_id.as_ref() {
                         existing.created_tx_id = Some(tx_id.to_string());
+                        existing.status = Some("active".to_string());
                     }
 
                     if let Some(tx_id) = bid.accepted_tx_id.as_ref() {
