@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH \n                time_series AS (\n                    SELECT generate_series(DATE_TRUNC('day', NOW() - '1 year'::INTERVAL), DATE_TRUNC('day', NOW()), '1d'::INTERVAL) AS time_bin\n                ),\n                activity_counts AS (\n                    SELECT \n                        DATE_TRUNC('day', a.block_time) AS block_time_trunc, \n                        COUNT(*) FROM activities a\n                    WHERE a.receiver = $1 OR a.sender = $1\n                    GROUP BY block_time_trunc\n                )\n            SELECT\n                ts.time_bin AS x, \n                COALESCE(ac.count, 0)::NUMERIC AS y \n            FROM time_series ts\n                LEFT JOIN activity_counts ac ON ts.time_bin = ac.block_time_trunc\n            ORDER BY ts.time_bin\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "x",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "y",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "898c2824c2981650c5adaefc98efde5e283d88f54c9cb63ddb9758bbf080cad8"
+}

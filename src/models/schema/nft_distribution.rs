@@ -48,7 +48,7 @@ pub struct NftPeriodDistributionSchema {
     pub range_lt_24h: Option<i64>,
     pub range_1d_to_7d: Option<i64>,
     pub range_7d_to_30d: Option<i64>,
-    pub range_1m_to_3m: Option<i64>,
+    pub range_30d_to_3m: Option<i64>,
     pub range_3m_to_1y: Option<i64>,
     pub range_gte_1y: Option<i64>,
 }
@@ -70,9 +70,9 @@ impl NftPeriodDistributionSchema {
         self.range_7d_to_30d
     }
 
-    #[graphql(name = "range_1m_to_3m")]
-    async fn range_1m_to_3m(&self) -> Option<i64> {
-        self.range_1m_to_3m
+    #[graphql(name = "range_30d_to_3m")]
+    async fn range_30d_to_3m(&self) -> Option<i64> {
+        self.range_30d_to_3m
     }
 
     #[graphql(name = "range_3m_to_1y")]

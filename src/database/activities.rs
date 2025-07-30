@@ -79,6 +79,11 @@ pub trait IActivities: Send + Sync {
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftChangeSchema>>;
+
+    async fn fetch_contribution_chart(
+        &self,
+        wallet_address: &str,
+    ) -> anyhow::Result<Vec<DataPointSchema>>;
 }
 
 pub struct Activities {
@@ -471,6 +476,40 @@ impl IActivities for Activities {
         .fetch_all(&*self.pool)
         .await
         .context("Failed to fetch collection profit leaders")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_contribution_chart(
+        &self,
+        wallet_address: &str,
+    ) -> anyhow::Result<Vec<DataPointSchema>> {
+        let res = sqlx::query_as!(
+            DataPointSchema,
+            r#"
+            WITH 
+                time_series AS (
+                    SELECT generate_series(DATE_TRUNC('day', NOW() - '1 year'::INTERVAL), DATE_TRUNC('day', NOW()), '1d'::INTERVAL) AS time_bin
+                ),
+                activity_counts AS (
+                    SELECT 
+                        DATE_TRUNC('day', a.block_time) AS block_time_trunc, 
+                        COUNT(*) FROM activities a
+                    WHERE a.receiver = $1 OR a.sender = $1
+                    GROUP BY block_time_trunc
+                )
+            SELECT
+                ts.time_bin AS x, 
+                COALESCE(ac.count, 0)::NUMERIC AS y 
+            FROM time_series ts
+                LEFT JOIN activity_counts ac ON ts.time_bin = ac.block_time_trunc
+            ORDER BY ts.time_bin
+            "#,
+            wallet_address,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch activity contributons chart")?;
 
         Ok(res)
     }

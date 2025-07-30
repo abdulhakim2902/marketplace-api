@@ -184,13 +184,13 @@ impl CollectionSale {
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 pub struct FilterCollectionSchema {
     #[graphql(name = "where")]
-    pub where_: Option<WhereSchema>,
+    pub where_: Option<CollectionWhereSchema>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct WhereSchema {
+pub struct CollectionWhereSchema {
     pub collection_id: Option<String>,
 }

@@ -138,14 +138,14 @@ impl ListingSchema {
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 pub struct FilterListingSchema {
     #[graphql(name = "where")]
-    pub where_: Option<WhereSchema>,
+    pub where_: Option<ListingWhereSchema>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct WhereSchema {
+pub struct ListingWhereSchema {
     pub nft_id: Option<String>,
     pub is_listed: Option<bool>,
 }

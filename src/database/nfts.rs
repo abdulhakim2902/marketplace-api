@@ -421,15 +421,12 @@ impl INfts for Nfts {
             r#"
             WITH
                 nft_periods AS (
-                    SELECT DISTINCT ON(a.collection_id, a.nft_id) 
-                        a.collection_id, 
-                        a.nft_id,
-                        (EXTRACT(EPOCH FROM a.block_time) - COALESCE(EXTRACT(EPOCH FROM a2.block_time), 0)) AS period 
-                    FROM activities a
-                        LEFT JOIN activities a2 ON a2.receiver = a.sender AND a2.collection_id = a.collection_id AND a2.nft_id = a.nft_id
-                    WHERE a.collection_id = $1
-                        AND a.tx_type IN ('buy', 'transfer', 'mint')
-                    ORDER BY a.collection_id, a.nft_id, a.block_time DESC
+                	SELECT
+                        ra.collection_id,
+                        EXTRACT(EPOCH FROM ra.block_time) - COALESCE(EXTRACT(EPOCH FROM sa.block_time), 0) AS period 
+                    FROM activities ra
+                        LEFT JOIN activities sa ON ra.sender = sa.receiver AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
+                    WHERE ra.receiver IS NOT NULL AND ra.collection_id = $1
                 )
             SELECT
                 SUM(
@@ -440,31 +437,31 @@ impl INfts for Nfts {
                 ) AS range_lt_24h,
                 SUM(
                     CASE 
-                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) >= 1 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 7 THEN 1
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) >= 1 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) <= 7 THEN 1
                         ELSE 0
                     END
                 ) AS range_1d_to_7d,
                 SUM(
                     CASE 
-                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) >= 7 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 30 THEN 1
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) > 7 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) <= 30 THEN 1
                         ELSE 0
                     END
                 ) AS range_7d_to_30d,
                 SUM(
                     CASE 
-                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) >= 1 AND np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) < 3 THEN 1
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) > 1 AND np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) <= 3 THEN 1
                         ELSE 0
                     END
-                ) AS range_1m_to_3m,
+                ) AS range_30d_to_3m,
                 SUM(
                     CASE 
-                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) >= 3 AND np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) < 1 THEN 1
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) > 3 AND np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) <= 1 THEN 1
                         ELSE 0
                     END
                 ) AS range_3m_to_1y,
                 SUM(
                     CASE 
-                        WHEN np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) >= 3 THEN 1
+                        WHEN np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) > 1 THEN 1
                         ELSE 0
                     END
                 ) AS range_gte_1y

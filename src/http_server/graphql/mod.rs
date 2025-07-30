@@ -311,6 +311,21 @@ impl Query {
         db.activities()
             .fetch_floor_chart(&collection_id, start_date, end_date, i)
             .await
-            .expect("Failed to fetch nfts")
+            .expect("Failed to fetch floor chart")
+    }
+
+    async fn activity_contribution_chart(
+        &self,
+        ctx: &Context<'_>,
+        wallet_address: String,
+    ) -> Vec<DataPointSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.activities()
+            .fetch_contribution_chart(&wallet_address)
+            .await
+            .expect("Failed to fetch contribution chart")
     }
 }
