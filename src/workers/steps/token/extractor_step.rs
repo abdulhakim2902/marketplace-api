@@ -7,7 +7,7 @@ use crate::{
     },
     utils::{
         object_utils::{ObjectAggregatedData, ObjectWithMetadata},
-        token_utils::{TableMetadataForToken, TokenEvent},
+        token_utils::{CoinEvent, TableMetadataForToken, TokenEvent},
     },
 };
 use ahash::AHashMap;
@@ -18,6 +18,7 @@ use aptos_indexer_processor_sdk::{
     types::transaction_context::TransactionContext,
     utils::{convert::standardize_address, errors::ProcessorError},
 };
+use bigdecimal::BigDecimal;
 
 pub struct TokenExtractor
 where
@@ -157,6 +158,8 @@ impl Processable for TokenExtractor {
                     }
                 }
 
+                let mut mint_payer: AHashMap<String, BigDecimal> = AHashMap::new();
+                let mut owner_activity: AHashMap<String, DbActivity> = AHashMap::new();
                 for (event_index, event) in events.iter().enumerate() {
                     let event_model = EventModel::from_event(
                         event,
@@ -170,14 +173,51 @@ impl Processable for TokenExtractor {
                     })?;
 
                     if let Some(event) = event_model {
-                        let action_v1 = DbActivity::get_action_from_token_event_v1(
+                        let coin = CoinEvent::from_event(
+                            &event.type_str,
+                            &event.data.to_string(),
+                            txn_version,
+                        )
+                        .unwrap_or_default();
+                        if let Some(coin) = coin {
+                            match coin {
+                                CoinEvent::WithdrawEvent(withdraw) => {
+                                    if let Some(activity_owner) =
+                                        owner_activity.get(&event.account_address)
+                                    {
+                                        if let Some(activity) = self
+                                            .current_activities
+                                            .get_mut(&activity_owner.tx_index)
+                                        {
+                                            let price = activity
+                                                .price
+                                                .as_ref()
+                                                .map_or(withdraw.amount.clone(), |price| {
+                                                    price + &withdraw.amount
+                                                });
+
+                                            activity.price = Some(price);
+                                        }
+                                    } else {
+                                        mint_payer
+                                            .entry(event.account_address.clone())
+                                            .and_modify(|existing| {
+                                                *existing += &withdraw.amount;
+                                            })
+                                            .or_insert(withdraw.amount);
+                                    }
+                                }
+                            }
+                        }
+
+                        let activity_token_v1 = DbActivity::get_action_from_token_event_v1(
                             &event,
                             &txn_id,
                             txn_version,
                         )
                         .unwrap();
 
-                        if let Some(mut activity) = action_v1 {
+                        if let Some(mut activity) = activity_token_v1 {
                             let tx_type = activity.tx_type.as_ref().unwrap().to_string();
                             if tx_type == MarketplaceEventType::Burn.to_string() {
                                 if let Some(nft) =
@@ -199,12 +239,17 @@ impl Processable for TokenExtractor {
                                         activity.receiver = owner.clone();
                                     }
                                 }
+
+                                if let Some(receiver) = activity.receiver.as_ref() {
+                                    activity.price = mint_payer.remove(receiver);
+                                    owner_activity.insert(receiver.to_string(), activity.clone());
+                                }
                             }
 
                             self.current_activities.insert(activity.tx_index, activity);
                         }
 
-                        let action_v2 = DbActivity::get_action_from_token_event_v2(
+                        let activity_token_v2 = DbActivity::get_action_from_token_event_v2(
                             &event,
                             &txn_id,
                             txn_version,
@@ -213,7 +258,7 @@ impl Processable for TokenExtractor {
                         )
                         .unwrap();
 
-                        if let Some(activity) = action_v2 {
+                        if let Some(mut activity) = activity_token_v2 {
                             let tx_type = activity.tx_type.as_ref().unwrap().to_string();
                             if tx_type == MarketplaceEventType::Burn.to_string() {
                                 if let Some(nft) =
@@ -224,6 +269,13 @@ impl Processable for TokenExtractor {
                                 } else {
                                     let nft: DbNft = activity.clone().into();
                                     self.current_burn_nfts.insert(nft.id.clone(), nft);
+                                }
+                            }
+
+                            if tx_type == MarketplaceEventType::Mint.to_string() {
+                                if let Some(receiver) = activity.receiver.as_ref() {
+                                    activity.price = mint_payer.remove(receiver);
+                                    owner_activity.insert(receiver.to_string(), activity.clone());
                                 }
                             }
 

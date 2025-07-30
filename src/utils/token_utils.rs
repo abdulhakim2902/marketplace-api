@@ -403,3 +403,28 @@ impl BurnTokenEventTypeV2 {
         standardize_address(&self.account)
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WithdrawEventType {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub amount: BigDecimal,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum CoinEvent {
+    WithdrawEvent(WithdrawEventType),
+}
+
+impl CoinEvent {
+    pub fn from_event(data_type: &str, data: &str, txn_version: i64) -> Result<Option<Self>> {
+        match data_type {
+            "0x1::coin::WithdrawEvent" => {
+                serde_json::from_str(data).map(|inner| Some(Self::WithdrawEvent(inner)))
+            }
+            _ => Ok(None),
+        }
+        .context(format!(
+            "version {txn_version} failed! failed to parse type {data_type}, data {data:?}"
+        ))
+    }
+}
