@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::models::{
     db::bid::DbBid,
-    schema::bid::{BidSchema, FilterBidSchema},
+    schema::bid::BidSchema,
 };
 use anyhow::Context;
 use bigdecimal::BigDecimal;
@@ -19,7 +19,8 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
-        filter: &FilterBidSchema,
+        collection_id: Option<String>,
+        nft_id: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>>;
@@ -122,7 +123,8 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
-        filter: &FilterBidSchema,
+        collection_id: Option<String>,
+        nft_id: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>> {
@@ -142,8 +144,8 @@ impl IBids for Bids {
                 AND ($2::TEXT IS NULL OR $1::TEXT = '' OR b.collection_id = $2)
             LIMIT $3 OFFSET $4
             "#,
-            filter.nft_id,
-            filter.collection_id,
+            nft_id,
+            collection_id,
             limit,
             offset,
         )

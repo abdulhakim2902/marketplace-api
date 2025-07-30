@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use async_graphql::Context;
+use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
@@ -179,4 +179,18 @@ impl CollectionSale {
     async fn volume_usd(&self) -> Option<String> {
         self.volume_usd.as_ref().map(|e| e.to_string())
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+pub struct FilterCollectionSchema {
+    #[graphql(name = "where")]
+    pub where_: Option<WhereSchema>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereSchema {
+    pub collection_id: Option<String>,
 }

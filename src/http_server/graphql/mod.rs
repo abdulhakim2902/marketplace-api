@@ -6,13 +6,13 @@ use crate::{
         listings::IListings, nfts::INfts,
     },
     models::schema::{
-        activity::ActivitySchema,
+        activity::{ActivitySchema, FilterActivitySchema},
         bid::{BidSchema, FilterBidSchema},
-        collection::CollectionSchema,
+        collection::{CollectionSchema, FilterCollectionSchema},
         collection_trending::CollectionTrendingSchema,
         data_point::DataPointSchema,
-        listing::ListingSchema,
-        nft::NftSchema,
+        listing::{FilterListingSchema, ListingSchema},
+        nft::{FilterNftSchema, NftSchema},
         nft_change::NftChangeSchema,
         nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
         nft_holder::NftHolderSchema,
@@ -36,18 +36,20 @@ impl Query {
     async fn activities(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        filter: Option<FilterActivitySchema>,
     ) -> Vec<ActivitySchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
+        let filter = filter.unwrap_or_default();
+        let query = filter.where_.unwrap_or_default();
+
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
 
         db.activities()
-            .fetch_activities(limit, offset)
+            .fetch_activities(query.collection_id, query.nft_id, limit, offset)
             .await
             .expect("Failed to fetch activites")
     }
@@ -55,21 +57,77 @@ impl Query {
     async fn collections(
         &self,
         ctx: &Context<'_>,
-        id: Option<String>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        filter: Option<FilterCollectionSchema>,
     ) -> Vec<CollectionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
+        let filter = filter.unwrap_or_default();
+        let query = filter.where_.unwrap_or_default();
+
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
 
         db.collections()
-            .fetch_collections(id, limit, offset)
+            .fetch_collections(query.collection_id, limit, offset)
             .await
             .expect("Failed to fetch collections")
+    }
+
+    async fn nfts(&self, ctx: &Context<'_>, filter: Option<FilterNftSchema>) -> Vec<NftSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let filter = filter.unwrap_or_default();
+        let query = filter.where_.unwrap_or_default();
+
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
+        db.nfts()
+            .fetch_nfts(query.nft_id, query.collection_id, limit, offset)
+            .await
+            .expect("Failed to fetch nfts")
+    }
+
+    async fn listings(
+        &self,
+        ctx: &Context<'_>,
+        filter: Option<FilterListingSchema>,
+    ) -> Vec<ListingSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let filter = filter.unwrap_or_default();
+        let query = filter.where_.unwrap_or_default();
+
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
+        db.listings()
+            .fetch_listings(query.nft_id, query.is_listed, limit, offset)
+            .await
+            .expect("Failed to fetch nfts")
+    }
+
+    async fn offers(&self, ctx: &Context<'_>, filter: Option<FilterBidSchema>) -> Vec<BidSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let filter = filter.unwrap_or_default();
+        let query = filter.where_.unwrap_or_default();
+
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
+        db.bids()
+            .fetch_bids(query.collection_id, query.nft_id, limit, offset)
+            .await
+            .expect("Failed to fetch bids")
     }
 
     async fn collection_trending(
@@ -224,49 +282,7 @@ impl Query {
             .expect("Failed to fetch collection nft period distribution")
     }
 
-    async fn nfts(
-        &self,
-        ctx: &Context<'_>,
-        id: Option<String>,
-        collection_id: Option<String>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Vec<NftSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.nfts()
-            .fetch_nfts(id, collection_id, limit, offset)
-            .await
-            .expect("Failed to fetch nfts")
-    }
-
-    async fn listings(
-        &self,
-        ctx: &Context<'_>,
-        nft_id: Option<String>,
-        is_listed: Option<bool>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Vec<ListingSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.listings()
-            .fetch_listings(nft_id, is_listed, limit, offset)
-            .await
-            .expect("Failed to fetch nfts")
-    }
-
-    async fn floor_chart(
+    async fn collection_floor_chart(
         &self,
         ctx: &Context<'_>,
         collection_id: String,
@@ -290,27 +306,5 @@ impl Query {
             .fetch_floor_chart(&collection_id, start_date, end_date, i)
             .await
             .expect("Failed to fetch nfts")
-    }
-
-    async fn offers(
-        &self,
-        ctx: &Context<'_>,
-        filter: Option<FilterBidSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Vec<BidSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        let filter = filter.unwrap_or_default();
-
-        db.bids()
-            .fetch_bids(&filter, limit, offset)
-            .await
-            .expect("Failed to fetch bids")
     }
 }

@@ -118,9 +118,17 @@ impl BidSchema {
     }
 }
 
-#[derive(InputObject, Default, Debug)]
-#[graphql(rename_fields = "snake_case")]
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
 pub struct FilterBidSchema {
+    #[graphql(name = "where")]
+    pub where_: Option<WhereSchema>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereSchema {
     pub nft_id: Option<String>,
     pub collection_id: Option<String>,
 }

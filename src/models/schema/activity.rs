@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use async_graphql::Context;
+use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -139,4 +139,19 @@ impl ActivitySchema {
 
         res.unwrap().first().cloned()
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+pub struct FilterActivitySchema {
+    #[graphql(name = "where")]
+    pub where_: Option<WhereSchema>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereSchema {
+    pub collection_id: Option<String>,
+    pub nft_id: Option<String>,
 }

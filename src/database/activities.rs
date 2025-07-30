@@ -26,6 +26,8 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_activities(
         &self,
+        collection_id: Option<String>,
+        nft_id: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ActivitySchema>>;
@@ -150,6 +152,8 @@ impl IActivities for Activities {
 
     async fn fetch_activities(
         &self,
+        collection_id: Option<String>,
+        nft_id: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ActivitySchema>> {
@@ -172,9 +176,13 @@ impl IActivities for Activities {
                 a.block_height,
                 a.amount
             FROM activities a
+            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR a.collection_id = $1)
+                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR a.nft_id = $2)
             ORDER BY a.block_time
-            LIMIT $1 OFFSET $2
+            LIMIT $3 OFFSET $4
             "#,
+            collection_id,
+            nft_id,
             limit,
             offset,
         )
