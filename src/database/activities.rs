@@ -282,7 +282,6 @@ impl IActivities for Activities {
             TopBuyer,
             r#"
             SELECT
-                a.collection_id,
                 a.receiver      AS buyer, 
                 COUNT(*)        AS bought, 
                 SUM(a.price)    AS volume
@@ -313,7 +312,6 @@ impl IActivities for Activities {
             TopSeller,
             r#"
             SELECT
-                a.collection_id,
                 a.sender            AS seller, 
                 COUNT(*)            AS sold, 
                 SUM(a.price)        AS volume

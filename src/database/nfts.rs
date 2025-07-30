@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::models::{
-    api::responses::{nft::Nft, nft_offer::NftOffer},
+    api::responses::{nft::Nft, nft_holder::NftHolder, nft_offer::NftOffer},
     db::nft::Nft as DbNft,
 };
 use anyhow::Context;
@@ -36,6 +36,13 @@ pub trait INfts: Send + Sync {
     ) -> anyhow::Result<Vec<NftOffer>>;
 
     async fn count_nft_offers(&self, id: &str) -> anyhow::Result<i64>;
+
+    async fn fetch_nft_holders(
+        &self,
+        collection_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<NftHolder>>;
 }
 
 pub struct Nfts {
@@ -328,5 +335,71 @@ impl INfts for Nfts {
         .context("Failed to count filtered nft offers")?;
 
         Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_nft_holders(
+        &self,
+        collection_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<NftHolder>> {
+        let res = sqlx::query_as!(
+            NftHolder,
+            r#"
+            WITH 
+                mint_activities AS (
+                    SELECT
+                        a.receiver  AS address, 
+                        COUNT(*)    AS count
+                    FROM activities a
+                    WHERE a.tx_type = 'mint' AND a.collection_id = $1
+                    GROUP BY a.receiver
+                ),
+                send_activities AS (
+                    SELECT
+                        a.sender    AS address, 
+                        COUNT(*)    AS count
+                    FROM activities a
+                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    GROUP BY a.sender
+                ),
+                receive_activities AS (
+                    SELECT
+                        a.receiver  AS address, 
+                        COUNT(*)    AS count
+                    FROM activities a
+                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    GROUP BY a.receiver
+                ),
+                nft_owners AS (
+                    SELECT 
+                        n.owner     AS address,
+                        COUNT(*)    AS count
+                    FROM nfts n
+                    WHERE n.collection_id = $1 AND (n.burned IS NULL OR NOT n.burned)
+                    GROUP BY n.owner
+                )
+            SELECT 
+                no.address, 
+                no.count            AS quantity, 
+                ma.count            AS mint,
+                sa.count            AS send,
+                ra.count            AS receive
+            FROM nft_owners no
+                LEFT JOIN mint_activities ma ON ma.address = no.address
+                LEFT JOIN send_activities sa ON sa.address = no.address
+                LEFT JOIN receive_activities ra ON ra.address = no.address
+            ORDER BY no.count
+            LIMIT $2 OFFSET $3
+            "#,
+            collection_id,
+            limit,
+            offset,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection nft holders")?;
+
+        Ok(res)
     }
 }

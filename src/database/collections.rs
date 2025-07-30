@@ -13,7 +13,6 @@ use crate::models::{
         collection_nft_distribution::{
             CollectionNftAmountDistribution, CollectionNftPeriodDistribution,
         },
-        collection_nft_holder::CollectionNftHolder,
         collection_offer::CollectionOffer,
         collection_profit_leaderboard::CollectionProfitLeaderboard,
         collection_trending::CollectionTrending,
@@ -51,15 +50,6 @@ pub trait ICollections: Send + Sync {
     ) -> anyhow::Result<Vec<CollectionOffer>>;
 
     async fn count_collection_offers(&self, id: &str) -> anyhow::Result<i64>;
-
-    async fn fetch_collection_nft_holders(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionNftHolder>>;
-
-    async fn count_collection_nft_holders(&self, id: &str) -> anyhow::Result<i64>;
 
     async fn fetch_collection_nft_amount_distribution(
         &self,
@@ -294,88 +284,6 @@ impl ICollections for Collections {
 
     async fn count_collection_offers(&self, _id: &str) -> anyhow::Result<i64> {
         Ok(10)
-    }
-
-    async fn fetch_collection_nft_holders(
-        &self,
-        id: &str,
-        page: i64,
-        size: i64,
-    ) -> anyhow::Result<Vec<CollectionNftHolder>> {
-        let res = sqlx::query_as!(
-            CollectionNftHolder,
-            r#"
-            WITH 
-                mint_activities AS (
-                    SELECT
-                        a.receiver  AS address, 
-                        COUNT(*)    AS count
-                    FROM activities a
-                    WHERE a.tx_type = 'mint' AND a.collection_id = $1
-                    GROUP BY a.receiver
-                ),
-                send_activities AS (
-                    SELECT
-                        a.sender    AS address, 
-                        COUNT(*)    AS count
-                    FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
-                    GROUP BY a.sender
-                ),
-                receive_activities AS (
-                    SELECT
-                        a.receiver  AS address, 
-                        COUNT(*)    AS count
-                    FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
-                    GROUP BY a.receiver
-                ),
-                nft_owners AS (
-                    SELECT 
-                        n.owner     AS address,
-                        COUNT(*)    AS count
-                    FROM nfts n
-                    WHERE n.collection_id = $1 AND (n.burned IS NULL OR NOT n.burned)
-                    GROUP BY n.owner
-                )
-            SELECT 
-                no.address, 
-                no.count            AS quantity, 
-                ma.count            AS mint,
-                sa.count            AS send,
-                ra.count            AS receive
-            FROM nft_owners no
-                LEFT JOIN mint_activities ma ON ma.address = no.address
-                LEFT JOIN send_activities sa ON sa.address = no.address
-                LEFT JOIN receive_activities ra ON ra.address = no.address
-            ORDER BY no.count
-            LIMIT $2 OFFSET $3
-            "#,
-            id,
-            size,
-            size * (page - 1),
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection nft holders")?;
-
-        Ok(res)
-    }
-
-    async fn count_collection_nft_holders(&self, id: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(DISTINCT n.owner) FROM nfts n
-            WHERE n.collection_id = $1 AND (n.burned IS NULL OR NOT n.burned)
-            GROUP BY n.collection_id
-            "#,
-            id
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered collections")?;
-
-        Ok(res.unwrap_or_default())
     }
 
     async fn fetch_collection_nft_amount_distribution(
