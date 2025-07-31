@@ -15,31 +15,20 @@ use crate::{
         controllers::health,
         graphql::{Query, graphql},
     },
-    services::{IInternalServices, Services},
     utils::shutdown_utils,
 };
 
-pub struct HttpServer<TDb: IDatabase, TInternalService: IInternalServices> {
+pub struct HttpServer<TDb: IDatabase> {
     db: Arc<TDb>,
     config: Arc<Config>,
-    services: Arc<Services<TInternalService>>,
 }
 
-impl<TDb, TInternalService> HttpServer<TDb, TInternalService>
+impl<TDb> HttpServer<TDb>
 where
-    TInternalService: IInternalServices + Send + 'static,
     TDb: IDatabase + Send + Sync + 'static,
 {
-    pub fn new(
-        db: Arc<TDb>,
-        config: Arc<Config>,
-        services: Arc<Services<TInternalService>>,
-    ) -> Self {
-        Self {
-            db,
-            config,
-            services,
-        }
+    pub fn new(db: Arc<TDb>, config: Arc<Config>) -> Self {
+        Self { db, config }
     }
 
     pub async fn start(self) -> anyhow::Result<()> {

@@ -3,7 +3,6 @@ pub mod config;
 pub mod database;
 pub mod http_server;
 pub mod models;
-pub mod services;
 pub mod utils;
 pub mod workers;
 
@@ -21,15 +20,11 @@ use crate::{
         processor_status::ProcessorStatus, token_prices::TokenPrices, wallets::Wallets,
     },
     http_server::HttpServer,
-    services::{InternalServices, Services, health::HealthService},
     utils::shutdown_utils,
     workers::Worker,
 };
 
-pub async fn init() -> anyhow::Result<(
-    Arc<Worker<Database, Cache>>,
-    HttpServer<Database, InternalServices>,
-)> {
+pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<Database>)> {
     let config = Arc::new(init_config().context("Failed to initialize configuration")?);
     let pool = Arc::new(
         PgPoolOptions::new()
@@ -59,8 +54,6 @@ pub async fn init() -> anyhow::Result<(
         Arc::new(Marketplaces::new(Arc::clone(&pool))),
     ));
 
-    let services = Arc::new(init_services(Arc::clone(&db)));
-
     tokio::spawn(shutdown_utils::poll_for_shutdown_signal());
 
     Ok((
@@ -69,14 +62,8 @@ pub async fn init() -> anyhow::Result<(
             Arc::clone(&db),
             Arc::clone(&cache),
         )),
-        HttpServer::new(Arc::clone(&db), Arc::clone(&config), Arc::clone(&services)),
+        HttpServer::new(Arc::clone(&db), Arc::clone(&config)),
     ))
-}
-
-fn init_services(db: Arc<Database>) -> Arc<Services<InternalServices>> {
-    let health_service = Arc::new(HealthService::new(Arc::clone(&db)));
-
-    Arc::new(Services::new(health_service))
 }
 
 fn init_config() -> anyhow::Result<Config> {

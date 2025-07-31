@@ -3,16 +3,10 @@ use axum::{
     http::{Response, StatusCode},
 };
 
-use crate::{
-    database::IDatabase,
-    http_server::controllers::InternalState,
-    services::{IInternalServices, health::IHealthService},
-};
+use crate::{database::IDatabase, http_server::controllers::InternalState};
 
-pub async fn check<TDb: IDatabase, TInternalService: IInternalServices>(
-    State(state): InternalState<TDb, TInternalService>,
-) -> Response<String> {
-    match state.services.health_service.is_healthy().await {
+pub async fn check<TDb: IDatabase>(State(state): InternalState<TDb>) -> Response<String> {
+    match state.db.is_healthy().await {
         true => Response::builder()
             .status(StatusCode::OK)
             .body("OK".into())
