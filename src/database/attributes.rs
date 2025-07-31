@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::models::{db::attribute::DbAttribute, schema::attribute::AttributeSchema};
+use crate::models::{
+    db::attribute::DbAttribute,
+    schema::attribute::{AttributeSchema, CollectionAttributeSchema},
+};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
@@ -12,6 +15,11 @@ pub trait IAttributes: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         items: Vec<DbAttribute>,
     ) -> anyhow::Result<PgQueryResult>;
+
+    async fn fetch_collection_attributes(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Vec<CollectionAttributeSchema>>;
 
     async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<AttributeSchema>>;
 
@@ -196,5 +204,28 @@ impl IAttributes for Attributes {
         .context("Failed to fetch collection trait")?;
 
         Ok(res.unwrap_or_default())
+    }
+
+    async fn fetch_collection_attributes(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Vec<CollectionAttributeSchema>> {
+        let res = sqlx::query_as!(
+            CollectionAttributeSchema,
+            r#"
+            SELECT 
+                a.attr_type, 
+                jsonb_agg(DISTINCT a.value) AS values 
+            FROM attributes a
+            WHERE a.collection_id = $1
+            GROUP BY a.collection_id, a.attr_type
+            "#,
+            collection_id,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch attributes")?;
+
+        Ok(res)
     }
 }

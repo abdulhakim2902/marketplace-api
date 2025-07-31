@@ -2,16 +2,19 @@ use std::sync::Arc;
 
 use crate::{
     database::{
-        Database, IDatabase, activities::IActivities, bids::IBids, collections::ICollections,
-        listings::IListings, nfts::INfts, wallets::IWallets,
+        Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
+        collections::ICollections, listings::IListings, marketplaces::IMarketplaces, nfts::INfts,
+        wallets::IWallets,
     },
     models::schema::{
         activity::{ActivitySchema, FilterActivitySchema},
+        attribute::CollectionAttributeSchema,
         bid::{BidSchema, FilterBidSchema},
         collection::{CollectionSchema, FilterCollectionSchema},
         collection_trending::CollectionTrendingSchema,
         data_point::DataPointSchema,
         listing::{FilterListingSchema, ListingSchema},
+        marketplace::MarketplaceSchema,
         nft::{FilterNftSchema, NftSchema},
         nft_change::NftChangeSchema,
         nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
@@ -35,6 +38,17 @@ pub struct Query;
 
 #[Object]
 impl Query {
+    async fn marketplaces(&self, ctx: &Context<'_>) -> Vec<MarketplaceSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.marketplaces()
+            .fetch_marketplaces()
+            .await
+            .expect("Failed to fetch marketplaces")
+    }
+
     async fn activities(
         &self,
         ctx: &Context<'_>,
@@ -180,6 +194,21 @@ impl Query {
             .expect("Missing database in the context");
 
         db.wallets().fetch_stat(&address).await.ok()
+    }
+
+    async fn collection_attributes(
+        &self,
+        ctx: &Context<'_>,
+        collection_id: String,
+    ) -> Vec<CollectionAttributeSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.attributes()
+            .fetch_collection_attributes(&collection_id)
+            .await
+            .expect("Failed to fetch collection attributes")
     }
 
     async fn collection_trending(
