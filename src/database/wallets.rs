@@ -68,40 +68,64 @@ impl IWallets for Wallets {
             StatsSchema,
             r#"
             WITH
-              wallet_nfts AS (
-                  SELECT n.owner, COUNT(*) FROM nfts n
-                  WHERE n.owner = $1
-                  GROUP BY n.owner
-              ),
-              traded_activities AS (
-                  SELECT
-                      ra.receiver                       AS address, 
-                      SUM(COALESCE(ra.usd_price, 0))    AS trade_volumes, 
-                      SUM(
-                          CASE
-                              WHEN ra.tx_type = 'buy' OR (ra.tx_type = 'mint' AND ra.price > 0) THEN 1
-                              ELSE 0 
-                          END
-                      )                                 AS total_buys,
-                      AVG(
-                        EXTRACT(EPOCH FROM ra.block_time) - 
-                            COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time))
-                      )                                 AS holding_periods
-                  FROM activities ra
-                      LEFT JOIN activities sa ON ra.sender = sa.receiver AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
-                  WHERE ra.receiver = $1 
-                      AND ra.sender IS NOT NULL
-                      AND ra.tx_type IN ('transfer', 'buy', 'mint')
-                  GROUP BY ra.receiver
-              )
+                latest_prices AS (
+                    SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
+                    WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
+                    ORDER BY tp.token_address, tp.created_at DESC
+                ),
+                wallet_nfts AS (
+                    SELECT n.owner, COUNT(*) FROM nfts n
+                    WHERE n.owner = $1
+                    GROUP BY n.owner
+                ),
+                traded_activities AS (
+                        SELECT
+                            ra.receiver                       AS address,
+                            SUM(COALESCE(ra.usd_price, 0))    AS trade_volumes, 
+                            SUM(
+                                CASE
+                                    WHEN ra.tx_type = 'buy' OR (ra.tx_type = 'mint' AND ra.price > 0) THEN 1
+                                    ELSE 0 
+                                END
+                            )                                 AS total_buys,
+                            AVG(
+                                COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time))
+                                    - EXTRACT(EPOCH FROM ra.block_time)
+                                
+                            )                                 AS holding_periods,
+                            SUM(sa.price - ra.price)          AS profit                                                         
+                        FROM activities ra
+                            LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
+                        WHERE ra.receiver = $1 
+                            AND ra.sender IS NOT NULL
+                            AND ra.tx_type IN ('transfer', 'buy', 'mint')
+                        GROUP BY ra.receiver
+                ),
+                sale_activities AS (
+                        SELECT a.sender AS address, COUNT(*) FROM activities a
+                        WHERE a.sender = $1 AND a.tx_type = 'buy'
+                        GROUP BY a.sender
+                ),
+                mint_activities AS (
+                        SELECT a.receiver AS address, COUNT(*) FROM activities a
+                        WHERE a.receiver = $1 AND a.tx_type = 'mint'
+                        GROUP BY a.receiver
+                )
             SELECT
-                wn.count            AS unique_nfts,
+                wn.count                AS unique_nfts,
                 ta.total_buys,
                 ta.trade_volumes,
-                ta.holding_periods
+                ta.holding_periods,
+                sa.count                AS total_sales,
+                ma.count                AS total_mints,
+                ta.profit               AS total_profits,
+                ta.profit * lp.price    AS total_usd_profits
             FROM wallets w
-                JOIN wallet_nfts wn ON wn.owner = w.address
-                JOIN traded_activities ta ON ta.address = w.address
+                LEFT JOIN wallet_nfts wn ON wn.owner = w.address
+                LEFT JOIN traded_activities ta ON ta.address = w.address
+                LEFT JOIN sale_activities sa ON sa.address = w.address 
+                LEFT JOIN mint_activities ma ON ma.address = w.address
+                LEFT JOIN latest_prices lp ON TRUE
             WHERE w.address = $1
             "#,
             address,
@@ -123,12 +147,13 @@ impl IWallets for Wallets {
             SELECT
                 ra.collection_id,
                 ra.nft_id,
-                EXTRACT(EPOCH FROM ra.block_time) - 
-                    COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) AS period 
+                COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) -
+                    EXTRACT(EPOCH FROM ra.block_time) AS period 
             FROM activities ra
-                LEFT JOIN activities sa ON ra.sender = sa.receiver AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
+                LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
             WHERE ra.receiver IS NOT NULL AND ra.receiver = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint')
             ORDER BY period DESC
+            LIMIT 10
             "#,
             address
         )

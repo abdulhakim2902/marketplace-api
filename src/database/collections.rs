@@ -610,10 +610,10 @@ impl ICollections for Collections {
                 nft_periods AS (
                 	SELECT
                         ra.collection_id,
-                        EXTRACT(EPOCH FROM ra.block_time) - 
-                            COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) AS period 
+                        COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) 
+                            - EXTRACT(EPOCH FROM ra.block_time) AS period 
                     FROM activities ra
-                        LEFT JOIN activities sa ON ra.sender = sa.receiver AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
+                        LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
                     WHERE ra.receiver IS NOT NULL AND ra.collection_id = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint')
                 )
             SELECT

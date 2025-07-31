@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH\n                latest_prices AS (\n                    SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp\n                    WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'\n                    ORDER BY tp.token_address, tp.created_at DESC\n                ),\n                wallet_nfts AS (\n                    SELECT n.owner, COUNT(*) FROM nfts n\n                    WHERE n.owner = $1\n                    GROUP BY n.owner\n                ),\n                traded_activities AS (\n                        SELECT\n                            ra.receiver                       AS address,\n                            SUM(COALESCE(ra.usd_price, 0))    AS trade_volumes, \n                            SUM(\n                                CASE\n                                    WHEN ra.tx_type = 'buy' OR (ra.tx_type = 'mint' AND ra.price > 0) THEN 1\n                                    ELSE 0 \n                                END\n                            )                                 AS total_buys,\n                            AVG(\n                                COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time))\n                                    - EXTRACT(EPOCH FROM ra.block_time)\n                                \n                            )                                 AS holding_periods,\n                            SUM(sa.price - ra.price)          AS profit                                                         \n                        FROM activities ra\n                            LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id\n                        WHERE ra.receiver = $1 \n                            AND ra.sender IS NOT NULL\n                            AND ra.tx_type IN ('transfer', 'buy', 'mint')\n                        GROUP BY ra.receiver\n                ),\n                sale_activities AS (\n                        SELECT a.sender AS address, COUNT(*) FROM activities a\n                        WHERE a.sender = $1 AND a.tx_type = 'buy'\n                        GROUP BY a.sender\n                ),\n                mint_activities AS (\n                        SELECT a.receiver AS address, COUNT(*) FROM activities a\n                        WHERE a.receiver = $1 AND a.tx_type = 'mint'\n                        GROUP BY a.receiver\n                )\n            SELECT\n                wn.count                AS unique_nfts,\n                ta.total_buys,\n                ta.trade_volumes,\n                ta.holding_periods,\n                sa.count                AS total_sales,\n                ma.count                AS total_mints,\n                ta.profit               AS total_profits,\n                ta.profit * lp.price    AS total_usd_profits\n            FROM wallets w\n                LEFT JOIN wallet_nfts wn ON wn.owner = w.address\n                LEFT JOIN traded_activities ta ON ta.address = w.address\n                LEFT JOIN sale_activities sa ON sa.address = w.address \n                LEFT JOIN mint_activities ma ON ma.address = w.address\n                LEFT JOIN latest_prices lp ON TRUE\n            WHERE w.address = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "unique_nfts",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_buys",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "trade_volumes",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 3,
+        "name": "holding_periods",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 4,
+        "name": "total_sales",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "total_mints",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "total_profits",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "total_usd_profits",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c74d97210358aedc8ba5f7fbe03cf98fd82ade78ed9262bc0452d40386bbb5a7"
+}

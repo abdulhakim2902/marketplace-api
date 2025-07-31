@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH\n                nft_periods AS (\n                \tSELECT\n                        ra.collection_id,\n                        COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) \n                            - EXTRACT(EPOCH FROM ra.block_time) AS period \n                    FROM activities ra\n                        LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id\n                    WHERE ra.receiver IS NOT NULL AND ra.collection_id = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint')\n                )\n            SELECT\n                SUM(\n                    CASE \n                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) < 1 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_lt_24h,\n                SUM(\n                    CASE \n                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) >= 1 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) <= 7 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_1d_to_7d,\n                SUM(\n                    CASE \n                        WHEN np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) > 7 AND np.period / EXTRACT(EPOCH FROM '1 day'::INTERVAL) <= 30 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_7d_to_30d,\n                SUM(\n                    CASE \n                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) > 1 AND np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) <= 3 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_30d_to_3m,\n                SUM(\n                    CASE \n                        WHEN np.period / EXTRACT(EPOCH FROM '1 month'::INTERVAL) > 3 AND np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) <= 1 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_3m_to_1y,\n                SUM(\n                    CASE \n                        WHEN np.period / EXTRACT(EPOCH FROM '1 year'::INTERVAL) > 1 THEN 1\n                        ELSE 0\n                    END\n                ) AS range_gte_1y\n            FROM nft_periods np\n            GROUP BY np.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "range_lt_24h",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "range_1d_to_7d",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "range_7d_to_30d",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "range_30d_to_3m",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "range_3m_to_1y",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "range_gte_1y",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ec7b5917d53a3a9595dba9ac8d8860dfb03ff45b18af7ad94a34137a3492506d"
+}
