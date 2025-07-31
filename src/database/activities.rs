@@ -401,22 +401,16 @@ impl IActivities for Activities {
                     SELECT a.collection_id, a.sender AS address, COUNT(*) AS sold, SUM(price) AS price FROM activities a
                     WHERE a.tx_type = 'buy' AND a.collection_id = $1
                     GROUP BY a.collection_id, a.sender
-                ),
-                unique_addresses AS (
-                    SELECT ba.address FROM bought_activities ba
-                    UNION
-                    SELECT sa.address FROM sold_activities sa
                 )
             SELECT
-                ua.address,
+                w.address,
                 ba.bought, 
                 sa.sold, 
                 ba.price                                                                AS spent,
                 (COALESCE(sa.price, 0) - COALESCE(ba.price, 0)) 	                    AS total_profit
-            FROM unique_addresses ua
-                LEFT JOIN bought_activities ba ON ba.address = ua.address
-                LEFT JOIN sold_activities sa ON sa.address = ua.address
-            WHERE ua.address IS NOT NULL
+            FROM wallets w
+                JOIN bought_activities ba ON ba.address = w.address
+                JOIN sold_activities sa ON sa.address = w.address
             LIMIT $2 OFFSET $3
             "#,
             collection_id,
@@ -458,21 +452,15 @@ impl IActivities for Activities {
                         AND a.tx_type IN ('transfer', 'buy')
                         AND a.collection_id = $1
                     GROUP BY a.collection_id, a.sender
-                ),
-                unique_addresses AS (
-                    SELECT tin.address FROM transfer_in tin
-                    UNION
-                    SELECT tout.address FROM transfer_out tout
                 )
             SELECT 
-                ua.address, 
+                w.address, 
                 (COALESCE(tout.count, 0) - COALESCE(tin.count, 0)) 	AS change,
                 COALESCE(co.count, 0) 								AS quantity	
-            FROM unique_addresses ua
-                LEFT JOIN transfer_in tin ON tin.address = ua.address
-                LEFT JOIN transfer_out tout ON tout.address = ua.address
-                LEFT JOIN current_nft_owners co ON co.owner = ua.address
-            WHERE ua.address IS NOT NULL
+            FROM wallets w
+                JOIN transfer_in tin ON tin.address = w.address
+                JOIN transfer_out tout ON tout.address = w.address
+                JOIN current_nft_owners co ON co.owner = w.address
             ORDER BY change DESC
             LIMIT $3 OFFSET $4
             "#,

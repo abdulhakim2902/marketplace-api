@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    database::{IDatabase, activities::IActivities, collections::ICollections, nfts::INfts},
+    database::{
+        IDatabase, activities::IActivities, collections::ICollections, nfts::INfts,
+        wallets::IWallets,
+    },
     models::db::{activity::DbActivity, collection::DbCollection, nft::DbNft},
 };
 use aptos_indexer_processor_sdk::{
@@ -25,7 +28,7 @@ impl<TDb: IDatabase> Processable for DBWritingStep<TDb>
 where
     TDb: Send + Sync,
 {
-    type Input = (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>);
+    type Input = (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>, Vec<String>);
     type Output = ();
     type RunType = AsyncRunType;
 
@@ -33,7 +36,7 @@ where
         &mut self,
         input: TransactionContext<Self::Input>,
     ) -> Result<Option<TransactionContext<()>>, ProcessorError> {
-        let (activities, collections, nfts) = input.data;
+        let (activities, collections, nfts, wallets) = input.data;
 
         let mut tx =
             self.db
@@ -43,6 +46,14 @@ where
                 .map_err(|e| ProcessorError::ProcessError {
                     message: format!("{e:#}"),
                 })?;
+
+        self.db
+            .wallets()
+            .tx_insert_wallets(&mut tx, wallets)
+            .await
+            .map_err(|e| ProcessorError::ProcessError {
+                message: format!("{e:#}"),
+            })?;
 
         self.db
             .activities()

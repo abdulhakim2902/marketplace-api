@@ -6,6 +6,7 @@ pub mod listings;
 pub mod nfts;
 pub mod processor_status;
 pub mod token_prices;
+pub mod wallets;
 
 use std::sync::Arc;
 
@@ -20,6 +21,7 @@ use crate::database::{
     nfts::{INfts, Nfts},
     processor_status::{IProcessorStatus, ProcessorStatus},
     token_prices::{ITokenPrices, TokenPrices},
+    wallets::{IWallets, Wallets},
 };
 
 #[async_trait::async_trait]
@@ -32,6 +34,7 @@ pub trait IDatabase: Send + Sync + 'static {
     type TTAttributes: IAttributes;
     type TTokenPrices: ITokenPrices;
     type TProcessorStatus: IProcessorStatus;
+    type TWallets: IWallets;
 
     async fn is_healthy(&self) -> bool;
 
@@ -42,6 +45,7 @@ pub trait IDatabase: Send + Sync + 'static {
     fn collections(&self) -> Arc<Self::TTCollections>;
     fn nfts(&self) -> Arc<Self::TTNfts>;
     fn attributes(&self) -> Arc<Self::TTAttributes>;
+    fn wallets(&self) -> Arc<Self::TWallets>;
     fn token_prices(&self) -> Arc<Self::TTokenPrices>;
     fn processor_status(&self) -> Arc<Self::TProcessorStatus>;
 }
@@ -54,6 +58,7 @@ pub struct Database {
     collections: Arc<Collections>,
     nfts: Arc<Nfts>,
     attributes: Arc<Attributes>,
+    wallets: Arc<Wallets>,
     token_prices: Arc<TokenPrices>,
     processor_status: Arc<ProcessorStatus>,
 }
@@ -68,6 +73,7 @@ impl Database {
         nfts: Arc<Nfts>,
         attributes: Arc<Attributes>,
         token_prices: Arc<TokenPrices>,
+        wallets: Arc<Wallets>,
         processor_status: Arc<ProcessorStatus>,
     ) -> Self {
         Self {
@@ -79,6 +85,7 @@ impl Database {
             nfts,
             attributes,
             token_prices,
+            wallets,
             processor_status,
         }
     }
@@ -107,6 +114,7 @@ impl IDatabase for Database {
     type TTAttributes = Attributes;
     type TProcessorStatus = ProcessorStatus;
     type TTokenPrices = TokenPrices;
+    type TWallets = Wallets;
 
     async fn is_healthy(&self) -> bool {
         sqlx::query("SELECT 1").fetch_one(&*self.pool).await.is_ok()
@@ -142,6 +150,10 @@ impl IDatabase for Database {
 
     fn token_prices(&self) -> Arc<Self::TTokenPrices> {
         Arc::clone(&self.token_prices)
+    }
+
+    fn wallets(&self) -> Arc<Self::TWallets> {
+        Arc::clone(&self.wallets)
     }
 
     fn processor_status(&self) -> Arc<Self::TProcessorStatus> {

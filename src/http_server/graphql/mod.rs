@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     database::{
         Database, IDatabase, activities::IActivities, bids::IBids, collections::ICollections,
-        listings::IListings, nfts::INfts,
+        listings::IListings, nfts::INfts, wallets::IWallets,
     },
     models::schema::{
         activity::{ActivitySchema, FilterActivitySchema},
@@ -20,6 +20,7 @@ use crate::{
         profit_loss_activity::{FilterProfitLossActivitySchema, ProfitLossActivitySchema},
         top_buyer::TopBuyerSchema,
         top_seller::TopSellerSchema,
+        wallet_stat::WalletStatSchema,
     },
     utils::string_utils,
 };
@@ -173,6 +174,14 @@ impl Query {
             .expect("Failed to fetch wallet profit loss")
     }
 
+    async fn wallet_stat(&self, ctx: &Context<'_>, address: String) -> Option<WalletStatSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.wallets().fetch_stat(&address).await.ok()
+    }
+
     async fn collection_trending(
         &self,
         ctx: &Context<'_>,
@@ -255,30 +264,24 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         id: String,
-    ) -> NftAmountDistributionSchema {
+    ) -> Option<NftAmountDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        db.nfts()
-            .fetch_nft_amount_distribution(&id)
-            .await
-            .expect("Failed to fetch collection nft amount distribution")
+        db.nfts().fetch_nft_amount_distribution(&id).await.ok()
     }
 
     async fn collection_nft_period_distribution(
         &self,
         ctx: &Context<'_>,
         id: String,
-    ) -> NftPeriodDistributionSchema {
+    ) -> Option<NftPeriodDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        db.nfts()
-            .fetch_nft_period_distribution(&id)
-            .await
-            .expect("Failed to fetch collection nft period distribution")
+        db.nfts().fetch_nft_period_distribution(&id).await.ok()
     }
 
     async fn collection_profit_leaderboard(

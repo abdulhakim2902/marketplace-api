@@ -29,7 +29,7 @@ pub mod profit_leaderboard;
 pub mod profit_loss_activity;
 pub mod top_buyer;
 pub mod top_seller;
-pub mod wallet_analytic;
+pub mod wallet_stat;
 
 async fn fetch_collection(
     ctx: &Context<'_>,

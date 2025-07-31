@@ -10,7 +10,7 @@ use crate::{
         token_utils::{CoinEvent, TableMetadataForToken, TokenEvent},
     },
 };
-use ahash::AHashMap;
+use ahash::{AHashMap, AHashSet};
 use aptos_indexer_processor_sdk::{
     aptos_indexer_transaction_stream::utils::time::parse_timestamp,
     aptos_protos::transaction::v1::{Transaction, transaction::TxnData, write_set_change::Change},
@@ -24,6 +24,7 @@ pub struct TokenExtractor
 where
     Self: Sized + Send + 'static,
 {
+    current_wallets: AHashSet<String>,
     current_collections: AHashMap<String, DbCollection>,
     current_nfts: AHashMap<String, DbNft>,
     current_burn_nfts: AHashMap<String, DbNft>,
@@ -33,6 +34,7 @@ where
 impl TokenExtractor {
     pub fn new() -> Self {
         Self {
+            current_wallets: AHashSet::new(),
             current_collections: AHashMap::new(),
             current_nfts: AHashMap::new(),
             current_burn_nfts: AHashMap::new(),
@@ -44,7 +46,7 @@ impl TokenExtractor {
 #[async_trait::async_trait]
 impl Processable for TokenExtractor {
     type Input = Vec<Transaction>;
-    type Output = (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>);
+    type Output = (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>, Vec<String>);
     type RunType = AsyncRunType;
 
     async fn process(
@@ -246,6 +248,14 @@ impl Processable for TokenExtractor {
                                 }
                             }
 
+                            if let Some(address) = activity.sender.as_ref() {
+                                self.current_wallets.insert(address.to_string());
+                            }
+
+                            if let Some(address) = activity.receiver.as_ref() {
+                                self.current_wallets.insert(address.to_string());
+                            }
+
                             self.current_activities.insert(activity.tx_index, activity);
                         }
 
@@ -277,6 +287,14 @@ impl Processable for TokenExtractor {
                                     activity.price = mint_payer.remove(receiver);
                                     owner_activity.insert(receiver.to_string(), activity.clone());
                                 }
+                            }
+
+                            if let Some(address) = activity.sender.as_ref() {
+                                self.current_wallets.insert(address.to_string());
+                            }
+
+                            if let Some(address) = activity.receiver.as_ref() {
+                                self.current_wallets.insert(address.to_string());
                             }
 
                             self.current_activities.insert(activity.tx_index, activity);
@@ -366,7 +384,7 @@ impl NamedStep for TokenExtractor {
 }
 
 impl TokenExtractor {
-    fn drain(&mut self) -> (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>) {
+    fn drain(&mut self) -> (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>, Vec<String>) {
         let mut nfts = self
             .current_nfts
             .drain()
@@ -385,6 +403,7 @@ impl TokenExtractor {
             self.current_activities.drain().map(|(_, v)| v).collect(),
             self.current_collections.drain().map(|(_, v)| v).collect(),
             nfts,
+            self.current_wallets.drain().map(|v| v).collect(),
         )
     }
 }

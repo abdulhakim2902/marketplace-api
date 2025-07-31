@@ -6,3 +6,4 @@ pub mod listing;
 pub mod nft;
 pub mod processor_status;
 pub mod token_price;
+pub mod wallet;
