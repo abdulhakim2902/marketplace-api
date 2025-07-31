@@ -17,7 +17,7 @@ use futures::future::join_all;
 use crate::{
     cache::ICache,
     config::{Config, marketplace_config::NFTMarketplaceConfig},
-    database::{IDatabase, processor_status::IProcessorStatus},
+    database::{IDatabase, marketplaces::IMarketplaces, processor_status::IProcessorStatus},
     utils::shutdown_utils,
     workers::steps::{
         marketplace::{
@@ -43,7 +43,12 @@ where
         Self { config, db, cache }
     }
 
-    pub async fn start(&self) {
+    pub async fn start(&self) -> anyhow::Result<()> {
+        self.db
+            .marketplaces()
+            .insert_market_places(&self.config.nft_marketplace_configs)
+            .await?;
+
         let pool_futures = self
             .config
             .nft_marketplace_configs
@@ -61,6 +66,8 @@ where
             .collect::<Vec<_>>();
 
         join_all(pool_futures).await;
+
+        Ok(())
     }
 
     async fn stream_marketplace_event(&self, config: &NFTMarketplaceConfig) -> anyhow::Result<()> {
@@ -93,7 +100,7 @@ where
                 &self.config.stream_config.indexer_grpc,
             )?,
             starting_version: Some(starting_version as u64),
-            request_ending_version: None,
+            request_ending_version: Some(9805408995),
             auth_token: self.config.stream_config.auth_token.clone(),
             request_name_header: "marketplace-event-processor".to_string(),
             additional_headers: Default::default(),

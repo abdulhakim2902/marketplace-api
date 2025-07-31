@@ -3,6 +3,7 @@ pub mod attributes;
 pub mod bids;
 pub mod collections;
 pub mod listings;
+pub mod marketplaces;
 pub mod nfts;
 pub mod processor_status;
 pub mod token_prices;
@@ -18,6 +19,7 @@ use crate::database::{
     bids::{Bids, IBids},
     collections::{Collections, ICollections},
     listings::{IListings, Listings},
+    marketplaces::{IMarketplaces, Marketplaces},
     nfts::{INfts, Nfts},
     processor_status::{IProcessorStatus, ProcessorStatus},
     token_prices::{ITokenPrices, TokenPrices},
@@ -35,6 +37,7 @@ pub trait IDatabase: Send + Sync + 'static {
     type TTokenPrices: ITokenPrices;
     type TProcessorStatus: IProcessorStatus;
     type TWallets: IWallets;
+    type TMarketplaces: IMarketplaces;
 
     async fn is_healthy(&self) -> bool;
 
@@ -47,6 +50,7 @@ pub trait IDatabase: Send + Sync + 'static {
     fn attributes(&self) -> Arc<Self::TTAttributes>;
     fn wallets(&self) -> Arc<Self::TWallets>;
     fn token_prices(&self) -> Arc<Self::TTokenPrices>;
+    fn marketplaces(&self) -> Arc<Self::TMarketplaces>;
     fn processor_status(&self) -> Arc<Self::TProcessorStatus>;
 }
 
@@ -61,6 +65,7 @@ pub struct Database {
     wallets: Arc<Wallets>,
     token_prices: Arc<TokenPrices>,
     processor_status: Arc<ProcessorStatus>,
+    marketplaces: Arc<Marketplaces>,
 }
 
 impl Database {
@@ -75,6 +80,7 @@ impl Database {
         token_prices: Arc<TokenPrices>,
         wallets: Arc<Wallets>,
         processor_status: Arc<ProcessorStatus>,
+        marketplaces: Arc<Marketplaces>,
     ) -> Self {
         Self {
             pool,
@@ -87,6 +93,7 @@ impl Database {
             token_prices,
             wallets,
             processor_status,
+            marketplaces,
         }
     }
 
@@ -115,6 +122,7 @@ impl IDatabase for Database {
     type TProcessorStatus = ProcessorStatus;
     type TTokenPrices = TokenPrices;
     type TWallets = Wallets;
+    type TMarketplaces = Marketplaces;
 
     async fn is_healthy(&self) -> bool {
         sqlx::query("SELECT 1").fetch_one(&*self.pool).await.is_ok()
@@ -158,5 +166,9 @@ impl IDatabase for Database {
 
     fn processor_status(&self) -> Arc<Self::TProcessorStatus> {
         Arc::clone(&self.processor_status)
+    }
+
+    fn marketplaces(&self) -> Arc<Self::TMarketplaces> {
+        Arc::clone(&self.marketplaces)
     }
 }
