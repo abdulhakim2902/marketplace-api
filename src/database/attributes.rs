@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::{api::responses::attribute::Attribute, db::attribute::DbAttribute};
+use crate::models::{db::attribute::DbAttribute, schema::attribute::AttributeSchema};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
@@ -13,7 +13,7 @@ pub trait IAttributes: Send + Sync {
         items: Vec<DbAttribute>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<Attribute>>;
+    async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<AttributeSchema>>;
 
     async fn nft_rarity_scores(
         &self,
@@ -76,9 +76,9 @@ impl IAttributes for Attributes {
         Ok(res)
     }
 
-    async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<Attribute>> {
+    async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<AttributeSchema>> {
         let res = sqlx::query_as!(
-            Attribute,
+            AttributeSchema,
             r#"
             WITH
                 collection_nfts AS (

@@ -15,6 +15,7 @@ use crate::{
 };
 
 pub mod activity;
+pub mod attribute;
 pub mod bid;
 pub mod collection;
 pub mod collection_trending;
@@ -28,6 +29,7 @@ pub mod profit_leaderboard;
 pub mod profit_loss_activity;
 pub mod top_buyer;
 pub mod top_seller;
+pub mod wallet_analytic;
 
 async fn fetch_collection(
     ctx: &Context<'_>,

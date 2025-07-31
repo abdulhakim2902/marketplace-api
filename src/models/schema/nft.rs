@@ -151,14 +151,14 @@ impl NftSchema {
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 pub struct FilterNftSchema {
     #[graphql(name = "where")]
-    pub where_: Option<NftWhereSchema>,
+    pub where_: Option<WhereNftSchema>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct NftWhereSchema {
+pub struct WhereNftSchema {
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,

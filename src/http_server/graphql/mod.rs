@@ -17,7 +17,7 @@ use crate::{
         nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
         nft_holder::NftHolderSchema,
         profit_leaderboard::ProfitLeaderboardSchema,
-        profit_loss_activity::{FilterProfitLossActivitiesSchema, ProfitLossActivitySchema},
+        profit_loss_activity::{FilterProfitLossActivitySchema, ProfitLossActivitySchema},
         top_buyer::TopBuyerSchema,
         top_seller::TopSellerSchema,
     },
@@ -155,7 +155,7 @@ impl Query {
     async fn profit_loss_activities(
         &self,
         ctx: &Context<'_>,
-        filter: Option<FilterProfitLossActivitiesSchema>,
+        filter: Option<FilterProfitLossActivitySchema>,
     ) -> Vec<ProfitLossActivitySchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -341,8 +341,7 @@ impl Query {
             .expect("Invalid interval")
             .expect("Invalid interval");
 
-        let start_date =
-            DateTime::from_timestamp_millis(start_time).expect("Invalid start time");
+        let start_date = DateTime::from_timestamp_millis(start_time).expect("Invalid start time");
         let end_date = DateTime::from_timestamp_millis(end_time).expect("Invalid end time");
 
         db.activities()

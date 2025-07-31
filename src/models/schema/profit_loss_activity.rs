@@ -56,15 +56,15 @@ impl ProfitLossActivitySchema {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterProfitLossActivitiesSchema {
+pub struct FilterProfitLossActivitySchema {
     #[graphql(name = "where")]
-    pub where_: Option<WalletProfitLossWhereSchema>,
+    pub where_: Option<WhereProfitLossActivitySchema>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct WalletProfitLossWhereSchema {
+pub struct WhereProfitLossActivitySchema {
     pub wallet_address: Option<String>,
 }

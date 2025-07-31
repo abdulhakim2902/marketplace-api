@@ -1,6 +1,5 @@
 pub mod controllers;
 pub mod graphql;
-pub mod utils;
 
 use std::sync::Arc;
 
