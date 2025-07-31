@@ -1,13 +1,20 @@
 use std::sync::Arc;
 
-use crate::models::{
-    db::activity::DbActivity,
-    schema::{
-        activity::ActivitySchema, collection::CollectionSaleSchema, data_point::DataPointSchema,
-        nft_change::NftChangeSchema, profit_leaderboard::ProfitLeaderboardSchema,
-        profit_loss_activity::ProfitLossActivitySchema, top_buyer::TopBuyerSchema,
-        top_seller::TopSellerSchema,
+use crate::{
+    models::{
+        db::activity::DbActivity,
+        schema::{
+            activity::{ActivitySchema, WhereActivitySchema},
+            collection::CollectionSaleSchema,
+            data_point::DataPointSchema,
+            nft_change::{NftChangeSchema, WhereNftChangeSchema},
+            profit_leaderboard::{ProfitLeaderboardSchema, WhereLeaderboardSchema},
+            profit_loss_activity::{ProfitLossActivitySchema, WhereProfitLossActivitySchema},
+            top_buyer::TopBuyerSchema,
+            top_seller::TopSellerSchema,
+        },
     },
+    utils::string_utils,
 };
 use anyhow::Context;
 use bigdecimal::BigDecimal;
@@ -27,9 +34,7 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_activities(
         &self,
-        wallet_address: Option<String>,
-        collection_id: Option<String>,
-        nft_id: Option<String>,
+        query: &WhereActivitySchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ActivitySchema>>;
@@ -68,15 +73,14 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_profit_leaderboard(
         &self,
-        collection_id: &str,
+        query: &WhereLeaderboardSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>>;
 
     async fn fetch_nft_changes(
         &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
+        query: &WhereNftChangeSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftChangeSchema>>;
@@ -88,7 +92,7 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_profit_and_loss(
         &self,
-        wallet_address: Option<String>,
+        query: &WhereProfitLossActivitySchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ProfitLossActivitySchema>>;
@@ -166,9 +170,7 @@ impl IActivities for Activities {
 
     async fn fetch_activities(
         &self,
-        wallet_address: Option<String>,
-        collection_id: Option<String>,
-        nft_id: Option<String>,
+        query: &WhereActivitySchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ActivitySchema>> {
@@ -197,9 +199,9 @@ impl IActivities for Activities {
             ORDER BY a.block_time
             LIMIT $4 OFFSET $5
             "#,
-            wallet_address,
-            collection_id,
-            nft_id,
+            query.wallet_address,
+            query.collection_id,
+            query.nft_id,
             limit,
             offset,
         )
@@ -384,7 +386,7 @@ impl IActivities for Activities {
 
     async fn fetch_profit_leaderboard(
         &self,
-        collection_id: &str,
+        query: &WhereLeaderboardSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>> {
@@ -413,7 +415,7 @@ impl IActivities for Activities {
                 JOIN sold_activities sa ON sa.address = w.address
             LIMIT $2 OFFSET $3
             "#,
-            collection_id,
+            query.collection_id,
             limit,
             offset,
         ).fetch_all(&*self.pool)
@@ -425,11 +427,12 @@ impl IActivities for Activities {
 
     async fn fetch_nft_changes(
         &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
+        query: &WhereNftChangeSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftChangeSchema>> {
+        let interval =
+            string_utils::str_to_pginterval(&query.interval.clone().unwrap_or_default())?;
         let res = sqlx::query_as!(
             NftChangeSchema,
             r#"
@@ -464,7 +467,7 @@ impl IActivities for Activities {
             ORDER BY change DESC
             LIMIT $3 OFFSET $4
             "#,
-            collection_id,
+            query.collection_id,
             interval,
             limit,
             offset,
@@ -512,7 +515,7 @@ impl IActivities for Activities {
 
     async fn fetch_profit_and_loss(
         &self,
-        wallet_address: Option<String>,
+        query: &WhereProfitLossActivitySchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ProfitLossActivitySchema>> {
@@ -532,7 +535,7 @@ impl IActivities for Activities {
                 AND ($1::TEXT IS NULL OR $1::TEXT = '' OR ra.receiver = $1)
             LIMIT $2 OFFSET $3
             "#,
-            wallet_address,
+            query.wallet_address,
             limit,
             offset,
         )

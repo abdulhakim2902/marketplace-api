@@ -17,7 +17,7 @@ use crate::{
     config::Config,
     database::{
         Database, activities::Activities, attributes::Attributes, bids::Bids,
-        collections::Collections, listings::Listings, nfts::Nfts,
+        collections::Collections, listings::Listings, marketplaces::Marketplaces, nfts::Nfts,
         processor_status::ProcessorStatus, token_prices::TokenPrices, wallets::Wallets,
     },
     http_server::HttpServer,
@@ -56,6 +56,7 @@ pub async fn init() -> anyhow::Result<(
         Arc::new(TokenPrices::new(Arc::clone(&pool))),
         Arc::new(Wallets::new(Arc::clone(&pool))),
         Arc::new(ProcessorStatus::new(Arc::clone(&pool))),
+        Arc::new(Marketplaces::new(Arc::clone(&pool))),
     ));
 
     let services = Arc::new(init_services(Arc::clone(&db)));

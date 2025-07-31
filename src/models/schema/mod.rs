@@ -8,8 +8,8 @@ use crate::{
         collections::ICollections, nfts::INfts,
     },
     models::schema::{
-        collection::{CollectionSaleSchema, CollectionSchema},
-        nft::NftSchema,
+        collection::{CollectionSaleSchema, CollectionSchema, WhereCollectionSchema},
+        nft::{NftSchema, WhereNftSchema},
     },
     utils::string_utils,
 };
@@ -44,8 +44,13 @@ async fn fetch_collection(
         .data::<Arc<Database>>()
         .expect("Missing database in the context");
 
+    let query = WhereCollectionSchema {
+        collection_id,
+        wallet_address: None,
+    };
+
     db.collections()
-        .fetch_collections(collection_id, None, 1, 0)
+        .fetch_collections(&query, 1, 0)
         .await
         .unwrap_or_default()
         .first()
@@ -65,8 +70,14 @@ async fn fetch_nft(
         .data::<Arc<Database>>()
         .expect("Missing database in the context");
 
+    let query = WhereNftSchema {
+        collection_id,
+        nft_id,
+        wallet_address: None,
+    };
+
     db.nfts()
-        .fetch_nfts(nft_id, collection_id, None, 1, 0)
+        .fetch_nfts(&query, 1, 0)
         .await
         .unwrap_or_default()
         .first()

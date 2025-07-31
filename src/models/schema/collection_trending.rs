@@ -1,7 +1,7 @@
 use crate::models::schema::{
     collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema,
 };
-use async_graphql::Context;
+use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
@@ -42,4 +42,18 @@ impl CollectionTrendingSchema {
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
         fetch_nft(ctx, self.nft_id.clone(), self.collection_id.clone()).await
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+pub struct FilterCollectionTrendingSchema {
+    #[graphql(name = "where")]
+    pub where_: WhereCollectionTrendingSchema,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereCollectionTrendingSchema {
+    pub collection_id: String,
 }

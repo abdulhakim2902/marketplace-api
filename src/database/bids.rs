@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::models::{db::bid::DbBid, schema::bid::BidSchema};
+use crate::models::{
+    db::bid::DbBid,
+    schema::bid::{BidSchema, WhereBidSchema},
+};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
@@ -16,12 +19,7 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
-        bidder: Option<String>,
-        receiver: Option<String>,
-        collection_id: Option<String>,
-        nft_id: Option<String>,
-        status: Option<String>,
-        bid_type: Option<String>,
+        query: &WhereBidSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>>;
@@ -129,12 +127,7 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
-        bidder: Option<String>,
-        receiver: Option<String>,
-        collection_id: Option<String>,
-        nft_id: Option<String>,
-        status: Option<String>,
-        bid_type: Option<String>,
+        query: &WhereBidSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>> {
@@ -161,12 +154,12 @@ impl IBids for Bids {
                 AND ($6::TEXT IS NULL OR $6::TEXT = '' OR b.bid_type = $6)
             LIMIT $7 OFFSET $8
             "#,
-            nft_id,
-            collection_id,
-            bidder,
-            receiver,
-            status,
-            bid_type,
+            query.nft_id,
+            query.collection_id,
+            query.bidder,
+            query.receiver,
+            query.status,
+            query.bid_type,
             limit,
             offset,
         )

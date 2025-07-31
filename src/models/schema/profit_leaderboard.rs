@@ -1,3 +1,4 @@
+use async_graphql::InputObject;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
@@ -32,4 +33,18 @@ impl ProfitLeaderboardSchema {
     async fn total_profit(&self) -> Option<String> {
         self.total_profit.as_ref().map(|e| e.to_string())
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+pub struct FilterLeaderboardSchema {
+    #[graphql(name = "where")]
+    pub where_: WhereLeaderboardSchema,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereLeaderboardSchema {
+    pub collection_id: String,
 }

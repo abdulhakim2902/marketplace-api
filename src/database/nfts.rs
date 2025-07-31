@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::models::{
     db::nft::DbNft,
     schema::{
-        nft::NftSchema,
+        nft::{NftSchema, WhereNftSchema},
         nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
         nft_holder::NftHolderSchema,
     },
@@ -22,9 +22,7 @@ pub trait INfts: Send + Sync {
 
     async fn fetch_nfts(
         &self,
-        id: Option<String>,
-        collection_id: Option<String>,
-        wallet_address: Option<String>,
+        query: &WhereNftSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>>;
@@ -152,9 +150,7 @@ impl INfts for Nfts {
 
     async fn fetch_nfts(
         &self,
-        id: Option<String>,
-        collection_id: Option<String>,
-        wallet_address: Option<String>,
+        query: &WhereNftSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>> {
@@ -220,9 +216,9 @@ impl INfts for Nfts {
             ORDER BY lp.price
             LIMIT $4 OFFSET $5
             "#,
-            id,
-            collection_id,
-            wallet_address,
+            query.nft_id,
+            query.collection_id,
+            query.wallet_address,
             limit,
             offset,
         )

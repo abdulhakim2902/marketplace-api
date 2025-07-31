@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
+use crate::models::{
+    db::listing::DbListing,
+    schema::listing::{ListingSchema, WhereListingSchema},
+};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -14,8 +17,7 @@ pub trait IListings: Send + Sync {
 
     async fn fetch_listings(
         &self,
-        nft_id: Option<String>,
-        is_listed: Option<bool>,
+        query: &WhereListingSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ListingSchema>>;
@@ -97,8 +99,7 @@ impl IListings for Listings {
 
     async fn fetch_listings(
         &self,
-        nft_id: Option<String>,
-        is_listed: Option<bool>,
+        query: &WhereListingSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ListingSchema>> {
@@ -129,8 +130,8 @@ impl IListings for Listings {
                 AND $2::BOOL IS NULL OR l.listed = $2
             LIMIT $3 OFFSET $4
             "#,
-            nft_id,
-            is_listed,
+            query.nft_id,
+            query.is_listed,
             limit,
            offset,
         )

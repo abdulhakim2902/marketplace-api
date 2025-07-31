@@ -5,7 +5,10 @@ use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult}
 
 use crate::models::{
     db::collection::DbCollection,
-    schema::{collection::CollectionSchema, collection_trending::CollectionTrendingSchema},
+    schema::{
+        collection::{CollectionSchema, WhereCollectionSchema},
+        collection_trending::{CollectionTrendingSchema, WhereCollectionTrendingSchema},
+    },
 };
 
 #[async_trait::async_trait]
@@ -18,15 +21,14 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_collections(
         &self,
-        id: Option<String>,
-        wallet_address: Option<String>,
+        query: &WhereCollectionSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
 
     async fn fetch_collection_trending(
         &self,
-        id: &str,
+        query: &WhereCollectionTrendingSchema,
         page: i64,
         size: i64,
     ) -> anyhow::Result<Vec<CollectionTrendingSchema>>;
@@ -108,8 +110,7 @@ impl ICollections for Collections {
 
     async fn fetch_collections(
         &self,
-        id: Option<String>,
-        wallet_address: Option<String>,
+        query: &WhereCollectionSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>> {
@@ -170,8 +171,8 @@ impl ICollections for Collections {
             ORDER BY s.volume DESC
             LIMIT $3 OFFSET $4
             "#,
-            id,
-            wallet_address,
+            query.collection_id,
+            query.wallet_address,
             limit,
             offset,
         )
@@ -184,7 +185,7 @@ impl ICollections for Collections {
 
     async fn fetch_collection_trending(
         &self,
-        id: &str,
+        query: &WhereCollectionTrendingSchema,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionTrendingSchema>> {
@@ -215,7 +216,7 @@ impl ICollections for Collections {
             ORDER BY na.count DESC
             LIMIT $2 OFFSET $3
             "#,
-            id,
+            query.collection_id,
             limit,
             offset,
         )
