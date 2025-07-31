@@ -1,3 +1,12 @@
+pub mod attribute;
+pub mod nft_change;
+pub mod nft_distribution;
+pub mod nft_holder;
+pub mod profit_leaderboard;
+pub mod top_buyer;
+pub mod top_seller;
+pub mod trending;
+
 use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};

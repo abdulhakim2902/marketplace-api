@@ -8,7 +8,7 @@ use crate::models::schema::{
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct BidSchema {
+pub struct OfferSchema {
     pub id: Option<String>,
     pub bidder: Option<String>,
     pub accepted_tx_id: Option<String>,
@@ -31,7 +31,7 @@ pub struct BidSchema {
 }
 
 #[async_graphql::Object]
-impl BidSchema {
+impl OfferSchema {
     #[graphql(name = "collection_id")]
     async fn collection_id(&self) -> Option<&str> {
         self.collection_id.as_ref().map(|e| e.as_str())
@@ -121,16 +121,16 @@ impl BidSchema {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterBidSchema {
+pub struct FilterOfferSchema {
     #[graphql(name = "where")]
-    pub where_: Option<WhereBidSchema>,
+    pub where_: Option<WhereOfferSchema>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct WhereBidSchema {
+pub struct WhereOfferSchema {
     pub nft_id: Option<String>,
     pub collection_id: Option<String>,
     pub bidder: Option<String>,

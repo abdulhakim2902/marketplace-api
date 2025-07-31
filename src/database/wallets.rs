@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
-use crate::models::schema::wallet_stat::WalletStatSchema;
+use crate::models::schema::wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema};
 
 #[async_trait::async_trait]
 pub trait IWallets: Send + Sync {
@@ -13,7 +13,12 @@ pub trait IWallets: Send + Sync {
         wallets: Vec<String>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_stat(&self, address: &str) -> anyhow::Result<WalletStatSchema>;
+    async fn fetch_stats(&self, address: &str) -> anyhow::Result<StatsSchema>;
+
+    async fn fetch_nft_holding_periods(
+        &self,
+        address: &str,
+    ) -> anyhow::Result<Vec<NftHoldingPeriod>>;
 }
 
 pub struct Wallets {
@@ -58,9 +63,9 @@ impl IWallets for Wallets {
         Ok(res)
     }
 
-    async fn fetch_stat(&self, address: &str) -> anyhow::Result<WalletStatSchema> {
+    async fn fetch_stats(&self, address: &str) -> anyhow::Result<StatsSchema> {
         let res = sqlx::query_as!(
-            WalletStatSchema,
+            StatsSchema,
             r#"
             WITH
               wallet_nfts AS (
@@ -104,6 +109,32 @@ impl IWallets for Wallets {
         .fetch_one(&*self.pool)
         .await
         .context("Failed wallet stat")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_nft_holding_periods(
+        &self,
+        address: &str,
+    ) -> anyhow::Result<Vec<NftHoldingPeriod>> {
+        let res = sqlx::query_as!(
+            NftHoldingPeriod,
+            r#"
+            SELECT
+                ra.collection_id,
+                ra.nft_id,
+                EXTRACT(EPOCH FROM ra.block_time) - 
+                    COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) AS period 
+            FROM activities ra
+                LEFT JOIN activities sa ON ra.sender = sa.receiver AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
+            WHERE ra.receiver IS NOT NULL AND ra.receiver = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint')
+            ORDER BY period DESC
+            "#,
+            address
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch nft holding periods")?;
 
         Ok(res)
     }

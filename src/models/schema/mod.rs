@@ -16,21 +16,14 @@ use crate::{
 
 pub mod activity;
 pub mod attribute;
-pub mod bid;
 pub mod collection;
-pub mod collection_trending;
 pub mod data_point;
 pub mod listing;
 pub mod marketplace;
 pub mod nft;
-pub mod nft_change;
-pub mod nft_distribution;
-pub mod nft_holder;
-pub mod profit_leaderboard;
+pub mod offer;
 pub mod profit_loss_activity;
-pub mod top_buyer;
-pub mod top_seller;
-pub mod wallet_stat;
+pub mod wallet;
 
 async fn fetch_collection(
     ctx: &Context<'_>,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::models::{
     db::bid::DbBid,
-    schema::bid::{BidSchema, WhereBidSchema},
+    schema::offer::{OfferSchema, WhereOfferSchema},
 };
 use anyhow::Context;
 use bigdecimal::BigDecimal;
@@ -19,10 +19,10 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
-        query: &WhereBidSchema,
+        query: &WhereOfferSchema,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<BidSchema>>;
+    ) -> anyhow::Result<Vec<OfferSchema>>;
 
     async fn fetch_collection_top_offer(
         &self,
@@ -127,12 +127,12 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
-        query: &WhereBidSchema,
+        query: &WhereOfferSchema,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<BidSchema>> {
+    ) -> anyhow::Result<Vec<OfferSchema>> {
         let res = sqlx::query_as!(
-            BidSchema,
+            OfferSchema,
             r#"
             WITH latest_prices AS (
                 SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp

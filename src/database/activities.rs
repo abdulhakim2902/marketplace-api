@@ -1,24 +1,18 @@
 use std::sync::Arc;
 
-use crate::{
-    models::{
-        db::activity::DbActivity,
-        schema::{
-            activity::{ActivitySchema, WhereActivitySchema},
-            collection::CollectionSaleSchema,
-            data_point::DataPointSchema,
-            nft_change::{NftChangeSchema, WhereNftChangeSchema},
-            profit_leaderboard::{ProfitLeaderboardSchema, WhereLeaderboardSchema},
-            profit_loss_activity::{ProfitLossActivitySchema, WhereProfitLossActivitySchema},
-            top_buyer::TopBuyerSchema,
-            top_seller::TopSellerSchema,
+use crate::models::{
+    db::activity::DbActivity,
+    schema::{
+        activity::{
+            ActivitySchema, WhereActivitySchema,
+            profit_loss::{ProfitLossSchema, WhereProfitLossSchema},
         },
+        collection::CollectionSaleSchema,
+        data_point::DataPointSchema,
     },
-    utils::string_utils,
 };
 use anyhow::Context;
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, Utc};
 use sqlx::{
     PgPool, Postgres, QueryBuilder, Transaction,
     postgres::{PgQueryResult, types::PgInterval},
@@ -51,40 +45,6 @@ pub trait IActivities: Send + Sync {
         interval: Option<PgInterval>,
     ) -> anyhow::Result<CollectionSaleSchema>;
 
-    async fn fetch_floor_chart(
-        &self,
-        collection_id: &str,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
-        interval: PgInterval,
-    ) -> anyhow::Result<Vec<DataPointSchema>>;
-
-    async fn fetch_top_buyers(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopBuyerSchema>>;
-
-    async fn fetch_top_sellers(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopSellerSchema>>;
-
-    async fn fetch_profit_leaderboard(
-        &self,
-        query: &WhereLeaderboardSchema,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>>;
-
-    async fn fetch_nft_changes(
-        &self,
-        query: &WhereNftChangeSchema,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<NftChangeSchema>>;
-
     async fn fetch_contribution_chart(
         &self,
         wallet_address: &str,
@@ -92,10 +52,10 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_profit_and_loss(
         &self,
-        query: &WhereProfitLossActivitySchema,
+        query: &WhereProfitLossSchema,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<ProfitLossActivitySchema>>;
+    ) -> anyhow::Result<Vec<ProfitLossSchema>>;
 }
 
 pub struct Activities {
@@ -260,225 +220,6 @@ impl IActivities for Activities {
         Ok(res)
     }
 
-    async fn fetch_floor_chart(
-        &self,
-        collection_id: &str,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
-        interval: PgInterval,
-    ) -> anyhow::Result<Vec<DataPointSchema>> {
-        let res = sqlx::query_as!(
-            DataPointSchema,
-            r#"
-            WITH 
-                time_series AS (
-                    SELECT GENERATE_SERIES($2::TIMESTAMPTZ, $3::TIMESTAMPTZ, $4::INTERVAL) AS time_bin
-                ),
-                floor_prices AS (
-                    SELECT 
-                        ts.time_bin AS time,
-                        COALESCE(
-                            (
-                                SELECT a.price FROM activities a
-                                WHERE a.tx_type = 'list'
-                                    AND a.collection_id = $1
-                                    AND a.block_time >= ts.time_bin AND a.block_time < ts.time_bin + $4::INTERVAL
-                                ORDER BY a.price ASC
-                                LIMIT 1
-                            ),
-                            0
-                        ) AS floor
-                    FROM time_series ts
-                    ORDER BY ts.time_bin
-                )
-            SELECT 
-                ts.time_bin AS x,
-                COALESCE(
-                    (
-                        SELECT fp.floor FROM floor_prices fp
-                        WHERE fp.time <= ts.time_bin
-                        LIMIT 1
-                    ),
-                    (
-                        SELECT a.price FROM activities a
-                        WHERE a.tx_type = 'list'
-                            AND a.collection_id = $1
-                            AND a.block_time <= ts.time_bin
-                        ORDER BY a.price ASC
-                        LIMIT 1
-                    ),
-                    0
-                ) AS y
-            FROM time_series ts
-            ORDER BY ts.time_bin
-            "#,
-            collection_id,
-            start_time,
-            end_time,
-            interval,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection floor chart")?;
-
-        Ok(res)
-    }
-
-    async fn fetch_top_buyers(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopBuyerSchema>> {
-        let res = sqlx::query_as!(
-            TopBuyerSchema,
-            r#"
-            SELECT
-                a.receiver      AS buyer, 
-                COUNT(*)        AS bought, 
-                SUM(a.price)    AS volume
-            FROM activities a
-            WHERE a.tx_type = 'buy'
-                AND a.collection_id = $1
-                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-            GROUP BY a.collection_id, a.receiver
-            ORDER BY bought DESC, volume DESC
-            LIMIT 10
-            "#,
-            collection_id,
-            interval,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection top buyers")?;
-
-        Ok(res)
-    }
-
-    async fn fetch_top_sellers(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopSellerSchema>> {
-        let res = sqlx::query_as!(
-            TopSellerSchema,
-            r#"
-            SELECT
-                a.sender            AS seller, 
-                COUNT(*)            AS sold, 
-                SUM(a.price)        AS volume
-            FROM activities a
-            WHERE a.tx_type = 'buy'
-                AND a.collection_id = $1
-                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-            GROUP BY a.collection_id, a.sender
-            ORDER BY sold DESC, volume DESC
-            LIMIT 10
-            "#,
-            collection_id,
-            interval,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection top buyers")?;
-
-        Ok(res)
-    }
-
-    async fn fetch_profit_leaderboard(
-        &self,
-        query: &WhereLeaderboardSchema,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>> {
-        let res = sqlx::query_as!(
-            ProfitLeaderboardSchema,
-            r#"
-            WITH
-                bought_activities AS (
-                    SELECT a.collection_id, a.receiver AS address, COUNT(*) AS bought, SUM(price) AS price FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
-                    GROUP BY a.collection_id, a.receiver 
-                ),
-                sold_activities AS (
-                    SELECT a.collection_id, a.sender AS address, COUNT(*) AS sold, SUM(price) AS price FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
-                    GROUP BY a.collection_id, a.sender
-                )
-            SELECT
-                w.address,
-                ba.bought, 
-                sa.sold, 
-                ba.price                                                                AS spent,
-                (COALESCE(sa.price, 0) - COALESCE(ba.price, 0)) 	                    AS total_profit
-            FROM wallets w
-                JOIN bought_activities ba ON ba.address = w.address
-                JOIN sold_activities sa ON sa.address = w.address
-            LIMIT $2 OFFSET $3
-            "#,
-            query.collection_id,
-            limit,
-            offset,
-        ).fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection profit leaders")?;
-
-        Ok(res)
-    }
-
-    async fn fetch_nft_changes(
-        &self,
-        query: &WhereNftChangeSchema,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<NftChangeSchema>> {
-        let interval =
-            string_utils::str_to_pginterval(&query.interval.clone().unwrap_or_default())?;
-        let res = sqlx::query_as!(
-            NftChangeSchema,
-            r#"
-            WITH 
-                current_nft_owners AS (
-                    SELECT n.owner, COUNT(*) FROM nfts n
-                    WHERE n.burned IS NULL OR NOT n.burned AND n.collection_id = $1
-                    GROUP BY n.collection_id, n.owner
-                ),
-                transfer_in AS (
-                    SELECT a.collection_id, a.receiver AS address, COUNT(*) FROM activities a
-                    WHERE ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL) 
-                        AND a.tx_type IN ('transfer', 'buy')
-                        AND a.collection_id = $1
-                    GROUP BY a.collection_id, a.receiver
-                ),
-                transfer_out AS (
-                    SELECT a.collection_id, a.sender AS address, COUNT(*) FROM activities a
-                    WHERE ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL) 
-                        AND a.tx_type IN ('transfer', 'buy')
-                        AND a.collection_id = $1
-                    GROUP BY a.collection_id, a.sender
-                )
-            SELECT 
-                w.address, 
-                (COALESCE(tout.count, 0) - COALESCE(tin.count, 0)) 	AS change,
-                COALESCE(co.count, 0) 								AS quantity	
-            FROM wallets w
-                JOIN transfer_in tin ON tin.address = w.address
-                JOIN transfer_out tout ON tout.address = w.address
-                JOIN current_nft_owners co ON co.owner = w.address
-            ORDER BY change DESC
-            LIMIT $3 OFFSET $4
-            "#,
-            query.collection_id,
-            interval,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection profit leaders")?;
-
-        Ok(res)
-    }
-
     async fn fetch_contribution_chart(
         &self,
         wallet_address: &str,
@@ -515,12 +256,12 @@ impl IActivities for Activities {
 
     async fn fetch_profit_and_loss(
         &self,
-        query: &WhereProfitLossActivitySchema,
+        query: &WhereProfitLossSchema,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<ProfitLossActivitySchema>> {
+    ) -> anyhow::Result<Vec<ProfitLossSchema>> {
         let res = sqlx::query_as!(
-            ProfitLossActivitySchema,
+            ProfitLossSchema,
             r#"
             SELECT
                 ra.collection_id,

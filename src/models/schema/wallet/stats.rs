@@ -2,7 +2,7 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WalletStatSchema {
+pub struct StatsSchema {
     pub total_buys: Option<i64>,
     pub holding_periods: Option<BigDecimal>,
     pub trade_volumes: Option<BigDecimal>,
@@ -10,7 +10,7 @@ pub struct WalletStatSchema {
 }
 
 #[async_graphql::Object]
-impl WalletStatSchema {
+impl StatsSchema {
     #[graphql(name = "total_buys")]
     async fn total_buys(&self) -> Option<i64> {
         self.total_buys

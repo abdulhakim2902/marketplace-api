@@ -6,7 +6,7 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct CollectionTrendingSchema {
+pub struct TrendingSchema {
     pub nft_id: Option<String>,
     pub collection_id: Option<String>,
     pub tx_frequency: Option<i64>,
@@ -14,7 +14,7 @@ pub struct CollectionTrendingSchema {
 }
 
 #[async_graphql::Object]
-impl CollectionTrendingSchema {
+impl TrendingSchema {
     #[graphql(name = "collection_id")]
     async fn collection_id(&self) -> Option<&str> {
         self.collection_id.as_ref().map(|e| e.as_str())
@@ -45,15 +45,15 @@ impl CollectionTrendingSchema {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterCollectionTrendingSchema {
+pub struct FilterTrendingSchema {
     #[graphql(name = "where")]
-    pub where_: WhereCollectionTrendingSchema,
+    pub where_: WhereTrendingSchema,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct WhereCollectionTrendingSchema {
+pub struct WhereTrendingSchema {
     pub collection_id: String,
 }
