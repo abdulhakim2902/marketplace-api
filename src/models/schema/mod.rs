@@ -37,7 +37,7 @@ async fn fetch_collection(
         .expect("Missing database in the context");
 
     db.collections()
-        .fetch_collections(collection_id, 1, 0)
+        .fetch_collections(collection_id, None, 1, 0)
         .await
         .unwrap_or_default()
         .first()
@@ -206,4 +206,31 @@ async fn fetch_nft_rarity_score(
     }
 
     res.unwrap().map(|e| e.to_plain_string())
+}
+
+async fn fetch_total_nft(
+    ctx: &Context<'_>,
+    collection_id: Option<String>,
+    wallet_address: Option<String>,
+    default_amount: i64,
+) -> Option<i64> {
+    if collection_id.is_none() {
+        return None;
+    }
+
+    if wallet_address.is_none() {
+        return Some(default_amount);
+    }
+
+    let collection_id = collection_id.as_ref().unwrap();
+    let wallet_address = wallet_address.as_ref().unwrap();
+
+    let db = ctx
+        .data::<Arc<Database>>()
+        .expect("Missing database in the context");
+
+    db.nfts()
+        .fetch_total_nft(&wallet_address, collection_id)
+        .await
+        .ok()
 }

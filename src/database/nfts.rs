@@ -49,6 +49,12 @@ pub trait INfts: Send + Sync {
         &self,
         collection_id: &str,
     ) -> anyhow::Result<NftPeriodDistributionSchema>;
+
+    async fn fetch_total_nft(
+        &self,
+        wallet_address: &str,
+        collection_id: &str,
+    ) -> anyhow::Result<i64>;
 }
 
 pub struct Nfts {
@@ -450,5 +456,25 @@ impl INfts for Nfts {
         .context("Failed to fetch nft period distribution")?;
 
         Ok(res)
+    }
+
+    async fn fetch_total_nft(
+        &self,
+        wallet_address: &str,
+        collection_id: &str,
+    ) -> anyhow::Result<i64> {
+        let res = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM nfts n
+            WHERE n.owner = $1 AND n.collection_id = $2
+            "#,
+            wallet_address,
+            collection_id,
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to count total nft")?;
+
+        Ok(res.unwrap_or_default())
     }
 }

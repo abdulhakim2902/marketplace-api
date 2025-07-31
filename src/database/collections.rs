@@ -19,6 +19,7 @@ pub trait ICollections: Send + Sync {
     async fn fetch_collections(
         &self,
         id: Option<String>,
+        wallet_address: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
@@ -108,6 +109,7 @@ impl ICollections for Collections {
     async fn fetch_collections(
         &self,
         id: Option<String>,
+        wallet_address: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>> {
@@ -160,11 +162,16 @@ impl ICollections for Collections {
                 LEFT JOIN sales s ON s.collection_id = c.id
                 LEFT JOIN listings l ON l.collection_id = c.id
                 LEFT JOIN nft_owners no ON no.collection_id = c.id
-            WHERE $1::TEXT IS NULL OR $1::TEXT = '' OR c.id = $1::TEXT 
+            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR c.id = $1::TEXT)
+                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR c.id IN (
+                    SELECT DISTINCT n.collection_id FROM nfts n
+                    WHERE n.owner = $2
+                ))
             ORDER BY s.volume DESC
-            LIMIT $2 OFFSET $3
+            LIMIT $3 OFFSET $4
             "#,
             id,
+            wallet_address,
             limit,
             offset,
         )

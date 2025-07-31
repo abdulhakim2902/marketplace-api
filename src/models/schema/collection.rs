@@ -5,7 +5,7 @@ use sqlx::prelude::FromRow;
 
 use crate::models::schema::{
     fetch_collection_past_floor, fetch_collection_sale, fetch_collection_top_offer,
-    fetch_total_collection_offer, fetch_total_collection_trait,
+    fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
@@ -98,6 +98,17 @@ impl CollectionSchema {
         self.total_owner
     }
 
+    #[graphql(name = "total_nft")]
+    async fn total_nft(&self, ctx: &Context<'_>, wallet_address: Option<String>) -> Option<i64> {
+        fetch_total_nft(
+            ctx,
+            self.id.clone(),
+            wallet_address,
+            self.supply.unwrap_or_default(),
+        )
+        .await
+    }
+
     async fn sale(
         &self,
         ctx: &Context<'_>,
@@ -161,5 +172,6 @@ pub struct FilterCollectionSchema {
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
 pub struct CollectionWhereSchema {
+    pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
 }
