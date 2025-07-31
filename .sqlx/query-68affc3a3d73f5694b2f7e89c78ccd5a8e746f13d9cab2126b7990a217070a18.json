@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                ra.collection_id,\n                ra.nft_id,\n                ra.price            AS bought,\n                ra.usd_price        AS bought_usd,\n                sa.price            AS sold,\n                sa.usd_price        AS sold_usd\n            FROM activities ra\n                LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id\n            WHERE ra.receiver IS NOT NULL\n                AND ($1::TEXT IS NULL OR $1::TEXT = '' OR ra.receiver = $1)\n            LIMIT $2 OFFSET $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "nft_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "bought",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 3,
+        "name": "bought_usd",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 4,
+        "name": "sold",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "sold_usd",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "68affc3a3d73f5694b2f7e89c78ccd5a8e746f13d9cab2126b7990a217070a18"
+}

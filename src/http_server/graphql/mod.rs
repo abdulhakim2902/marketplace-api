@@ -17,6 +17,7 @@ use crate::{
         nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
         nft_holder::NftHolderSchema,
         profit_leaderboard::ProfitLeaderboardSchema,
+        profit_loss_activity::{FilterProfitLossActivitiesSchema, ProfitLossActivitySchema},
         top_buyer::TopBuyerSchema,
         top_seller::TopSellerSchema,
     },
@@ -138,7 +139,8 @@ impl Query {
 
         db.bids()
             .fetch_bids(
-                query.wallet_address,
+                query.bidder,
+                query.receiver,
                 query.collection_id,
                 query.nft_id,
                 query.status,
@@ -148,6 +150,27 @@ impl Query {
             )
             .await
             .expect("Failed to fetch bids")
+    }
+
+    async fn profit_loss_activities(
+        &self,
+        ctx: &Context<'_>,
+        filter: Option<FilterProfitLossActivitiesSchema>,
+    ) -> Vec<ProfitLossActivitySchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let filter = filter.unwrap_or_default();
+        let query = filter.where_.unwrap_or_default();
+
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
+        db.activities()
+            .fetch_profit_and_loss(query.wallet_address, limit, offset)
+            .await
+            .expect("Failed to fetch wallet profit loss")
     }
 
     async fn collection_trending(
@@ -173,7 +196,7 @@ impl Query {
     async fn collection_top_buyer(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        id: String,
         interval: Option<String>,
     ) -> Vec<TopBuyerSchema> {
         let db = ctx
@@ -184,7 +207,7 @@ impl Query {
             .expect("Invalid interval");
 
         db.activities()
-            .fetch_top_buyers(&collection_id, i)
+            .fetch_top_buyers(&id, i)
             .await
             .expect("Failed to fetch collection top buyers")
     }
@@ -192,7 +215,7 @@ impl Query {
     async fn collection_top_seller(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        id: String,
         interval: Option<String>,
     ) -> Vec<TopSellerSchema> {
         let db = ctx
@@ -203,7 +226,7 @@ impl Query {
             .expect("Invalid interval");
 
         db.activities()
-            .fetch_top_sellers(&collection_id, i)
+            .fetch_top_sellers(&id, i)
             .await
             .expect("Failed to fetch collection top sellers")
     }
@@ -211,7 +234,7 @@ impl Query {
     async fn collection_nft_holders(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        id: String,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Vec<NftHolderSchema> {
@@ -223,7 +246,7 @@ impl Query {
         let offset = offset.unwrap_or(0);
 
         db.nfts()
-            .fetch_nft_holders(&collection_id, limit, offset)
+            .fetch_nft_holders(&id, limit, offset)
             .await
             .expect("Failed to fetch nft holders")
     }
@@ -231,14 +254,14 @@ impl Query {
     async fn collection_nft_amount_distribution(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        id: String,
     ) -> NftAmountDistributionSchema {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
         db.nfts()
-            .fetch_nft_amount_distribution(&collection_id)
+            .fetch_nft_amount_distribution(&id)
             .await
             .expect("Failed to fetch collection nft amount distribution")
     }
@@ -246,14 +269,14 @@ impl Query {
     async fn collection_nft_period_distribution(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        id: String,
     ) -> NftPeriodDistributionSchema {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
         db.nfts()
-            .fetch_nft_period_distribution(&collection_id)
+            .fetch_nft_period_distribution(&id)
             .await
             .expect("Failed to fetch collection nft period distribution")
     }
@@ -261,7 +284,7 @@ impl Query {
     async fn collection_profit_leaderboard(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        id: String,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Vec<ProfitLeaderboardSchema> {
@@ -273,7 +296,7 @@ impl Query {
         let offset = offset.unwrap_or(0);
 
         db.activities()
-            .fetch_profit_leaderboard(&collection_id, limit, offset)
+            .fetch_profit_leaderboard(&id, limit, offset)
             .await
             .expect("Failed to fetch collection nft period distribution")
     }
@@ -281,7 +304,7 @@ impl Query {
     async fn collection_nft_changes(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        id: String,
         interval: Option<String>,
         limit: Option<i64>,
         offset: Option<i64>,
@@ -297,7 +320,7 @@ impl Query {
         let offset = offset.unwrap_or(0);
 
         db.activities()
-            .fetch_nft_changes(&collection_id, i, limit, offset)
+            .fetch_nft_changes(&id, i, limit, offset)
             .await
             .expect("Failed to fetch collection nft period distribution")
     }
@@ -305,9 +328,9 @@ impl Query {
     async fn collection_floor_chart(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
-        start_time_in_ms: i64,
-        end_time_in_ms: i64,
+        id: String,
+        start_time: i64,
+        end_time: i64,
         interval: String,
     ) -> Vec<DataPointSchema> {
         let db = ctx
@@ -319,11 +342,11 @@ impl Query {
             .expect("Invalid interval");
 
         let start_date =
-            DateTime::from_timestamp_millis(start_time_in_ms).expect("Invalid start time");
-        let end_date = DateTime::from_timestamp_millis(end_time_in_ms).expect("Invalid end time");
+            DateTime::from_timestamp_millis(start_time).expect("Invalid start time");
+        let end_date = DateTime::from_timestamp_millis(end_time).expect("Invalid end time");
 
         db.activities()
-            .fetch_floor_chart(&collection_id, start_date, end_date, i)
+            .fetch_floor_chart(&id, start_date, end_date, i)
             .await
             .expect("Failed to fetch floor chart")
     }

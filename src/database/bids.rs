@@ -16,7 +16,8 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
-        wallet_address: Option<String>,
+        bidder: Option<String>,
+        receiver: Option<String>,
         collection_id: Option<String>,
         nft_id: Option<String>,
         status: Option<String>,
@@ -128,7 +129,8 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
-        wallet_address: Option<String>,
+        bidder: Option<String>,
+        receiver: Option<String>,
         collection_id: Option<String>,
         nft_id: Option<String>,
         status: Option<String>,
@@ -151,16 +153,18 @@ impl IBids for Bids {
             WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)
                 AND ($2::TEXT IS NULL OR $2::TEXT = '' OR b.collection_id = $2)
                 AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)
+                AND ($4::TEXT IS NULL OR $4::TEXT = '' OR b.receiver = $4)
                 AND (
-                    ($4 = 'active' AND (b.expired_at IS NULL OR b.expired_at > NOW())) OR
-                    ($4::TEXT IS NULL OR $4::TEXT = '' OR b.status = $4)
+                    ($5 = 'active' AND (b.expired_at IS NULL OR b.expired_at > NOW())) OR
+                    ($5::TEXT IS NULL OR $5::TEXT = '' OR b.status = $5)
                 )
-                AND ($5::TEXT IS NULL OR $5::TEXT = '' OR b.bid_type = $5)
-            LIMIT $6 OFFSET $7
+                AND ($6::TEXT IS NULL OR $6::TEXT = '' OR b.bid_type = $6)
+            LIMIT $7 OFFSET $8
             "#,
             nft_id,
             collection_id,
-            wallet_address,
+            bidder,
+            receiver,
             status,
             bid_type,
             limit,

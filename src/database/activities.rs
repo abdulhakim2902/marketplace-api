@@ -5,7 +5,8 @@ use crate::models::{
     schema::{
         activity::ActivitySchema, collection::CollectionSaleSchema, data_point::DataPointSchema,
         nft_change::NftChangeSchema, profit_leaderboard::ProfitLeaderboardSchema,
-        top_buyer::TopBuyerSchema, top_seller::TopSellerSchema,
+        profit_loss_activity::ProfitLossActivitySchema, top_buyer::TopBuyerSchema,
+        top_seller::TopSellerSchema,
     },
 };
 use anyhow::Context;
@@ -84,6 +85,13 @@ pub trait IActivities: Send + Sync {
         &self,
         wallet_address: &str,
     ) -> anyhow::Result<Vec<DataPointSchema>>;
+
+    async fn fetch_profit_and_loss(
+        &self,
+        wallet_address: Option<String>,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<ProfitLossActivitySchema>>;
 }
 
 pub struct Activities {
@@ -506,6 +514,39 @@ impl IActivities for Activities {
             ORDER BY ts.time_bin
             "#,
             wallet_address,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch activity contributons chart")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_profit_and_loss(
+        &self,
+        wallet_address: Option<String>,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<ProfitLossActivitySchema>> {
+        let res = sqlx::query_as!(
+            ProfitLossActivitySchema,
+            r#"
+            SELECT
+                ra.collection_id,
+                ra.nft_id,
+                ra.price            AS bought,
+                ra.usd_price        AS bought_usd,
+                sa.price            AS sold,
+                sa.usd_price        AS sold_usd
+            FROM activities ra
+                LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id
+            WHERE ra.receiver IS NOT NULL
+                AND ($1::TEXT IS NULL OR $1::TEXT = '' OR ra.receiver = $1)
+            LIMIT $2 OFFSET $3
+            "#,
+            wallet_address,
+            limit,
+            offset,
         )
         .fetch_all(&*self.pool)
         .await

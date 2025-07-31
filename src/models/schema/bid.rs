@@ -112,10 +112,6 @@ impl BidSchema {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        if self.nft_id.is_none() || self.collection_id.is_none() {
-            return None;
-        }
-
         fetch_nft(ctx, self.nft_id.clone(), self.collection_id.clone()).await
     }
 
@@ -137,7 +133,8 @@ pub struct FilterBidSchema {
 pub struct BidWhereSchema {
     pub nft_id: Option<String>,
     pub collection_id: Option<String>,
-    pub wallet_address: Option<String>,
+    pub bidder: Option<String>,
+    pub receiver: Option<String>,
     pub status: Option<String>,
     #[graphql(name = "type")]
     pub bid_type: Option<String>,

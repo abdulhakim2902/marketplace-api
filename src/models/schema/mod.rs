@@ -25,6 +25,7 @@ pub mod nft_change;
 pub mod nft_distribution;
 pub mod nft_holder;
 pub mod profit_leaderboard;
+pub mod profit_loss_activity;
 pub mod top_buyer;
 pub mod top_seller;
 
@@ -32,6 +33,10 @@ async fn fetch_collection(
     ctx: &Context<'_>,
     collection_id: Option<String>,
 ) -> Option<CollectionSchema> {
+    if collection_id.is_none() {
+        return None;
+    }
+
     let db = ctx
         .data::<Arc<Database>>()
         .expect("Missing database in the context");
@@ -49,6 +54,10 @@ async fn fetch_nft(
     nft_id: Option<String>,
     collection_id: Option<String>,
 ) -> Option<NftSchema> {
+    if nft_id.is_none() {
+        return None;
+    }
+
     let db = ctx
         .data::<Arc<Database>>()
         .expect("Missing database in the context");
