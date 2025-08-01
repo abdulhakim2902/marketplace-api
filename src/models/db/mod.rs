@@ -4,6 +4,7 @@ pub mod bid;
 pub mod collection;
 pub mod listing;
 pub mod nft;
+pub mod nft_metadata;
 pub mod processor_status;
 pub mod token_price;
 pub mod wallet;

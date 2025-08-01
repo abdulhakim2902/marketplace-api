@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                n.collection_id, \n                n.uri, \n                jsonb_agg(DISTINCT n.id)    AS nft_ids,\n                MIN(n.updated_at)           AS updated_at              \n            FROM nfts n\n                LEFT JOIN nft_metadata nm ON nm.uri = n.uri \n            WHERE n.uri ILIKE '%.json' AND nm.uri IS NULL\n            GROUP BY n.collection_id, n.uri\n            ORDER BY updated_at ASC\n            LIMIT $1 OFFSET $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "uri",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "nft_ids",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 3,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "92e76c55b92814aa6fe73230afad11b5ebb9097cc2ad60b88482116d1b5ad45e"
+}

@@ -16,8 +16,9 @@ use crate::{
     config::Config,
     database::{
         Database, activities::Activities, attributes::Attributes, bids::Bids,
-        collections::Collections, listings::Listings, marketplaces::Marketplaces, nfts::Nfts,
-        processor_status::ProcessorStatus, token_prices::TokenPrices, wallets::Wallets,
+        collections::Collections, listings::Listings, marketplaces::Marketplaces,
+        nft_metadata::NFTMetadata, nfts::Nfts, processor_status::ProcessorStatus,
+        token_prices::TokenPrices, wallets::Wallets,
     },
     http_server::HttpServer,
     utils::shutdown_utils,
@@ -52,6 +53,7 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
         Arc::new(Wallets::new(Arc::clone(&pool))),
         Arc::new(ProcessorStatus::new(Arc::clone(&pool))),
         Arc::new(Marketplaces::new(Arc::clone(&pool))),
+        Arc::new(NFTMetadata::new(Arc::clone(&pool))),
     ));
 
     tokio::spawn(shutdown_utils::poll_for_shutdown_signal());

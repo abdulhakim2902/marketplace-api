@@ -1,11 +1,14 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use futures::future::join_all;
 use reqwest::Client;
 
 use crate::{
-    database::{IDatabase, attributes::IAttributes, nfts::INfts},
-    models::{db::attribute::DbAttribute, nft_metadata::NFTMetadata},
+    database::{IDatabase, attributes::IAttributes, nft_metadata::INFTMetadata, nfts::INfts},
+    models::{
+        db::{attribute::DbAttribute, nft_metadata::DbNFTMetadata},
+        nft_metadata::{NFTMetadata, NFTMetadataAttribute},
+    },
     utils::shutdown_utils,
 };
 
@@ -45,98 +48,82 @@ where
         Ok(())
     }
 
-    pub async fn process_attributes(&self, _client: &Client) -> anyhow::Result<()> {
-        let total_nfts = self.db.nfts().count_nft_metadata_urls().await?;
-        let batch_size = 20i64;
-        let mut offset = 0;
-
-        if total_nfts == 0 {
-            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-            return Ok(());
-        }
-
-        while offset < total_nfts {
-            let mut nfts = self
+    pub async fn process_attributes(&self, client: &Client) -> anyhow::Result<()> {
+        loop {
+            let batch_size = 20;
+            let nfts = self
                 .db
                 .nfts()
-                .fetch_nft_metadata_urls(offset, batch_size)
+                .fetch_nft_uri(0, batch_size)
                 .await?;
 
-            let total_nft = nfts.len() as i64;
+            if nfts.len() <= 0 {
+                break;
+            }
 
             let nft_metadata_fut = nfts.iter().map(|nft| async move {
                 let uri = nft.uri.as_ref().unwrap();
-                let response = reqwest::get(uri).await;
-                if response.is_err() {
-                    return (nft.id.clone(), None);
-                }
+                let response = client.get(uri).send().await?;
+                let result = response.json::<NFTMetadata>().await?;
 
-                (
-                    nft.id.clone(),
-                    response.unwrap().json::<NFTMetadata>().await.ok(),
-                )
+                let mut nft_metadata: DbNFTMetadata = result.into();
+
+                nft_metadata.uri = Some(uri.to_string());
+                nft_metadata.collection_id = nft.collection_id.clone();
+
+                let nft_ids = serde_json::from_value::<Vec<String>>(nft.nft_ids.clone())?;
+
+                Ok::<(DbNFTMetadata, Vec<String>), anyhow::Error>((nft_metadata, nft_ids))
             });
 
-            let nft_metadata = join_all(nft_metadata_fut).await.into_iter().fold(
-                HashMap::new(),
-                |mut acc, item| {
-                    let (nft_id, nft_metadata) = item;
-                    if let Some(nft_metadata) = nft_metadata {
-                        acc.insert(nft_id, nft_metadata);
-                    }
+            let nft_metadata_vec = join_all(nft_metadata_fut)
+                .await
+                .into_iter()
+                .filter_map(Result::ok)
+                .collect::<Vec<(DbNFTMetadata, Vec<String>)>>();
 
-                    acc
-                },
-            );
+            let mut all_attributes = Vec::new();
+            let mut all_nft_metadata = Vec::new();
 
-            let mut attributes = Vec::new();
+            for (nft_metadata, nft_ids) in nft_metadata_vec.iter() {
+                let nft_attributes = nft_metadata.attributes.as_ref().map(|e| {
+                    serde_json::from_value::<Vec<NFTMetadataAttribute>>(e.clone())
+                        .unwrap_or_default()
+                });
 
-            for nft in nfts.iter_mut() {
-                if let Some(nft_metadata) = nft_metadata.get(&nft.id).cloned() {
-                    nft.image_url = nft_metadata.image;
-                    nft.youtube_url = nft_metadata.youtube_url;
-                    nft.background_color = nft_metadata.background_color;
-                    nft.external_url = nft_metadata.external_url;
-                    nft.animation_url = nft_metadata.animation_url;
-                    nft.avatar_url = nft_metadata.avatar_url;
-                    nft.image_data = nft_metadata.image_data;
-                    nft.uri = None;
-                    if nft.name.is_none() {
-                        nft.name = nft_metadata.name;
-                    }
+                for nft_id in nft_ids {
+                    if let Some(nft_attributes) = nft_attributes.as_ref() {
+                        for attribute in nft_attributes {
+                            let nft_attribute = DbAttribute {
+                                collection_id: nft_metadata.collection_id.clone(),
+                                nft_id: Some(nft_id.to_string()),
+                                attr_type: Some(attribute.trait_type.to_lowercase()),
+                                value: Some(attribute.value.to_lowercase()),
+                            };
 
-                    if nft.description.is_none() {
-                        nft.description = nft_metadata.description;
-                    }
-
-                    for attribute in nft_metadata.attributes {
-                        let attribute = DbAttribute {
-                            collection_id: nft.collection_id.clone(),
-                            nft_id: Some(nft.id.clone()),
-                            attr_type: Some(attribute.trait_type.to_lowercase()),
-                            value: Some(attribute.value.to_lowercase()),
-                        };
-
-                        attributes.push(attribute);
+                            all_attributes.push(nft_attribute);
+                        }
                     }
                 }
+
+                all_nft_metadata.push(nft_metadata.clone());
             }
 
             let mut tx = self.db.get_pool().begin().await?;
 
-            self.db.nfts().tx_insert_nfts(&mut tx, nfts).await?;
+            self.db
+                .nft_metadata()
+                .tx_insert_nft_metadata(&mut tx, all_nft_metadata)
+                .await?;
 
             self.db
                 .attributes()
-                .tx_insert_attributes(&mut tx, attributes)
+                .tx_insert_attributes(&mut tx, all_attributes)
                 .await?;
 
             tx.commit().await?;
-
-            offset += total_nft;
         }
 
-        // Implementation for processing attributes
         Ok(())
     }
 }

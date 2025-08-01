@@ -154,3 +154,11 @@ impl DbNft {
         Ok(None)
     }
 }
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct DbNftUri {
+    pub collection_id: Option<String>,
+    pub uri: Option<String>,
+    pub nft_ids: serde_json::Value,
+    pub updated_at: Option<DateTime<Utc>>,
+}

@@ -67,6 +67,7 @@ async fn fetch_nft(
         collection_id,
         nft_id,
         wallet_address: None,
+        attribute: None,
     };
 
     db.nfts()

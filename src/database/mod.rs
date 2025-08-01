@@ -4,6 +4,7 @@ pub mod bids;
 pub mod collections;
 pub mod listings;
 pub mod marketplaces;
+pub mod nft_metadata;
 pub mod nfts;
 pub mod processor_status;
 pub mod token_prices;
@@ -20,6 +21,7 @@ use crate::database::{
     collections::{Collections, ICollections},
     listings::{IListings, Listings},
     marketplaces::{IMarketplaces, Marketplaces},
+    nft_metadata::{INFTMetadata, NFTMetadata},
     nfts::{INfts, Nfts},
     processor_status::{IProcessorStatus, ProcessorStatus},
     token_prices::{ITokenPrices, TokenPrices},
@@ -38,6 +40,7 @@ pub trait IDatabase: Send + Sync + 'static {
     type TProcessorStatus: IProcessorStatus;
     type TWallets: IWallets;
     type TMarketplaces: IMarketplaces;
+    type TNFTMetadata: INFTMetadata;
 
     async fn is_healthy(&self) -> bool;
 
@@ -51,6 +54,7 @@ pub trait IDatabase: Send + Sync + 'static {
     fn wallets(&self) -> Arc<Self::TWallets>;
     fn token_prices(&self) -> Arc<Self::TTokenPrices>;
     fn marketplaces(&self) -> Arc<Self::TMarketplaces>;
+    fn nft_metadata(&self) -> Arc<Self::TNFTMetadata>;
     fn processor_status(&self) -> Arc<Self::TProcessorStatus>;
 }
 
@@ -66,6 +70,7 @@ pub struct Database {
     token_prices: Arc<TokenPrices>,
     processor_status: Arc<ProcessorStatus>,
     marketplaces: Arc<Marketplaces>,
+    nft_metadata: Arc<NFTMetadata>,
 }
 
 impl Database {
@@ -81,6 +86,7 @@ impl Database {
         wallets: Arc<Wallets>,
         processor_status: Arc<ProcessorStatus>,
         marketplaces: Arc<Marketplaces>,
+        nft_metadata: Arc<NFTMetadata>,
     ) -> Self {
         Self {
             pool,
@@ -94,6 +100,7 @@ impl Database {
             wallets,
             processor_status,
             marketplaces,
+            nft_metadata,
         }
     }
 
@@ -123,6 +130,7 @@ impl IDatabase for Database {
     type TTokenPrices = TokenPrices;
     type TWallets = Wallets;
     type TMarketplaces = Marketplaces;
+    type TNFTMetadata = NFTMetadata;
 
     async fn is_healthy(&self) -> bool {
         sqlx::query("SELECT 1").fetch_one(&*self.pool).await.is_ok()
@@ -170,5 +178,9 @@ impl IDatabase for Database {
 
     fn marketplaces(&self) -> Arc<Self::TMarketplaces> {
         Arc::clone(&self.marketplaces)
+    }
+
+    fn nft_metadata(&self) -> Arc<Self::TNFTMetadata> {
+        Arc::clone(&self.nft_metadata)
     }
 }

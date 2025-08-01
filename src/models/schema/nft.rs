@@ -162,4 +162,13 @@ pub struct WhereNftSchema {
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
+    pub attribute: Option<WhereNftAttributeSchema>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereNftAttributeSchema {
+    #[graphql(name = "type")]
+    pub type_: String,
+    pub value: String,
 }

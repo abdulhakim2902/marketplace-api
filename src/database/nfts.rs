@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::models::{
-    db::nft::DbNft,
+    db::nft::{DbNft, DbNftUri},
     schema::nft::{NftSchema, WhereNftSchema},
 };
 use anyhow::Context;
@@ -23,9 +23,11 @@ pub trait INfts: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>>;
 
-    async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>>;
-
-    async fn count_nft_metadata_urls(&self) -> anyhow::Result<i64>;
+    async fn fetch_nft_uri(
+        &self,
+        offset: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<DbNftUri>>;
 
     async fn fetch_total_nft(
         &self,
@@ -208,13 +210,24 @@ impl INfts for Nfts {
         Ok(res)
     }
 
-    async fn fetch_nft_metadata_urls(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNft>> {
+    async fn fetch_nft_uri(
+        &self,
+        offset: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<DbNftUri>> {
         let res = sqlx::query_as!(
-            DbNft,
+            DbNftUri,
             r#"
-            SELECT * FROM nfts
-            WHERE nfts.uri ILIKE '%.json'
-            ORDER BY nfts.updated_at ASC
+            SELECT 
+                n.collection_id, 
+                n.uri, 
+                jsonb_agg(DISTINCT n.id)    AS nft_ids,
+                MIN(n.updated_at)           AS updated_at              
+            FROM nfts n
+                LEFT JOIN nft_metadata nm ON nm.uri = n.uri 
+            WHERE n.uri ILIKE '%.json' AND nm.uri IS NULL
+            GROUP BY n.collection_id, n.uri
+            ORDER BY updated_at ASC
             LIMIT $1 OFFSET $2
             "#,
             limit,
@@ -225,20 +238,6 @@ impl INfts for Nfts {
         .context("Failed to fetch nft metadata urls")?;
 
         Ok(res)
-    }
-
-    async fn count_nft_metadata_urls(&self) -> anyhow::Result<i64> {
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM nfts
-            WHERE nfts.uri ILIKE '%.json'
-            "#,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count nft metadata urls")?;
-
-        Ok(res.unwrap_or_default())
     }
 
     async fn fetch_total_nft(

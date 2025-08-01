@@ -11,9 +11,8 @@ pub struct NFTMetadata {
     pub image_data: Option<String>,
     pub youtube_url: Option<String>,
     pub external_url: Option<String>,
-    #[serde(default)]
-    pub attributes: Vec<NFTMetadataAttribute>,
-    pub properties: Option<NFTMetadataProperty>,
+    pub attributes: Option<serde_json::Value>,
+    pub properties: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
