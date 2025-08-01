@@ -1,4 +1,3 @@
-use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +11,7 @@ pub struct DbListing {
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
     pub nonce: Option<String>,
-    pub price: Option<BigDecimal>,
+    pub price: Option<i64>,
     pub price_str: Option<String>,
     pub seller: Option<String>,
     pub tx_index: Option<i64>,

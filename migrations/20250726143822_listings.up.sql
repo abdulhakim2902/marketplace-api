@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS listings (
   listed BOOLEAN DEFAULT NULL,
   market_name VARCHAR(128),
   nonce VARCHAR(128) DEFAULT NULL,
-  price NUMERIC DEFAULT NULL,
+  price BIGINT DEFAULT NULL,
   price_str VARCHAR(128) DEFAULT '',
   seller VARCHAR(66),
   tx_index BIGINT,

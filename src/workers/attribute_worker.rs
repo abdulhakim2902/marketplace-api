@@ -51,11 +51,7 @@ where
     pub async fn process_attributes(&self, client: &Client) -> anyhow::Result<()> {
         loop {
             let batch_size = 20;
-            let nfts = self
-                .db
-                .nfts()
-                .fetch_nft_uri(0, batch_size)
-                .await?;
+            let nfts = self.db.nfts().fetch_nft_uri(0, batch_size).await?;
 
             if nfts.len() <= 0 {
                 break;

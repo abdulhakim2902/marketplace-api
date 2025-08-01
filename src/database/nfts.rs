@@ -23,11 +23,7 @@ pub trait INfts: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>>;
 
-    async fn fetch_nft_uri(
-        &self,
-        offset: i64,
-        limit: i64,
-    ) -> anyhow::Result<Vec<DbNftUri>>;
+    async fn fetch_nft_uri(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNftUri>>;
 
     async fn fetch_total_nft(
         &self,
@@ -65,14 +61,8 @@ impl INfts for Nfts {
                 owner,
                 collection_id,
                 properties,
-                image_data,
-                avatar_url,
                 image_url,
-                external_url,
                 description,
-                background_color,
-                animation_url,
-                youtube_url,
                 burned,
                 version,
                 royalty,
@@ -87,14 +77,8 @@ impl INfts for Nfts {
             b.push_bind(item.owner.clone());
             b.push_bind(item.collection_id.clone());
             b.push_bind(item.properties.clone());
-            b.push_bind(item.image_data.clone());
-            b.push_bind(item.avatar_url.clone());
             b.push_bind(item.image_url.clone());
-            b.push_bind(item.external_url.clone());
             b.push_bind(item.description.clone());
-            b.push_bind(item.background_color.clone());
-            b.push_bind(item.animation_url.clone());
-            b.push_bind(item.youtube_url.clone());
             b.push_bind(item.burned);
             b.push_bind(item.version.clone());
             b.push_bind(item.royalty.clone());
@@ -106,16 +90,10 @@ impl INfts for Nfts {
             ON CONFLICT (id) DO UPDATE SET
                 owner = EXCLUDED.owner,
                 name = COALESCE(EXCLUDED.name, nfts.name),
-                uri = EXCLUDED.uri,
+                uri = COALESCE(EXCLUDED.uri, nfts.uri),
                 image_url = COALESCE(EXCLUDED.image_url, nfts.image_url),
                 description = COALESCE(EXCLUDED.description, nfts.description),
                 properties = COALESCE(EXCLUDED.properties, nfts.properties),
-                background_color = COALESCE(EXCLUDED.background_color, nfts.background_color),
-                image_data = COALESCE(EXCLUDED.image_data, nfts.image_data),
-                animation_url = COALESCE(EXCLUDED.animation_url, nfts.animation_url),
-                youtube_url = COALESCE(EXCLUDED.youtube_url, nfts.youtube_url),
-                avatar_url = COALESCE(EXCLUDED.avatar_url, nfts.avatar_url),
-                external_url = COALESCE(EXCLUDED.external_url, nfts.external_url),
                 royalty = COALESCE(EXCLUDED.royalty, nfts.royalty),
                 burned = EXCLUDED.burned,
                 updated_at = EXCLUDED.updated_at
@@ -167,12 +145,6 @@ impl INfts for Nfts {
                 burned,
                 properties,
                 description,
-                background_color,
-                image_data,
-                animation_url,
-                youtube_url,
-                avatar_url,
-                external_url,
                 uri,
                 image_url,
                 royalty,
@@ -210,11 +182,7 @@ impl INfts for Nfts {
         Ok(res)
     }
 
-    async fn fetch_nft_uri(
-        &self,
-        offset: i64,
-        limit: i64,
-    ) -> anyhow::Result<Vec<DbNftUri>> {
+    async fn fetch_nft_uri(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNftUri>> {
         let res = sqlx::query_as!(
             DbNftUri,
             r#"

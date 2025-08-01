@@ -5,8 +5,9 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::schema::{
-    collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema,
+use crate::models::{
+    marketplace::APT_DECIMAL,
+    schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -16,7 +17,7 @@ pub struct ActivitySchema {
     pub tx_id: String,
     pub sender: Option<String>,
     pub receiver: Option<String>,
-    pub price: Option<BigDecimal>,
+    pub price: Option<i64>,
     pub usd_price: Option<BigDecimal>,
     pub market_name: Option<String>,
     pub market_contract_id: Option<String>,
@@ -53,7 +54,9 @@ impl ActivitySchema {
     }
 
     async fn price(&self) -> Option<String> {
-        self.price.as_ref().map(|e| e.to_plain_string())
+        self.price
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
     #[graphql(name = "usd_price")]

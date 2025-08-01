@@ -187,31 +187,6 @@ impl ICollections for Collections {
         let res = sqlx::query_as!(
             CollectionSchema,
             r#"
-            WITH 
-                sales AS (
-                    SELECT
-                        a.collection_id, 
-                        SUM(a.price)        AS volume,
-                        COUNT(*)            AS total
-                    FROM activities a
-                    WHERE a.tx_type = 'buy'
-                    GROUP BY a.collection_id
-                ),
-                listings AS (
-                    SELECT 
-                        l.collection_id,
-                        MIN(l.price)        AS floor,
-                        COUNT(*)            AS total
-                    FROM listings l
-                    WHERE l.listed
-                    GROUP BY l.collection_id
-                ),
-                nft_owners AS (
-                    SELECT n.collection_id, COUNT(DISTINCT n.owner) AS total
-                    FROM nfts n
-                    WHERE n.burned IS NULL OR NOT n.burned
-                    GROUP BY n.collection_id
-                ) 
             SELECT
                 c.id,
                 c.slug, 
@@ -224,21 +199,21 @@ impl ICollections for Collections {
                 c.discord,
                 c.twitter,
                 c.royalty,
-                s.volume            AS total_volume,
-                s.total             AS total_sale,
-                no.total            AS total_owner,
-                l.floor,
-                l.total             AS listed
+                cs.volumes::BIGINT           AS total_volume,
+                cs.sales::BIGINT             AS total_sale,
+                co.owners::BIGINT            AS total_owner,
+                cl.floor_price::BIGINT       AS floor,
+                cl.listed::BIGINT
             FROM collections c
-                LEFT JOIN sales s ON s.collection_id = c.id
-                LEFT JOIN listings l ON l.collection_id = c.id
-                LEFT JOIN nft_owners no ON no.collection_id = c.id
+                LEFT JOIN collection_sales cs ON cs.collection_id = c.id
+                LEFT JOIN collection_listings cl ON cl.collection_id = c.id
+                LEFT JOIN collection_owners co ON co.collection_id = c.id
             WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR c.id = $1::TEXT)
                 AND ($2::TEXT IS NULL OR $2::TEXT = '' OR c.id IN (
                     SELECT DISTINCT n.collection_id FROM nfts n
                     WHERE n.owner = $2
                 ))
-            ORDER BY s.volume DESC
+            ORDER BY cs.volumes DESC
             LIMIT $3 OFFSET $4
             "#,
             query.collection_id,

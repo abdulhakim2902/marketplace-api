@@ -3,7 +3,7 @@ use crate::{
     database::{IDatabase, token_prices::ITokenPrices},
     models::{
         db::{activity::DbActivity, bid::DbBid, listing::DbListing},
-        marketplace::{BidModel, ListingModel, NftMarketplaceActivity},
+        marketplace::{APT_DECIMAL, BidModel, ListingModel, NftMarketplaceActivity},
     },
 };
 use anyhow::Result;
@@ -168,7 +168,7 @@ where
                         .unwrap_or_default(),
                 };
 
-                activity.usd_price = Some(activity.get_price() * &usd);
+                activity.usd_price = Some(activity.price / APT_DECIMAL as i64 * &usd);
 
                 self.accumulator.fold_activity(&activity);
                 self.accumulator.fold_bidding(&activity);

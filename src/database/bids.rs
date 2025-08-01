@@ -190,7 +190,7 @@ impl IBids for Bids {
         .await
         .context("Failed to count filtered collections")?;
 
-        Ok(res)
+        Ok(res.map(|e| BigDecimal::from(e)))
     }
 
     async fn fetch_nft_top_offer(&self, nft_id: &str) -> anyhow::Result<Option<BigDecimal>> {
@@ -210,7 +210,7 @@ impl IBids for Bids {
         .await
         .context("Failed to count filtered collections")?;
 
-        Ok(res)
+        Ok(res.map(|e| BigDecimal::from(e)))
     }
 
     async fn fetch_total_collection_offer(

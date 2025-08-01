@@ -18,7 +18,7 @@ use aptos_indexer_processor_sdk::{
     types::transaction_context::TransactionContext,
     utils::{convert::standardize_address, errors::ProcessorError},
 };
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, ToPrimitive};
 
 pub struct TokenExtractor
 where
@@ -198,7 +198,8 @@ impl Processable for TokenExtractor {
                                                     price + &withdraw.amount
                                                 });
 
-                                            activity.price = Some(price);
+                                            activity.price =
+                                                Some(price.to_i64().unwrap_or_default());
                                         }
                                     } else {
                                         mint_payer
@@ -243,7 +244,10 @@ impl Processable for TokenExtractor {
                                 }
 
                                 if let Some(receiver) = activity.receiver.as_ref() {
-                                    activity.price = mint_payer.remove(receiver);
+                                    activity.price = mint_payer
+                                        .remove(receiver)
+                                        .as_ref()
+                                        .map(|e| e.to_i64().unwrap_or_default());
                                     owner_activity.insert(receiver.to_string(), activity.clone());
                                 }
                             }
@@ -284,7 +288,10 @@ impl Processable for TokenExtractor {
 
                             if tx_type == MarketplaceEventType::Mint.to_string() {
                                 if let Some(receiver) = activity.receiver.as_ref() {
-                                    activity.price = mint_payer.remove(receiver);
+                                    activity.price = mint_payer
+                                        .remove(receiver)
+                                        .as_ref()
+                                        .map(|e| e.to_i64().unwrap_or_default());
                                     owner_activity.insert(receiver.to_string(), activity.clone());
                                 }
                             }

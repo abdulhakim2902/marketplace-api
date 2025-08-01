@@ -3,8 +3,11 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::schema::{
-    collection::CollectionSchema, fetch_collection, fetch_nft_rarity_score, fetch_nft_top_offer,
+use crate::models::{
+    marketplace::APT_DECIMAL,
+    schema::{
+        collection::CollectionSchema, fetch_collection, fetch_nft_rarity_score, fetch_nft_top_offer,
+    },
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -16,20 +19,14 @@ pub struct NftSchema {
     pub burned: Option<bool>,
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
-    pub background_color: Option<String>,
-    pub image_data: Option<String>,
-    pub animation_url: Option<String>,
-    pub youtube_url: Option<String>,
-    pub avatar_url: Option<String>,
-    pub external_url: Option<String>,
     pub uri: Option<String>,
     pub image_url: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
     pub updated_at: Option<DateTime<Utc>>,
-    pub last_sale: Option<BigDecimal>,
+    pub last_sale: Option<i64>,
     pub listed_at: Option<DateTime<Utc>>,
-    pub list_price: Option<BigDecimal>,
+    pub list_price: Option<i64>,
     pub list_usd_price: Option<BigDecimal>,
 }
 
@@ -60,36 +57,6 @@ impl NftSchema {
         self.description.as_ref().map(|e| e.as_str())
     }
 
-    #[graphql(name = "background_color")]
-    async fn background_color(&self) -> Option<&str> {
-        self.background_color.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "image_data")]
-    async fn image_data(&self) -> Option<&str> {
-        self.image_data.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "animation_url")]
-    async fn animation_url(&self) -> Option<&str> {
-        self.animation_url.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "youtube_url")]
-    async fn youtube_url(&self) -> Option<&str> {
-        self.youtube_url.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "avatar_url")]
-    async fn avatar_url(&self) -> Option<&str> {
-        self.avatar_url.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "external_url")]
-    async fn external_url(&self) -> Option<&str> {
-        self.external_url.as_ref().map(|e| e.as_str())
-    }
-
     #[graphql(name = "uri")]
     async fn uri(&self) -> Option<&str> {
         self.uri.as_ref().map(|e| e.as_str())
@@ -115,7 +82,9 @@ impl NftSchema {
 
     #[graphql(name = "last_sale")]
     async fn last_sale(&self) -> Option<String> {
-        self.last_sale.as_ref().map(|e| e.to_plain_string())
+        self.last_sale
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
     #[graphql(name = "listed_at")]
@@ -125,7 +94,9 @@ impl NftSchema {
 
     #[graphql(name = "list_price")]
     async fn list_price(&self) -> Option<String> {
-        self.list_price.as_ref().map(|e| e.to_plain_string())
+        self.list_price
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
     #[graphql(name = "list_usd_price")]

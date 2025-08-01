@@ -2,16 +2,17 @@ use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
-use crate::models::schema::{
-    collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema,
+use crate::models::{
+    marketplace::APT_DECIMAL,
+    schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ProfitLossSchema {
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
-    pub bought: Option<BigDecimal>,
-    pub sold: Option<BigDecimal>,
+    pub bought: Option<i64>,
+    pub sold: Option<i64>,
     pub bought_usd: Option<BigDecimal>,
     pub sold_usd: Option<BigDecimal>,
 }
@@ -29,11 +30,15 @@ impl ProfitLossSchema {
     }
 
     async fn bought(&self) -> Option<String> {
-        self.bought.as_ref().map(|e| e.to_string())
+        self.bought
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
     async fn sold(&self) -> Option<String> {
-        self.sold.as_ref().map(|e| e.to_string())
+        self.sold
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
     #[graphql(name = "bought_usd")]

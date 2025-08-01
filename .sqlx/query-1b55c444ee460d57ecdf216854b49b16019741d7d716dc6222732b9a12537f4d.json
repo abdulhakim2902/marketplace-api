@@ -31,7 +31,7 @@
       {
         "ordinal": 5,
         "name": "price",
-        "type_info": "Numeric"
+        "type_info": "Int8"
       },
       {
         "ordinal": 6,

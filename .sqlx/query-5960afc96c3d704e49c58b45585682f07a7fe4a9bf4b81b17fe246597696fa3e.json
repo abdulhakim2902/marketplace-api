@@ -11,7 +11,7 @@
       {
         "ordinal": 1,
         "name": "y",
-        "type_info": "Numeric"
+        "type_info": "Int8"
       }
     ],
     "parameters": {

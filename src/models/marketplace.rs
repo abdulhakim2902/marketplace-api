@@ -48,7 +48,7 @@ impl From<NftMarketplaceActivity> for DbActivity {
     fn from(value: NftMarketplaceActivity) -> Self {
         Self {
             tx_index: value.get_tx_index(),
-            price: Some(value.get_price()),
+            price: Some(value.price),
             market_contract_id: value.contract_address,
             tx_id: value.txn_id,
             nft_id: value.token_addr,
@@ -74,7 +74,7 @@ impl From<NftMarketplaceActivity> for DbBid {
             cancelled_tx_id: value.get_cancelled_txn_id(),
             bid_type: value.get_bid_type(),
             status: value.get_bid_status(),
-            price: Some(value.get_price()),
+            price: Some(value.price),
             market_contract_id: value.contract_address,
             market_name: value.marketplace,
             collection_id: value.collection_addr,
@@ -94,8 +94,8 @@ impl From<NftMarketplaceActivity> for DbListing {
         Self {
             tx_index: Some(value.get_tx_index()),
             listed: value.get_listing_status(),
-            price: Some(value.get_price()),
-            price_str: Some(value.get_price().to_string()),
+            price: Some(value.price),
+            price_str: Some(value.price.to_string()),
             market_contract_id: value.contract_address,
             collection_id: value.collection_addr,
             nft_id: value.token_addr,
@@ -111,10 +111,6 @@ impl From<NftMarketplaceActivity> for DbListing {
 impl NftMarketplaceActivity {
     pub fn get_tx_index(&self) -> i64 {
         self.txn_version * 100_000 + self.index
-    }
-
-    pub fn get_price(&self) -> BigDecimal {
-        BigDecimal::from(self.price) / APT_DECIMAL
     }
 }
 

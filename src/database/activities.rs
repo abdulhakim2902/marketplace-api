@@ -240,7 +240,7 @@ impl IActivities for Activities {
                 )
             SELECT
                 ts.time_bin AS x, 
-                COALESCE(ac.count, 0)::NUMERIC AS y 
+                COALESCE(ac.count, 0) AS y 
             FROM time_series ts
                 LEFT JOIN activity_counts ac ON ts.time_bin = ac.block_time_trunc
             ORDER BY ts.time_bin

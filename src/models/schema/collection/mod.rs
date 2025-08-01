@@ -12,9 +12,13 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
-use crate::models::schema::{
-    fetch_collection_past_floor, fetch_collection_sale, fetch_collection_top_offer,
-    fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
+use crate::models::{
+    marketplace::APT_DECIMAL,
+    schema::{
+        OrderingType, fetch_collection_past_floor, fetch_collection_sale,
+        fetch_collection_top_offer, fetch_total_collection_offer, fetch_total_collection_trait,
+        fetch_total_nft,
+    },
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
@@ -30,10 +34,10 @@ pub struct CollectionSchema {
     pub discord: Option<String>,
     pub twitter: Option<String>,
     pub royalty: Option<BigDecimal>,
-    pub total_volume: Option<BigDecimal>,
+    pub total_volume: Option<i64>,
     pub total_sale: Option<i64>,
     pub total_owner: Option<i64>,
-    pub floor: Option<BigDecimal>,
+    pub floor: Option<i64>,
     pub listed: Option<i64>,
 }
 
@@ -65,7 +69,9 @@ impl CollectionSchema {
     }
 
     async fn floor(&self) -> Option<String> {
-        self.floor.as_ref().map(|e| e.to_string())
+        self.floor
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
     async fn listed(&self) -> Option<i64> {
@@ -92,17 +98,19 @@ impl CollectionSchema {
         self.royalty.as_ref().map(|e| e.to_plain_string())
     }
 
-    #[graphql(name = "total_volume")]
+    #[graphql(name = "volume")]
     async fn total_volume(&self) -> Option<String> {
-        self.total_volume.as_ref().map(|e| e.to_plain_string())
+        self.total_volume
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
-    #[graphql(name = "total_sale")]
+    #[graphql(name = "sales")]
     async fn total_sale(&self) -> Option<i64> {
         self.total_sale
     }
 
-    #[graphql(name = "total_owner")]
+    #[graphql(name = "owners")]
     async fn total_owner(&self) -> Option<i64> {
         self.total_owner
     }
@@ -174,6 +182,7 @@ impl CollectionSaleSchema {
 pub struct FilterCollectionSchema {
     #[graphql(name = "where")]
     pub where_: Option<WhereCollectionSchema>,
+    pub order: Option<OrderCollectionSchema>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -183,4 +192,15 @@ pub struct FilterCollectionSchema {
 pub struct WhereCollectionSchema {
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct OrderCollectionSchema {
+    pub volume: Option<OrderingType>,
+    pub floor: Option<OrderingType>,
+    pub owners: Option<OrderingType>,
+    pub market_cap: Option<OrderingType>,
+    pub sales: Option<OrderingType>,
+    pub listed: Option<OrderingType>,
 }

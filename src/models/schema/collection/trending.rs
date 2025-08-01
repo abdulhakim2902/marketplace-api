@@ -1,5 +1,6 @@
-use crate::models::schema::{
-    collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema,
+use crate::models::{
+    marketplace::APT_DECIMAL,
+    schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
 };
 use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
@@ -10,7 +11,7 @@ pub struct TrendingSchema {
     pub nft_id: Option<String>,
     pub collection_id: Option<String>,
     pub tx_frequency: Option<i64>,
-    pub last_price: Option<BigDecimal>,
+    pub last_price: Option<i64>,
 }
 
 #[async_graphql::Object]
@@ -32,7 +33,9 @@ impl TrendingSchema {
 
     #[graphql(name = "last_price")]
     async fn last_price(&self) -> Option<String> {
-        self.last_price.as_ref().map(|e| e.to_string())
+        self.last_price
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {

@@ -21,7 +21,7 @@
       {
         "ordinal": 3,
         "name": "last_price",
-        "type_info": "Numeric"
+        "type_info": "Int8"
       }
     ],
     "parameters": {

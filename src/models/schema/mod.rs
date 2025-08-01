@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use async_graphql::Context;
+use async_graphql::{Context, Enum};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{
@@ -250,4 +251,17 @@ async fn fetch_total_nft(
         .fetch_total_nft(&wallet_address, collection_id)
         .await
         .ok()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
+#[graphql(rename_items = "snake_case")]
+pub enum OrderingType {
+    ASC,
+    DESC,
+}
+
+impl Default for OrderingType {
+    fn default() -> Self {
+        Self::DESC
+    }
 }

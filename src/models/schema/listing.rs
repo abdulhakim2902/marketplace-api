@@ -3,8 +3,9 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::schema::{
-    collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema,
+use crate::models::{
+    marketplace::APT_DECIMAL,
+    schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -17,7 +18,7 @@ pub struct ListingSchema {
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
     pub nonce: Option<String>,
-    pub price: Option<BigDecimal>,
+    pub price: Option<i64>,
     pub usd_price: Option<BigDecimal>,
     pub seller: Option<String>,
     pub tx_index: Option<i64>,
@@ -54,7 +55,9 @@ impl ListingSchema {
     }
 
     async fn price(&self) -> Option<String> {
-        self.price.as_ref().map(|e| e.to_string())
+        self.price
+            .as_ref()
+            .map(|e| (BigDecimal::from(e) / APT_DECIMAL).to_plain_string())
     }
 
     #[graphql(name = "usd_price")]
