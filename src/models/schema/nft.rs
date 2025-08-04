@@ -161,6 +161,8 @@ pub struct FilterNftSchema {
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
 pub struct WhereNftSchema {
+    #[graphql(name = "type")]
+    pub type_: Option<FilterType>,
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
@@ -207,6 +209,7 @@ pub struct OrderNftSchema {
     pub price: Option<OrderingType>,
     pub rarity: Option<OrderingType>,
     pub listed_at: Option<OrderingType>,
+    pub received_at: Option<OrderingType>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
@@ -219,5 +222,20 @@ pub enum CoinType {
 impl Default for CoinType {
     fn default() -> Self {
         Self::APT
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
+#[graphql(rename_items = "snake_case")]
+pub enum FilterType {
+    All,
+    Listed,
+    HasOffer,
+    OnAuction,
+}
+
+impl Default for FilterType {
+    fn default() -> Self {
+        Self::All
     }
 }

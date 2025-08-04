@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::models::{
     db::nft::{DbNft, DbNftUri},
-    schema::nft::{CoinType, NftSchema, OrderNftSchema, WhereNftSchema},
+    schema::nft::{CoinType, FilterType, NftSchema, OrderNftSchema, WhereNftSchema},
 };
 use anyhow::Context;
 use chrono::Utc;
@@ -130,9 +130,21 @@ impl INfts for Nfts {
                         l.block_time,
                         l.seller,
                         l.market_name,
-                        l.market_contract_id
+                        l.market_contract_id,
+                        l.nonce
                     FROM listings l
                     WHERE l.listed
+                ),
+                bid_prices AS (
+                    SELECT DISTINCT ON (b.nft_id)
+                        b.bidder,
+                        b.nft_id,
+                        b.price,
+                        b.nonce
+                    FROM bids b
+                    WHERE b.status = 'active' 
+                        AND b.expired_at > NOW()
+                        AND b.bid_type = 'solo'
                 ),
                 sales AS (
                     SELECT DISTINCT ON (a.nft_id) 
@@ -176,12 +188,16 @@ impl INfts for Nfts {
                         lp.price * ltp.price                        AS list_usd_price,
                         lp.market_name,
                         lp.market_contract_id,
+                        lp.nonce                                    AS list_nonce,
+                        bp.nonce                                    AS bid_nonce,
+                        bpa.nonce                                   AS auction_nonce,
                         CASE
                         WHEN lp.block_time IS NOT NULL
                             THEN lp.block_time
                             ELSE NULL
                         END                                         AS listed_at,
                         s.price                                     AS last_sale,
+                        s.block_time                                AS received_at,
                         ar.score,
                         CASE
                             WHEN ar.score IS NOT NULL
@@ -195,6 +211,8 @@ impl INfts for Nfts {
                         LEFT JOIN attribute_rarities ar ON ar.nft_id = n.id AND ar.collection_id = n.collection_id
                         LEFT JOIN listing_prices lp ON lp.nft_id = n.id AND lp.seller = n.owner
                         LEFT JOIN sales s ON s.nft_id = n.id
+                        LEFT JOIN bid_prices bp ON bp.nft_id = n.id AND bp.bidder != n.owner
+                        LEFT JOIN bid_prices bpa ON bpa.nft_id = n.id AND bpa.bidder = n.owner
                         LEFT JOIN latest_prices ltp ON TRUE
                 )
             SELECT
@@ -224,6 +242,21 @@ impl INfts for Nfts {
             WHERE TRUE
             "#,
         );
+
+        if let Some(type_) = query.type_.as_ref() {
+            match type_ {
+                FilterType::Listed => {
+                    query_builder.push(" AND n.list_nonce IS NOT NULL ");
+                }
+                FilterType::HasOffer => {
+                    query_builder.push(" AND n.bid_nonce IS NOT NULL ");
+                }
+                FilterType::OnAuction => {
+                    query_builder.push(" AND n.auction_nonce IS NOT NULL ");
+                }
+                _ => {}
+            }
+        }
 
         if let Some(nft_id) = query.nft_id.as_ref() {
             query_builder.push(" AND n.id = ");
@@ -318,6 +351,11 @@ impl INfts for Nfts {
             if let Some(order_type) = order.listed_at {
                 order_builder
                     .push_str(format!(" n.listed_at {},", order_type.to_string()).as_str());
+            }
+
+            if let Some(order_type) = order.received_at {
+                order_builder
+                    .push_str(format!(" n.received_at {},", order_type.to_string()).as_str());
             }
 
             let ordering = &order_builder[..(order_builder.len() - 1)];
