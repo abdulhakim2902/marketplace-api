@@ -204,6 +204,7 @@ pub struct FilterCollectionSchema {
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
 pub struct WhereCollectionSchema {
+    pub search: Option<String>,
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
 }

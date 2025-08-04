@@ -258,6 +258,11 @@ impl INfts for Nfts {
             }
         }
 
+        if let Some(search) = query.search.as_ref() {
+            query_builder.push(" AND n.name ILIKE ");
+            query_builder.push_bind(search);
+        }
+
         if let Some(nft_id) = query.nft_id.as_ref() {
             query_builder.push(" AND n.id = ");
             query_builder.push_bind(nft_id);

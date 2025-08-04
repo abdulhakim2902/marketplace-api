@@ -230,6 +230,11 @@ impl ICollections for Collections {
             query_builder.push(")");
         }
 
+        if let Some(search) = query.search.as_ref() {
+            query_builder.push(" AND c.title ILIKE ");
+            query_builder.push_bind(search);
+        }
+
         if let Some(order) = order.as_ref() {
             let mut order_builder = String::new();
             if let Some(order_type) = order.volume {

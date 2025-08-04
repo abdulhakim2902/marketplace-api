@@ -57,6 +57,7 @@ async fn fetch_collection(
 
     let query = WhereCollectionSchema {
         collection_id,
+        search: None,
         wallet_address: None,
     };
 
@@ -84,6 +85,7 @@ async fn fetch_nft(
     let query = WhereNftSchema {
         collection_id,
         nft_id,
+        search: None,
         type_: None,
         wallet_address: None,
         rarity: None,

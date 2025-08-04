@@ -163,6 +163,7 @@ pub struct FilterNftSchema {
 pub struct WhereNftSchema {
     #[graphql(name = "type")]
     pub type_: Option<FilterType>,
+    pub search: Option<String>,
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
