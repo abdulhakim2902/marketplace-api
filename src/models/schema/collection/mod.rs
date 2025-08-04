@@ -15,7 +15,7 @@ use sqlx::prelude::FromRow;
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{
-        OrderingType, fetch_collection_past_floor, fetch_collection_sale,
+        OrderingType, fetch_collection_past_floor, fetch_collection_rarity, fetch_collection_sale,
         fetch_collection_top_offer, fetch_total_collection_offer, fetch_total_collection_trait,
         fetch_total_nft,
     },
@@ -98,6 +98,14 @@ impl CollectionSchema {
         self.royalty.as_ref().map(|e| e.to_plain_string())
     }
 
+    #[graphql(name = "market_cap")]
+    async fn market_cap(&self) -> Option<String> {
+        self.supply
+            .zip(self.floor)
+            .map(|(supply, floor)| BigDecimal::from(supply * floor) / APT_DECIMAL)
+            .map(|value| value.to_plain_string())
+    }
+
     #[graphql(name = "volume")]
     async fn total_volume(&self) -> Option<String> {
         self.total_volume
@@ -113,6 +121,11 @@ impl CollectionSchema {
     #[graphql(name = "owners")]
     async fn total_owner(&self) -> Option<i64> {
         self.total_owner
+    }
+
+    #[graphql(name = "rarity")]
+    async fn collection_rarity(&self, ctx: &Context<'_>) -> Option<String> {
+        fetch_collection_rarity(ctx, self.id.clone()).await
     }
 
     #[graphql(name = "total_nft")]

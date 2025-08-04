@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::models::{
     db::nft::{DbNft, DbNftUri},
-    schema::nft::{NftSchema, WhereNftSchema},
+    schema::nft::{NftSchema, OrderNftSchema, WhereNftSchema},
 };
 use anyhow::Context;
 use chrono::Utc;
@@ -19,6 +19,7 @@ pub trait INfts: Send + Sync {
     async fn fetch_nfts(
         &self,
         query: &WhereNftSchema,
+        order: Option<OrderNftSchema>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>>;
@@ -110,11 +111,11 @@ impl INfts for Nfts {
     async fn fetch_nfts(
         &self,
         query: &WhereNftSchema,
+        order: Option<OrderNftSchema>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>> {
-        let res = sqlx::query_as!(
-            NftSchema,
+        let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             WITH
                 latest_prices AS (
@@ -123,9 +124,9 @@ impl INfts for Nfts {
                     ORDER BY tp.token_address, tp.created_at DESC
                 ),
                 listing_prices AS (
-                    SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time
+                    SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time, l.seller
                     FROM listings l
-                    WHERE l.listed
+                    WHERE l.listed 
                     ORDER BY l.nft_id, l.price ASC
                 ),
                 sales AS (
@@ -136,12 +137,23 @@ impl INfts for Nfts {
                     FROM activities a
                     WHERE a.tx_type = 'buy'
                     ORDER BY a.nft_id, a.block_time DESC
+                ),
+                attribute_rarities AS (
+                    SELECT
+                        a.collection_id,
+                        a.nft_id,
+                        SUM(ar.score)            AS score
+                    FROM attributes a
+                        LEFT JOIN attribute_rarities ar ON a.collection_id = ar.collection_id
+                                                                AND a.attr_type = ar.type
+                                                                AND a.value = ar.value
+                    GROUP BY a.collection_id, a.nft_id
                 )
             SELECT 
                 id,
                 name,
                 owner,
-                collection_id,
+                n.collection_id,
                 burned,
                 properties,
                 description,
@@ -157,27 +169,80 @@ impl INfts for Nfts {
                     THEN lp.block_time
                     ELSE NULL
                 END                     AS listed_at,
-                s.price                 AS last_sale
+                s.price                 AS last_sale,
+                ar.score,
+                CASE
+		            WHEN ar.score IS NOT NULL
+		            THEN RANK () OVER (
+		                PARTITION BY n.collection_id
+		                ORDER BY ar.score DESC
+                    )
+                    END                 AS rank
             FROM nfts n
-	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id
+                LEFT JOIN attribute_rarities ar ON ar.nft_id = n.id AND ar.collection_id = n.collection_id
+	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id AND lp.seller = n.owner
 	            LEFT JOIN sales s ON s.nft_id = n.id
                 LEFT JOIN latest_prices ltp ON TRUE
-            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR n.id = $1) 
-                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR n.collection_id = $2) 
-                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR n.owner = $3) 
-                AND (n.burned IS NULL OR NOT n.burned)
-            ORDER BY lp.price
-            LIMIT $4 OFFSET $5
+            WHERE TRUE
             "#,
-            query.nft_id,
-            query.collection_id,
-            query.wallet_address,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch nfts")?;
+        );
+
+        if let Some(nft_id) = query.nft_id.as_ref() {
+            query_builder.push(" AND n.id = ");
+            query_builder.push_bind(nft_id);
+        }
+
+        if let Some(collection_id) = query.collection_id.as_ref() {
+            query_builder.push(" AND n.collection_id = ");
+            query_builder.push_bind(collection_id);
+        }
+
+        if let Some(wallet_address) = query.wallet_address.as_ref() {
+            query_builder.push(" AND n.owner = ");
+            query_builder.push_bind(wallet_address);
+        }
+
+        if let Some(burned) = query.burned {
+            if burned {
+                query_builder.push(" AND n.burned");
+            } else {
+                query_builder.push(" AND NOT n.burned");
+            }
+        }
+
+        if let Some(order) = order.as_ref() {
+            let mut order_builder = String::new();
+            if let Some(order_type) = order.price {
+                order_builder.push_str(format!(" lp.price {},", order_type.to_string()).as_str());
+            }
+
+            if let Some(order_type) = order.rarity {
+                order_builder.push_str(format!(" ar.score {},", order_type.to_string()).as_str());
+            }
+
+            if let Some(order_type) = order.listed_at {
+                order_builder
+                    .push_str(format!(" lp.block_time {},", order_type.to_string()).as_str());
+            }
+
+            let ordering = &order_builder[..(order_builder.len() - 1)];
+            if ordering.trim().is_empty() {
+                query_builder.push(" ORDER BY lp.price DESC ");
+            } else {
+                query_builder.push(format!(" ORDER BY {}", ordering.to_lowercase().trim()));
+            }
+        }
+
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset);
+
+        let res = query_builder
+            .build_query_as::<NftSchema>()
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch nfts")?;
 
         Ok(res)
     }

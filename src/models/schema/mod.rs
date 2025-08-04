@@ -69,11 +69,12 @@ async fn fetch_nft(
         collection_id,
         nft_id,
         wallet_address: None,
+        burned: None,
         attribute: None,
     };
 
     db.nfts()
-        .fetch_nfts(&query, 1, 0)
+        .fetch_nfts(&query, None, 1, 0)
         .await
         .unwrap_or_default()
         .first()
@@ -202,31 +203,6 @@ async fn fetch_collection_sale(
     db.activities().fetch_sale(collection_id, i).await.ok()
 }
 
-async fn fetch_nft_rarity_score(
-    ctx: &Context<'_>,
-    nft_id: &str,
-    collection_id: Option<String>,
-) -> Option<String> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    let collection_id = collection_id.as_ref().unwrap();
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    let res = db
-        .attributes()
-        .nft_rarity_scores(collection_id, nft_id)
-        .await;
-    if res.is_err() {
-        return None;
-    }
-
-    res.unwrap().map(|e| e.to_plain_string())
-}
-
 async fn fetch_total_nft(
     ctx: &Context<'_>,
     collection_id: Option<String>,
@@ -252,6 +228,28 @@ async fn fetch_total_nft(
         .fetch_total_nft(&wallet_address, collection_id)
         .await
         .ok()
+}
+
+async fn fetch_collection_rarity(
+    ctx: &Context<'_>,
+    collection_id: Option<String>,
+) -> Option<String> {
+    if collection_id.is_none() {
+        return None;
+    }
+
+    let collection_id = collection_id.as_ref().unwrap();
+
+    let db = ctx
+        .data::<Arc<Database>>()
+        .expect("Missing database in the context");
+
+    let res = db.attributes().collection_rarity(collection_id).await;
+    if res.is_err() {
+        return None;
+    }
+
+    res.unwrap().map(|e| e.to_plain_string())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]

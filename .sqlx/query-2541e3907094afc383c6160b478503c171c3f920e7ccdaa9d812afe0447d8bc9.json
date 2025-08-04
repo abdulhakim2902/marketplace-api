@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT AVG(ar.rarity) \n            FROM attribute_rarities ar\n            WHERE ar.collection_id = $1\n            GROUP BY ar.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "avg",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2541e3907094afc383c6160b478503c171c3f920e7ccdaa9d812afe0447d8bc9"
+}

@@ -84,12 +84,13 @@ impl Query {
 
         let filter = filter.unwrap_or_default();
         let query = filter.where_.unwrap_or_default();
+        let order_by = filter.order_by;
 
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
         db.collections()
-            .fetch_collections(&query, filter.order_by, limit, offset)
+            .fetch_collections(&query, order_by, limit, offset)
             .await
             .expect("Failed to fetch collections")
     }
@@ -101,12 +102,13 @@ impl Query {
 
         let filter = filter.unwrap_or_default();
         let query = filter.where_.unwrap_or_default();
+        let order_by = filter.order_by;
 
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
         db.nfts()
-            .fetch_nfts(&query, limit, offset)
+            .fetch_nfts(&query, order_by, limit, offset)
             .await
             .expect("Failed to fetch nfts")
     }

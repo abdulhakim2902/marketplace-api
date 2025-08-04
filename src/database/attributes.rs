@@ -15,11 +15,7 @@ pub trait IAttributes: Send + Sync {
 
     async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<AttributeSchema>>;
 
-    async fn nft_rarity_scores(
-        &self,
-        collection_id: &str,
-        nft_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>>;
+    async fn collection_rarity(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
 
     async fn total_collection_trait(&self, collection_id: &str) -> anyhow::Result<i64>;
 
@@ -123,46 +119,19 @@ impl IAttributes for Attributes {
         Ok(res)
     }
 
-    async fn nft_rarity_scores(
-        &self,
-        collection_id: &str,
-        nft_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>> {
+    async fn collection_rarity(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
         let res = sqlx::query_scalar!(
             r#"
-            WITH
-                collection_nfts AS (
-                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts
-                    WHERE nfts.collection_id = $1
-                    GROUP BY nfts.collection_id
-                ),
-                collection_attributes AS (
-                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr
-                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
-                    WHERE atr.collection_id = $1
-                    GROUP by atr.collection_id, atr.attr_type, atr.value
-                ),
-                collection_rarities AS (
-                    SELECT
-                        ca.collection_id,
-                        ca.attr_type, 
-                        ca.value, 
-                        (ca.count / cn.count)           AS rarity,
-                        -log(2, ca.count / cn.count)    AS score
-                    FROM collection_attributes ca
-                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id
-                )
-            SELECT SUM(cr.score) FROM attributes attr
-                JOIN collection_rarities cr ON cr.collection_id = attr.collection_id AND cr.attr_type = attr.attr_type AND cr.value = attr.value
-            WHERE attr.collection_id = $1 AND attr.nft_id = $2
-            GROUP BY attr.collection_id, attr.nft_id 
+            SELECT AVG(ar.rarity) 
+            FROM attribute_rarities ar
+            WHERE ar.collection_id = $1
+            GROUP BY ar.collection_id
             "#,
             collection_id,
-            nft_id,
         )
         .fetch_one(&*self.pool)
         .await
-        .context("Failed to calculate nft_rarity_scores")?;
+        .context("Failed to calculate collection rarity")?;
 
         Ok(res)
     }

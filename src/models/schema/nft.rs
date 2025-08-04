@@ -2,15 +2,14 @@ use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 
 use crate::models::{
     marketplace::APT_DECIMAL,
-    schema::{
-        collection::CollectionSchema, fetch_collection, fetch_nft_rarity_score, fetch_nft_top_offer,
-    },
+    schema::{OrderingType, collection::CollectionSchema, fetch_collection, fetch_nft_top_offer},
 };
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, FromRow)]
 pub struct NftSchema {
     pub id: String,
     pub name: Option<String>,
@@ -23,6 +22,8 @@ pub struct NftSchema {
     pub image_url: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
+    pub rank: Option<i64>,
+    pub score: Option<BigDecimal>,
     pub updated_at: Option<DateTime<Utc>>,
     pub last_sale: Option<i64>,
     pub listed_at: Option<DateTime<Utc>>,
@@ -105,8 +106,13 @@ impl NftSchema {
     }
 
     #[graphql(name = "rarity_score")]
-    async fn rarity_score(&self, ctx: &Context<'_>) -> Option<String> {
-        fetch_nft_rarity_score(ctx, &self.id, self.collection_id.clone()).await
+    async fn score(&self) -> Option<String> {
+        self.score.as_ref().map(|e| e.to_plain_string())
+    }
+
+    #[graphql(name = "rank")]
+    async fn rank(&self) -> Option<i64> {
+        self.rank
     }
 
     #[graphql(name = "top_offer")]
@@ -123,6 +129,8 @@ impl NftSchema {
 pub struct FilterNftSchema {
     #[graphql(name = "where")]
     pub where_: Option<WhereNftSchema>,
+    #[graphql(name = "order_by")]
+    pub order_by: Option<OrderNftSchema>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -133,6 +141,7 @@ pub struct WhereNftSchema {
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
+    pub burned: Option<bool>,
     pub attribute: Option<WhereNftAttributeSchema>,
 }
 
@@ -142,4 +151,12 @@ pub struct WhereNftAttributeSchema {
     #[graphql(name = "type")]
     pub type_: String,
     pub value: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct OrderNftSchema {
+    pub price: Option<OrderingType>,
+    pub rarity: Option<OrderingType>,
+    pub listed_at: Option<OrderingType>,
 }
