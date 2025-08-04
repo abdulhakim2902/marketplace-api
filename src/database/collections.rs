@@ -12,7 +12,7 @@ use crate::{
         db::collection::DbCollection,
         schema::{
             collection::{
-                CollectionSchema, WhereCollectionSchema,
+                CollectionSchema, OrderCollectionSchema, WhereCollectionSchema,
                 attribute::AttributeSchema,
                 nft_change::{NftChangeSchema, WhereNftChangeSchema},
                 nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
@@ -39,6 +39,7 @@ pub trait ICollections: Send + Sync {
     async fn fetch_collections(
         &self,
         query: &WhereCollectionSchema,
+        order_by: Option<OrderCollectionSchema>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
@@ -181,11 +182,11 @@ impl ICollections for Collections {
     async fn fetch_collections(
         &self,
         query: &WhereCollectionSchema,
+        order: Option<OrderCollectionSchema>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>> {
-        let res = sqlx::query_as!(
-            CollectionSchema,
+        let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             SELECT
                 c.id,
@@ -208,22 +209,74 @@ impl ICollections for Collections {
                 LEFT JOIN collection_sales cs ON cs.collection_id = c.id
                 LEFT JOIN collection_listings cl ON cl.collection_id = c.id
                 LEFT JOIN collection_owners co ON co.collection_id = c.id
-            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR c.id = $1::TEXT)
-                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR c.id IN (
-                    SELECT DISTINCT n.collection_id FROM nfts n
-                    WHERE n.owner = $2
-                ))
-            ORDER BY cs.volumes DESC
-            LIMIT $3 OFFSET $4
+            WHERE TRUE
             "#,
-            query.collection_id,
-            query.wallet_address,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collections")?;
+        );
+
+        if let Some(collection_id) = query.collection_id.as_ref() {
+            query_builder.push(" AND c.id = ");
+            query_builder.push_bind(collection_id);
+        }
+
+        if let Some(wallet_address) = query.wallet_address.as_ref() {
+            query_builder.push(
+                r#"
+                AND c.id IN (
+                    SELECT DISTINCT n.collection_id FROM nfts n
+                    WHERE n.owner = 
+                "#,
+            );
+            query_builder.push_bind(wallet_address);
+            query_builder.push(")");
+        }
+
+        if let Some(order) = order.as_ref() {
+            let mut order_builder = String::new();
+            if let Some(order_type) = order.volume {
+                order_builder.push_str(format!(" cs.volumes {},", order_type.to_string()).as_str());
+            }
+
+            if let Some(order_type) = order.floor {
+                order_builder
+                    .push_str(format!(" cl.floor_price {}", order_type.to_string()).as_str());
+            }
+
+            if let Some(order_type) = order.owners {
+                order_builder.push_str(format!(" co.owners {},", order_type.to_string()).as_str());
+            }
+
+            if let Some(order_type) = order.market_cap {
+                order_builder.push_str(
+                    format!(" cl.floor_price * c.supply {},", order_type.to_string()).as_str(),
+                );
+            }
+
+            if let Some(order_type) = order.sales {
+                order_builder.push_str(format!(" cs.sales {},", order_type.to_string()).as_str());
+            }
+
+            if let Some(order_type) = order.listed {
+                order_builder.push_str(format!(" cl.listed {},", order_type.to_string()).as_str());
+            }
+
+            let ordering = &order_builder[..(order_builder.len() - 1)];
+            if ordering.trim().is_empty() {
+                query_builder.push("ORDER BY cs.volume DESC ");
+            } else {
+                query_builder.push(format!("ORDER BY {}", ordering.to_lowercase().trim()));
+            }
+        }
+
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset);
+
+        let res = query_builder
+            .build_query_as::<CollectionSchema>()
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch collections")?;
 
         Ok(res)
     }

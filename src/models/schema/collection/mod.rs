@@ -182,7 +182,8 @@ impl CollectionSaleSchema {
 pub struct FilterCollectionSchema {
     #[graphql(name = "where")]
     pub where_: Option<WhereCollectionSchema>,
-    pub order: Option<OrderCollectionSchema>,
+    #[graphql(name = "order_by")]
+    pub order_by: Option<OrderCollectionSchema>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_graphql::{Context, Enum};
 use serde::{Deserialize, Serialize};
+use strum::{Display, EnumString};
 
 use crate::{
     database::{
@@ -44,7 +45,7 @@ async fn fetch_collection(
     };
 
     db.collections()
-        .fetch_collections(&query, 1, 0)
+        .fetch_collections(&query, None, 1, 0)
         .await
         .unwrap_or_default()
         .first()
@@ -253,7 +254,9 @@ async fn fetch_total_nft(
         .ok()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 #[graphql(rename_items = "snake_case")]
 pub enum OrderingType {
     ASC,

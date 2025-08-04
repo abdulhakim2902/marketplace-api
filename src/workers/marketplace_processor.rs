@@ -100,7 +100,7 @@ where
                 &self.config.stream_config.indexer_grpc,
             )?,
             starting_version: Some(starting_version as u64),
-            request_ending_version: Some(9805408995),
+            request_ending_version: None,
             auth_token: self.config.stream_config.auth_token.clone(),
             request_name_header: "marketplace-event-processor".to_string(),
             additional_headers: Default::default(),

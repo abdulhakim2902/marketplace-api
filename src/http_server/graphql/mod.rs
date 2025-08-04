@@ -89,7 +89,7 @@ impl Query {
         let offset = filter.offset.unwrap_or(0);
 
         db.collections()
-            .fetch_collections(&query, limit, offset)
+            .fetch_collections(&query, filter.order_by, limit, offset)
             .await
             .expect("Failed to fetch collections")
     }
