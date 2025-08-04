@@ -425,11 +425,11 @@ impl ICollections for Collections {
             AttributeSchema,
             r#"
             SELECT 
-                a.attr_type, 
-                jsonb_agg(DISTINCT a.value) AS values 
-            FROM attributes a
-            WHERE a.collection_id = $1
-            GROUP BY a.collection_id, a.attr_type
+                ar.type                      AS attr_type, 
+                jsonb_agg(DISTINCT ar.value) AS values 
+            FROM attribute_rarities ar
+            WHERE ar.collection_id = $1
+            GROUP BY ar.collection_id, ar.type
             "#,
             collection_id,
         )

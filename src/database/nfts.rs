@@ -192,7 +192,26 @@ impl INfts for Nfts {
                         LEFT JOIN sales s ON s.nft_id = n.id
                         LEFT JOIN latest_prices ltp ON TRUE
                 )
-            SELECT * FROM nfts n
+            SELECT
+                n.id,
+                n.name,
+                n.owner,
+                n.collection_id,
+                n.burned,
+                n.properties,
+                n.description,
+                n.uri,
+                n.image_url,
+                n.royalty,
+                n.version,
+                n.updated_at,
+                n.list_price,
+                n.list_usd_price,
+                n.listed_at,
+                n.last_sale,
+                n.score,
+                n.rank
+            FROM nfts n
             WHERE TRUE
             "#,
         );
@@ -230,9 +249,10 @@ impl INfts for Nfts {
             }
         }
 
-        if let Some(contract_id) = query.market_contract_id.as_ref() {
-            query_builder.push(" AND n.market_contract_id = ");
-            query_builder.push_bind(contract_id);
+        if let Some(contract_ids) = query.market_contract_ids.as_ref() {
+            query_builder.push(" AND n.market_contract_id = ANY(");
+            query_builder.push_bind(contract_ids);
+            query_builder.push(")");
         }
 
         if let Some(price) = query.price.as_ref() {
@@ -255,6 +275,23 @@ impl INfts for Nfts {
                         query_builder.push_bind(max);
                     }
                 }
+            }
+        }
+
+        if let Some(attributes) = query.attributes.as_ref() {
+            for attribute in attributes {
+                query_builder.push(" AND n.id IN (SELECT a.nft_id FROM attributes a WHERE TRUE");
+
+                if let Some(collection_id) = query.collection_id.as_ref() {
+                    query_builder.push(" AND a.collection_id = ");
+                    query_builder.push_bind(collection_id);
+                }
+
+                query_builder.push(" AND a.attr_type = ");
+                query_builder.push_bind(attribute.type_.as_str());
+                query_builder.push(" AND a.value = ANY(");
+                query_builder.push_bind(attribute.values.as_slice());
+                query_builder.push("))");
             }
         }
 

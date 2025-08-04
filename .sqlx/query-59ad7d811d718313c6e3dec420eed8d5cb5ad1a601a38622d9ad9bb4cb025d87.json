@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT \n                a.attr_type, \n                jsonb_agg(DISTINCT a.value) AS values \n            FROM attributes a\n            WHERE a.collection_id = $1\n            GROUP BY a.collection_id, a.attr_type\n            ",
+  "query": "\n            SELECT \n                ar.type                      AS attr_type, \n                jsonb_agg(DISTINCT ar.value) AS values \n            FROM attribute_rarities ar\n            WHERE ar.collection_id = $1\n            GROUP BY ar.collection_id, ar.type\n            ",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       null
     ]
   },
-  "hash": "8f9da285390d5fba1545c592646a33cb0d06ba24d661079904ce54f61d777dae"
+  "hash": "59ad7d811d718313c6e3dec420eed8d5cb5ad1a601a38622d9ad9bb4cb025d87"
 }

@@ -87,8 +87,8 @@ async fn fetch_nft(
         wallet_address: None,
         rarity: None,
         burned: None,
-        attribute: None,
-        market_contract_id: None,
+        attributes: None,
+        market_contract_ids: None,
         price: None,
     };
 

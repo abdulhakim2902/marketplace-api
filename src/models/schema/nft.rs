@@ -19,8 +19,6 @@ pub struct NftSchema {
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
     pub uri: Option<String>,
-    pub market_name: Option<String>,
-    pub market_contract_id: Option<String>,
     pub image_url: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
@@ -145,9 +143,9 @@ pub struct WhereNftSchema {
     pub nft_id: Option<String>,
     pub burned: Option<bool>,
     pub rarity: Option<WhereNftRankSchema>,
-    pub market_contract_id: Option<String>,
+    pub market_contract_ids: Option<Vec<String>>,
     pub price: Option<WhereNftPriceSchema>,
-    pub attribute: Option<WhereNftAttributeSchema>,
+    pub attributes: Option<Vec<WhereNftAttributeSchema>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
@@ -155,7 +153,7 @@ pub struct WhereNftSchema {
 pub struct WhereNftAttributeSchema {
     #[graphql(name = "type")]
     pub type_: String,
-    pub value: String,
+    pub values: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
