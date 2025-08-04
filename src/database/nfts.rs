@@ -157,27 +157,31 @@ impl INfts for Nfts {
                 nfts AS (
                     SELECT 
                         id,
-                        name,
+                        COALESCE(n.name, nm.name)                   AS name,
                         owner,
                         n.collection_id,
                         burned,
-                        properties,
-                        description,
-                        uri,
-                        image_url,
+                        n.properties,
+                        COALESCE(n.description, nm.description)     AS description,
+                        COALESCE(nm.image, n.uri)                   AS image_url,
+                        nm.animation_url,
+                        nm.avatar_url,
+                        nm.youtube_url,
+                        nm.external_url,
+                        nm.background_color,
                         royalty,
                         version,
                         updated_at,
-                        lp.price                AS list_price,
-                        lp.price * ltp.price    AS list_usd_price,
+                        lp.price                                    AS list_price,
+                        lp.price * ltp.price                        AS list_usd_price,
                         lp.market_name,
                         lp.market_contract_id,
                         CASE
                         WHEN lp.block_time IS NOT NULL
                             THEN lp.block_time
                             ELSE NULL
-                        END                     AS listed_at,
-                        s.price                 AS last_sale,
+                        END                                         AS listed_at,
+                        s.price                                     AS last_sale,
                         ar.score,
                         CASE
                             WHEN ar.score IS NOT NULL
@@ -185,8 +189,9 @@ impl INfts for Nfts {
                                 PARTITION BY n.collection_id
                                 ORDER BY ar.score DESC
                             )
-                            END                 AS rank
+                            END                                     AS rank
                     FROM nfts n
+                        LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
                         LEFT JOIN attribute_rarities ar ON ar.nft_id = n.id AND ar.collection_id = n.collection_id
                         LEFT JOIN listing_prices lp ON lp.nft_id = n.id AND lp.seller = n.owner
                         LEFT JOIN sales s ON s.nft_id = n.id
@@ -200,7 +205,6 @@ impl INfts for Nfts {
                 n.burned,
                 n.properties,
                 n.description,
-                n.uri,
                 n.image_url,
                 n.royalty,
                 n.version,
@@ -210,7 +214,12 @@ impl INfts for Nfts {
                 n.listed_at,
                 n.last_sale,
                 n.score,
-                n.rank
+                n.rank,
+                n.animation_url,
+                n.avatar_url,
+                n.youtube_url,
+                n.external_url,
+                n.background_color
             FROM nfts n
             WHERE TRUE
             "#,

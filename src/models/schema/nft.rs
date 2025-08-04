@@ -18,8 +18,12 @@ pub struct NftSchema {
     pub burned: Option<bool>,
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
-    pub uri: Option<String>,
     pub image_url: Option<String>,
+    pub animation_url: Option<String>,
+    pub avatar_url: Option<String>,
+    pub external_url: Option<String>,
+    pub youtube_url: Option<String>,
+    pub background_color: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
     pub rank: Option<i64>,
@@ -56,11 +60,6 @@ impl NftSchema {
 
     async fn description(&self) -> Option<&str> {
         self.description.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "uri")]
-    async fn uri(&self) -> Option<&str> {
-        self.uri.as_ref().map(|e| e.as_str())
     }
 
     #[graphql(name = "image_url")]
@@ -115,6 +114,30 @@ impl NftSchema {
         self.rank
     }
 
+    #[graphql(name = "animation_url")]
+    async fn animation_url(&self) -> Option<&str> {
+        self.animation_url.as_ref().map(|e| e.as_str())
+    }
+
+    #[graphql(name = "avatar_url")]
+    async fn avatar_url(&self) -> Option<&str> {
+        self.avatar_url.as_ref().map(|e| e.as_str())
+    }
+
+    #[graphql(name = "youtube_url")]
+    async fn youtube_url(&self) -> Option<&str> {
+        self.youtube_url.as_ref().map(|e| e.as_str())
+    }
+
+    #[graphql(name = "external_url")]
+    async fn external_url(&self) -> Option<&str> {
+        self.external_url.as_ref().map(|e| e.as_str())
+    }
+
+    #[graphql(name = "background_color")]
+    async fn background_color(&self) -> Option<&str> {
+        self.background_color.as_ref().map(|e| e.as_str())
+    }
     #[graphql(name = "top_offer")]
     async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
         fetch_nft_top_offer(ctx, &self.id).await
