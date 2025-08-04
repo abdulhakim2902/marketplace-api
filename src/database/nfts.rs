@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::models::{
     db::nft::{DbNft, DbNftUri},
-    schema::nft::{NftSchema, OrderNftSchema, WhereNftSchema},
+    schema::nft::{CoinType, NftSchema, OrderNftSchema, WhereNftSchema},
 };
 use anyhow::Context;
 use chrono::Utc;
@@ -124,10 +124,15 @@ impl INfts for Nfts {
                     ORDER BY tp.token_address, tp.created_at DESC
                 ),
                 listing_prices AS (
-                    SELECT DISTINCT ON (l.nft_id) l.nft_id, l.price, l.block_time, l.seller
+                    SELECT 
+                        l.nft_id,
+                        l.price,
+                        l.block_time,
+                        l.seller,
+                        l.market_name,
+                        l.market_contract_id
                     FROM listings l
-                    WHERE l.listed 
-                    ORDER BY l.nft_id, l.price ASC
+                    WHERE l.listed
                 ),
                 sales AS (
                     SELECT DISTINCT ON (a.nft_id) 
@@ -148,41 +153,46 @@ impl INfts for Nfts {
                                                                 AND a.attr_type = ar.type
                                                                 AND a.value = ar.value
                     GROUP BY a.collection_id, a.nft_id
+                ),
+                nfts AS (
+                    SELECT 
+                        id,
+                        name,
+                        owner,
+                        n.collection_id,
+                        burned,
+                        properties,
+                        description,
+                        uri,
+                        image_url,
+                        royalty,
+                        version,
+                        updated_at,
+                        lp.price                AS list_price,
+                        lp.price * ltp.price    AS list_usd_price,
+                        lp.market_name,
+                        lp.market_contract_id,
+                        CASE
+                        WHEN lp.block_time IS NOT NULL
+                            THEN lp.block_time
+                            ELSE NULL
+                        END                     AS listed_at,
+                        s.price                 AS last_sale,
+                        ar.score,
+                        CASE
+                            WHEN ar.score IS NOT NULL
+                            THEN RANK () OVER (
+                                PARTITION BY n.collection_id
+                                ORDER BY ar.score DESC
+                            )
+                            END                 AS rank
+                    FROM nfts n
+                        LEFT JOIN attribute_rarities ar ON ar.nft_id = n.id AND ar.collection_id = n.collection_id
+                        LEFT JOIN listing_prices lp ON lp.nft_id = n.id AND lp.seller = n.owner
+                        LEFT JOIN sales s ON s.nft_id = n.id
+                        LEFT JOIN latest_prices ltp ON TRUE
                 )
-            SELECT 
-                id,
-                name,
-                owner,
-                n.collection_id,
-                burned,
-                properties,
-                description,
-                uri,
-                image_url,
-                royalty,
-                version,
-                updated_at,
-                lp.price                AS list_price,
-                lp.price * ltp.price    AS list_usd_price,
-                CASE
-                WHEN lp.block_time IS NOT NULL
-                    THEN lp.block_time
-                    ELSE NULL
-                END                     AS listed_at,
-                s.price                 AS last_sale,
-                ar.score,
-                CASE
-		            WHEN ar.score IS NOT NULL
-		            THEN RANK () OVER (
-		                PARTITION BY n.collection_id
-		                ORDER BY ar.score DESC
-                    )
-                    END                 AS rank
-            FROM nfts n
-                LEFT JOIN attribute_rarities ar ON ar.nft_id = n.id AND ar.collection_id = n.collection_id
-	            LEFT JOIN listing_prices lp ON lp.nft_id = n.id AND lp.seller = n.owner
-	            LEFT JOIN sales s ON s.nft_id = n.id
-                LEFT JOIN latest_prices ltp ON TRUE
+            SELECT * FROM nfts n
             WHERE TRUE
             "#,
         );
@@ -210,24 +220,63 @@ impl INfts for Nfts {
             }
         }
 
+        if let Some(rank) = query.rarity.as_ref() {
+            query_builder.push(" AND n.rank >= ");
+            query_builder.push(rank.min);
+
+            if let Some(max) = rank.max {
+                query_builder.push(" AND n.rank <= ");
+                query_builder.push(max);
+            }
+        }
+
+        if let Some(contract_id) = query.market_contract_id.as_ref() {
+            query_builder.push(" AND n.market_contract_id = ");
+            query_builder.push_bind(contract_id);
+        }
+
+        if let Some(price) = query.price.as_ref() {
+            match price.type_ {
+                CoinType::APT => {
+                    query_builder.push(" AND n.list_price >= ");
+                    query_builder.push_bind(&price.range.min);
+
+                    if let Some(max) = price.range.max.as_ref() {
+                        query_builder.push(" AND n.list_price <= ");
+                        query_builder.push_bind(max);
+                    }
+                }
+                CoinType::USD => {
+                    query_builder.push(" AND n.list_usd_price >= ");
+                    query_builder.push_bind(&price.range.min);
+
+                    if let Some(max) = price.range.max.as_ref() {
+                        query_builder.push(" AND n.list_usd_price <= ");
+                        query_builder.push_bind(max);
+                    }
+                }
+            }
+        }
+
         if let Some(order) = order.as_ref() {
             let mut order_builder = String::new();
             if let Some(order_type) = order.price {
-                order_builder.push_str(format!(" lp.price {},", order_type.to_string()).as_str());
+                order_builder
+                    .push_str(format!(" n.list_price {},", order_type.to_string()).as_str());
             }
 
             if let Some(order_type) = order.rarity {
-                order_builder.push_str(format!(" ar.score {},", order_type.to_string()).as_str());
+                order_builder.push_str(format!(" n.score {},", order_type.to_string()).as_str());
             }
 
             if let Some(order_type) = order.listed_at {
                 order_builder
-                    .push_str(format!(" lp.block_time {},", order_type.to_string()).as_str());
+                    .push_str(format!(" n.listed_at {},", order_type.to_string()).as_str());
             }
 
             let ordering = &order_builder[..(order_builder.len() - 1)];
             if ordering.trim().is_empty() {
-                query_builder.push(" ORDER BY lp.price DESC ");
+                query_builder.push(" ORDER BY n.list_price DESC ");
             } else {
                 query_builder.push(format!(" ORDER BY {}", ordering.to_lowercase().trim()));
             }

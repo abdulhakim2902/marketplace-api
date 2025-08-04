@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT SUM(ar.score) \n            FROM attribute_rarities ar\n            WHERE ar.collection_id = $1\n            GROUP BY ar.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sum",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "63cc5b665503d5f868f3eaebf103a14973fb8e165dd3bf4ff1f0b7c410eec6f3"
+}

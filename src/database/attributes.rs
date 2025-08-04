@@ -15,7 +15,7 @@ pub trait IAttributes: Send + Sync {
 
     async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<AttributeSchema>>;
 
-    async fn collection_rarity(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
+    async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
 
     async fn total_collection_trait(&self, collection_id: &str) -> anyhow::Result<i64>;
 
@@ -119,10 +119,10 @@ impl IAttributes for Attributes {
         Ok(res)
     }
 
-    async fn collection_rarity(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+    async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
         let res = sqlx::query_scalar!(
             r#"
-            SELECT AVG(ar.rarity) 
+            SELECT SUM(ar.score) 
             FROM attribute_rarities ar
             WHERE ar.collection_id = $1
             GROUP BY ar.collection_id

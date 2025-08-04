@@ -1,4 +1,4 @@
-use async_graphql::{Context, InputObject};
+use async_graphql::{Context, Enum, InputObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,8 @@ pub struct NftSchema {
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
     pub uri: Option<String>,
+    pub market_name: Option<String>,
+    pub market_contract_id: Option<String>,
     pub image_url: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
@@ -142,6 +144,9 @@ pub struct WhereNftSchema {
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
     pub burned: Option<bool>,
+    pub rarity: Option<WhereNftRankSchema>,
+    pub market_contract_id: Option<String>,
+    pub price: Option<WhereNftPriceSchema>,
     pub attribute: Option<WhereNftAttributeSchema>,
 }
 
@@ -155,8 +160,43 @@ pub struct WhereNftAttributeSchema {
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
+pub struct WhereNftRankSchema {
+    pub min: i64,
+    pub max: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereNftPriceSchema {
+    #[graphql(name = "type")]
+    pub type_: CoinType,
+    pub range: WhereNftPriceRangeSchema,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereNftPriceRangeSchema {
+    pub min: BigDecimal,
+    pub max: Option<BigDecimal>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct OrderNftSchema {
     pub price: Option<OrderingType>,
     pub rarity: Option<OrderingType>,
     pub listed_at: Option<OrderingType>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
+#[graphql(rename_items = "snake_case")]
+pub enum CoinType {
+    APT,
+    USD,
+}
+
+impl Default for CoinType {
+    fn default() -> Self {
+        Self::APT
+    }
 }

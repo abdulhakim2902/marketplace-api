@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use async_graphql::{Context, Enum};
+use bigdecimal::{BigDecimal, One};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
@@ -26,6 +27,21 @@ pub mod nft;
 pub mod offer;
 pub mod profit_loss_activity;
 pub mod wallet;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(rename_items = "snake_case")]
+pub enum OrderingType {
+    ASC,
+    DESC,
+}
+
+impl Default for OrderingType {
+    fn default() -> Self {
+        Self::DESC
+    }
+}
 
 async fn fetch_collection(
     ctx: &Context<'_>,
@@ -69,8 +85,11 @@ async fn fetch_nft(
         collection_id,
         nft_id,
         wallet_address: None,
+        rarity: None,
         burned: None,
         attribute: None,
+        market_contract_id: None,
+        price: None,
     };
 
     db.nfts()
@@ -244,25 +263,11 @@ async fn fetch_collection_rarity(
         .data::<Arc<Database>>()
         .expect("Missing database in the context");
 
-    let res = db.attributes().collection_rarity(collection_id).await;
+    let res = db.attributes().collection_score(collection_id).await;
     if res.is_err() {
         return None;
     }
 
-    res.unwrap().map(|e| e.to_plain_string())
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-#[graphql(rename_items = "snake_case")]
-pub enum OrderingType {
-    ASC,
-    DESC,
-}
-
-impl Default for OrderingType {
-    fn default() -> Self {
-        Self::DESC
-    }
+    res.unwrap()
+        .map(|e| (BigDecimal::one() / e).to_plain_string())
 }

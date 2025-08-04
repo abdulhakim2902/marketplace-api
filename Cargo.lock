@@ -294,6 +294,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "base64 0.22.1",
+ "bigdecimal",
  "bytes",
  "chrono",
  "fast_chemail",
