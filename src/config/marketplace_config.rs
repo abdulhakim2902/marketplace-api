@@ -18,6 +18,7 @@ pub type ResourceRemappingConfig = HashMap<String, ResourceRemapping>;
 pub struct NFTMarketplaceConfig {
     pub name: String,
     pub starting_version: i64,
+    pub ending_version: Option<i64>,
     pub contract_address: String,
     #[serde(default)]
     pub event_model_mapping: HashMap<String, MarketplaceEventType>,

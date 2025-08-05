@@ -78,6 +78,8 @@ where
             .await
             .unwrap_or(config.starting_version);
 
+        let request_ending_version = config.ending_version.map(|e| e as u64);
+
         let addr = config.contract_address.clone();
 
         let struct_filter_builder = MoveStructTagFilterBuilder::default()
@@ -100,7 +102,7 @@ where
                 &self.config.stream_config.indexer_grpc,
             )?,
             starting_version: Some(starting_version as u64),
-            request_ending_version: None,
+            request_ending_version,
             auth_token: self.config.stream_config.auth_token.clone(),
             request_name_header: "marketplace-event-processor".to_string(),
             additional_headers: Default::default(),

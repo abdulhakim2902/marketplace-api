@@ -7,6 +7,7 @@ pub mod utils;
 pub mod workers;
 
 use anyhow::Context;
+use reqwest::Client;
 use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{EnvFilter, prelude::*};
@@ -22,7 +23,7 @@ use crate::{
     },
     http_server::HttpServer,
     utils::shutdown_utils,
-    workers::Worker,
+    workers::{Worker, price_indexer::PriceIndexer},
 };
 
 pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<Database>)> {
@@ -56,6 +57,10 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
         Arc::new(NFTMetadata::new(Arc::clone(&pool))),
     ));
 
+    init_price(&config.tapp_url, Arc::clone(&db), Arc::clone(&cache))
+        .await
+        .context("Failed to initialize price")?;
+
     tokio::spawn(shutdown_utils::poll_for_shutdown_signal());
 
     Ok((
@@ -79,4 +84,13 @@ fn init_config() -> anyhow::Result<Config> {
     tracing::trace!("config: {:#?}", config);
 
     Ok(config)
+}
+
+async fn init_price(tapp_url: &str, db: Arc<Database>, cache: Arc<Cache>) -> anyhow::Result<()> {
+    let client = Client::new();
+    let price_indexer = PriceIndexer::new(tapp_url.to_string(), db, cache);
+
+    price_indexer.fetch_and_store_token_prices(&client).await?;
+
+    Ok(())
 }

@@ -62,14 +62,6 @@ impl EventRemapper {
         }))
     }
 
-    /// Remaps events from a transaction into marketplace activities and current state models
-    ///
-    /// # Key responsibilities:
-    /// 1. Takes a transaction and extracts relevant NFT marketplace events
-    /// 2. Maps event fields to database columns based on configured remappings
-    /// 3. Creates marketplace activity for event
-    /// 4. Updates current models (listings, token offers, collection offers)
-    /// 5. Generate necessary id fields for models that don't have an id if possible
     pub fn remap_events(&self, txn: Transaction) -> Result<Vec<NftMarketplaceActivity>> {
         let mut activities: Vec<NftMarketplaceActivity> = Vec::new();
 
@@ -98,7 +90,6 @@ impl EventRemapper {
                             ..Default::default()
                         };
 
-                        // Step 2: Build model structs from the values obtained by the JsonPaths
                         remappings.iter().try_for_each(|(json_path, db_mappings)| {
                             db_mappings.iter().try_for_each(|db_mapping| {
                                 // Extract value, continue on error instead of failing

@@ -76,7 +76,7 @@ where
         Ok(())
     }
 
-    async fn fetch_and_store_token_prices(&self, client: &Client) -> anyhow::Result<()> {
+    pub async fn fetch_and_store_token_prices(&self, client: &Client) -> anyhow::Result<()> {
         let now = Utc::now();
         let rounded = Utc
             .with_ymd_and_hms(

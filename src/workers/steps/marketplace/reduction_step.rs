@@ -12,6 +12,7 @@ use aptos_indexer_processor_sdk::{
     types::transaction_context::TransactionContext,
     utils::errors::ProcessorError,
 };
+use bigdecimal::BigDecimal;
 use std::{collections::HashMap, sync::Arc};
 
 pub type BidIdType = (Option<String>, Option<String>, Option<String>);
@@ -168,7 +169,7 @@ where
                         .unwrap_or_default(),
                 };
 
-                activity.usd_price = Some(activity.price / APT_DECIMAL as i64 * &usd);
+                activity.usd_price = Some(BigDecimal::from(activity.price) / APT_DECIMAL as i64 * &usd);
 
                 self.accumulator.fold_activity(&activity);
                 self.accumulator.fold_bidding(&activity);

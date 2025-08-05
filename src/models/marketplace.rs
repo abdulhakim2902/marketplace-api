@@ -2,11 +2,9 @@ use crate::{
     config::marketplace_config::MarketplaceEventType,
     models::db::{activity::DbActivity, bid::DbBid, listing::DbListing},
 };
-use aptos_indexer_processor_sdk::{
-    aptos_indexer_transaction_stream::utils::time::parse_timestamp_secs, utils::extract::hash_str,
-};
+use aptos_indexer_processor_sdk::utils::extract::hash_str;
 use bigdecimal::BigDecimal;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
@@ -40,8 +38,10 @@ pub struct NftMarketplaceActivity {
     pub contract_address: Option<String>,
     pub block_timestamp: NaiveDateTime,
     pub block_height: i64,
-    pub expiration_time: Option<NaiveDateTime>,
+    pub expiration_time: Option<i64>,
     pub bid_key: Option<i64>,
+    pub start_time: Option<i64>,
+    pub duration: Option<i64>,
 }
 
 impl From<NftMarketplaceActivity> for DbActivity {
@@ -74,13 +74,13 @@ impl From<NftMarketplaceActivity> for DbBid {
             cancelled_tx_id: value.get_cancelled_txn_id(),
             bid_type: value.get_bid_type(),
             status: value.get_bid_status(),
+            expired_at: value.get_expiration_time(),
             price: Some(value.price),
             market_contract_id: value.contract_address,
             market_name: value.marketplace,
             collection_id: value.collection_addr,
             nft_id: value.token_addr,
             price_str: Some(value.price.to_string()),
-            expired_at: value.expiration_time,
             nonce: value.offer_id,
             bidder: value.buyer,
             remaining_count: value.token_amount,
@@ -131,15 +131,9 @@ impl MarketplaceModel for NftMarketplaceActivity {
             MarketplaceField::TokenAmount => self.token_amount = value.parse().ok(),
             MarketplaceField::Buyer => self.buyer = Some(value),
             MarketplaceField::Seller => self.seller = Some(value),
-            MarketplaceField::ExpirationTime => {
-                // TODO: Need to check parsing expiration_time calculation
-                if let Ok(timestamp_secs) = value.parse::<u64>() {
-                    self.expiration_time =
-                        Some(parse_timestamp_secs(timestamp_secs, 0).naive_utc());
-                } else {
-                    self.expiration_time = None;
-                }
-            }
+            MarketplaceField::StartTime => self.start_time = value.parse().ok(),
+            MarketplaceField::Duration => self.duration = value.parse().ok(),
+            MarketplaceField::ExpirationTime => self.expiration_time = value.parse().ok(),
             MarketplaceField::ListingId => self.listing_id = Some(value),
             MarketplaceField::OfferId | MarketplaceField::CollectionOfferId => {
                 self.offer_id = Some(value)
@@ -181,9 +175,7 @@ impl MarketplaceModel for NftMarketplaceActivity {
             MarketplaceField::TokenAmount => self.token_amount.map(|amount| amount.to_string()),
             MarketplaceField::Buyer => self.buyer.clone(),
             MarketplaceField::Seller => self.seller.clone(),
-            MarketplaceField::ExpirationTime => self
-                .expiration_time
-                .map(|ts| ts.and_utc().timestamp().to_string()),
+            MarketplaceField::ExpirationTime => self.expiration_time.map(|ts| ts.to_string()),
             MarketplaceField::ListingId => self.listing_id.clone(),
             MarketplaceField::OfferId => self.offer_id.clone(),
             MarketplaceField::Marketplace => self.marketplace.clone(),
@@ -273,6 +265,23 @@ impl BidModel for NftMarketplaceActivity {
             _ => None,
         }
     }
+
+    fn get_expiration_time(&self) -> Option<NaiveDateTime> {
+        if let Some(expiration_time) = self.expiration_time {
+            return DateTime::from_timestamp_micros(expiration_time).map(|e| e.naive_utc());
+        }
+
+        let ts = self
+            .start_time
+            .zip(self.duration)
+            .map(|(start_time, duration)| start_time + duration);
+
+        if let Some(ts) = ts {
+            return DateTime::from_timestamp_millis(ts).map(|e| e.naive_utc());
+        }
+
+        None
+    }
 }
 
 impl ListingModel for NftMarketplaceActivity {
@@ -315,6 +324,8 @@ pub enum MarketplaceField {
     RemainingTokenAmount,
     BlockTimestamp,
     BidKey,
+    StartTime,
+    Duration,
 }
 
 pub trait MarketplaceModel {
@@ -334,6 +345,7 @@ pub trait BidModel {
     fn get_created_txn_id(&self) -> Option<String>;
     fn get_cancelled_txn_id(&self) -> Option<String>;
     fn get_accepted_txn_id(&self) -> Option<String>;
+    fn get_expiration_time(&self) -> Option<NaiveDateTime>;
     fn is_valid_bid(&self) -> bool;
 }
 
