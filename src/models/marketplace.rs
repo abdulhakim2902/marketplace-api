@@ -195,7 +195,9 @@ impl MarketplaceModel for NftMarketplaceActivity {
 
 impl BidModel for NftMarketplaceActivity {
     fn is_valid_bid(&self) -> bool {
-        self.contract_address.is_some() && self.offer_id.is_some() && self.get_bid_id().is_some()
+        self.contract_address.is_some()
+            && self.get_bid_type().is_some()
+            && self.get_bid_id().is_some()
     }
 
     fn get_bid_id(&self) -> Option<String> {

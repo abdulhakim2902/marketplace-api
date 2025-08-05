@@ -1,4 +1,5 @@
 pub mod event_remapper;
+pub mod resource_remapper;
 
 use crate::models::marketplace::NFT_MARKETPLACE_ACTIVITIES_TABLE_NAME;
 

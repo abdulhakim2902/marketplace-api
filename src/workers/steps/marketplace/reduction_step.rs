@@ -3,7 +3,10 @@ use crate::{
     database::{IDatabase, token_prices::ITokenPrices},
     models::{
         db::{activity::DbActivity, bid::DbBid, listing::DbListing},
-        marketplace::{APT_DECIMAL, BidModel, ListingModel, NftMarketplaceActivity},
+        marketplace::{
+            APT_DECIMAL, BidModel, ListingModel, MarketplaceField, MarketplaceModel,
+            NftMarketplaceActivity,
+        },
     },
 };
 use anyhow::Result;
@@ -13,7 +16,7 @@ use aptos_indexer_processor_sdk::{
     utils::errors::ProcessorError,
 };
 use bigdecimal::BigDecimal;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 pub type BidIdType = (Option<String>, Option<String>, Option<String>);
 
@@ -145,7 +148,10 @@ where
     TDb: Send + Sync,
     TCache: 'static,
 {
-    type Input = Vec<Vec<NftMarketplaceActivity>>;
+    type Input = (
+        Vec<NftMarketplaceActivity>,
+        HashMap<String, HashMap<String, String>>,
+    );
     type Output = (Vec<DbActivity>, Vec<DbBid>, Vec<DbListing>);
     type RunType = AsyncRunType;
 
@@ -153,27 +159,38 @@ where
         &mut self,
         input: TransactionContext<Self::Input>,
     ) -> Result<Option<TransactionContext<Self::Output>>, ProcessorError> {
-        for activities in input.data.iter() {
-            for activity in activities.iter() {
-                let mut activity = activity.clone();
+        let (activities, resource_updates) = input.data;
 
-                let usd = match self.cache.get_token_price(APT_TOKEN_ADDR).await {
-                    Some(usd) => usd,
-                    None => self
-                        .db
-                        .token_prices()
-                        .get_token_price(APT_TOKEN_ADDR)
-                        .await
-                        .unwrap_or_default(),
-                };
+        for activity in activities.iter() {
+            let mut activity = activity.clone();
 
-                activity.usd_price =
-                    Some(BigDecimal::from(activity.price) / APT_DECIMAL as i64 * &usd);
+            let usd = match self.cache.get_token_price(APT_TOKEN_ADDR).await {
+                Some(usd) => usd,
+                None => self
+                    .db
+                    .token_prices()
+                    .get_token_price(APT_TOKEN_ADDR)
+                    .await
+                    .unwrap_or_default(),
+            };
 
-                self.accumulator.fold_activity(&activity);
-                self.accumulator.fold_bidding(&activity);
-                self.accumulator.fold_listing(&activity);
+            if let Some(token_addr) = activity.token_addr.as_ref() {
+                if let Some(resource) = resource_updates.get(token_addr) {
+                    for (column, value) in resource {
+                        let field = MarketplaceField::from_str(column).unwrap();
+
+                        if activity.get_field(field.clone()).is_none() {
+                            activity.set_field(field.clone(), value.clone());
+                        }
+                    }
+                }
             }
+
+            activity.usd_price = Some(BigDecimal::from(activity.price) / APT_DECIMAL as i64 * &usd);
+
+            self.accumulator.fold_activity(&activity);
+            self.accumulator.fold_bidding(&activity);
+            self.accumulator.fold_listing(&activity);
         }
 
         let reduced_data = self.accumulator.drain();
