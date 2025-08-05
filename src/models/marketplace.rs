@@ -270,7 +270,17 @@ impl BidModel for NftMarketplaceActivity {
 
     fn get_expiration_time(&self) -> Option<NaiveDateTime> {
         if let Some(expiration_time) = self.expiration_time {
-            return DateTime::from_timestamp_micros(expiration_time).map(|e| e.naive_utc());
+            if let Some(marketplace) = self.marketplace.as_ref() {
+                return match marketplace.as_str() {
+                    "topaz" => {
+                        DateTime::from_timestamp_micros(expiration_time).map(|e| e.naive_utc())
+                    }
+                    "rarible" => {
+                        DateTime::from_timestamp(expiration_time, 0).map(|e| e.naive_utc())
+                    }
+                    _ => None,
+                };
+            }
         }
 
         let ts = self

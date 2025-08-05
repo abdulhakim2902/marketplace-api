@@ -20,6 +20,7 @@ use tracing::{debug, warn};
 pub struct EventRemapper {
     field_remappings: EventFieldRemappings,
     marketplace_name: String,
+    marketplace_contract_id: String,
     marketplace_event_type_mapping: HashMap<String, MarketplaceEventType>,
 }
 
@@ -58,6 +59,7 @@ impl EventRemapper {
         Ok(Arc::new(Self {
             field_remappings,
             marketplace_name: config.name.clone(),
+            marketplace_contract_id: config.contract_address.clone(),
             marketplace_event_type_mapping,
         }))
     }
@@ -81,7 +83,7 @@ impl EventRemapper {
                             txn_id: txn_id.to_string(),
                             txn_version: event.transaction_version,
                             index: event.event_index,
-                            contract_address: Some(event.account_address.clone()),
+                            contract_address: Some(self.marketplace_contract_id.clone()),
                             block_timestamp: event.block_timestamp,
                             block_height: event.transaction_block_height,
                             raw_event_type: event.event_type.to_string(),
