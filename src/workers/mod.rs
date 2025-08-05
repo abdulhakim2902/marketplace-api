@@ -75,6 +75,4 @@ where
 
         Ok(())
     }
-
-    pub async fn stream_transactions(&self) {}
 }

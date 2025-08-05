@@ -26,7 +26,6 @@ pub struct OfferSchema {
     pub remaining_count: Option<i64>,
     pub status: Option<String>,
     pub bid_type: Option<String>,
-    pub price_str: Option<String>,
     pub usd_price: Option<BigDecimal>,
     pub updated_at: Option<DateTime<Utc>>,
 }

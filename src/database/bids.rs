@@ -73,7 +73,6 @@ impl IBids for Bids {
                 nonce, 
                 nft_id, 
                 price,
-                price_str, 
                 receiver, 
                 remaining_count, 
                 status,
@@ -95,7 +94,6 @@ impl IBids for Bids {
             b.push_bind(item.nonce.clone());
             b.push_bind(item.nft_id.clone());
             b.push_bind(item.price);
-            b.push_bind(item.price_str.clone());
             b.push_bind(item.receiver.clone());
             b.push_bind(item.remaining_count);
             b.push_bind(item.status.clone());

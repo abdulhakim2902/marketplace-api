@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS listings (
   market_name VARCHAR(128),
   nonce VARCHAR(128) DEFAULT NULL,
   price BIGINT DEFAULT NULL,
-  price_str VARCHAR(128) DEFAULT '',
   seller VARCHAR(66),
   tx_index BIGINT,
   PRIMARY KEY (market_contract_id, nft_id)

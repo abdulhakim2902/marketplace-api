@@ -95,14 +95,12 @@ impl NFTAccumulator {
                         existing.nft_id = listing.nft_id.clone();
                         existing.nonce = listing.nonce.clone();
                         existing.price = listing.price.clone();
-                        existing.price_str = listing.price_str.clone();
                         existing.seller = listing.seller.clone();
                         existing.tx_index = listing.tx_index.clone();
 
                         if !is_listed {
                             existing.nonce = None;
                             existing.price = None;
-                            existing.price_str = None;
                             existing.seller = None;
                             existing.tx_index = None;
                         }

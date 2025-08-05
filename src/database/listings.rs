@@ -56,7 +56,6 @@ impl IListings for Listings {
                 market_name, 
                 nonce,
                 price,
-                price_str, 
                 seller, 
                 tx_index
             )
@@ -72,7 +71,6 @@ impl IListings for Listings {
             b.push_bind(item.market_name.clone());
             b.push_bind(item.nonce);
             b.push_bind(item.price);
-            b.push_bind(item.price_str.clone());
             b.push_bind(item.seller.clone());
             b.push_bind(item.tx_index);
         })
@@ -82,7 +80,6 @@ impl IListings for Listings {
                 block_height = EXCLUDED.block_height,
                 block_time = EXCLUDED.block_time,
                 price = EXCLUDED.price,
-                price_str = EXCLUDED.price_str, 
                 listed = EXCLUDED.listed, 
                 nonce = EXCLUDED.nonce,
                 seller = EXCLUDED.seller,

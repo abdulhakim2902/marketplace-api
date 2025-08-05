@@ -65,36 +65,31 @@
       },
       {
         "ordinal": 12,
-        "name": "price_str",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 13,
         "name": "receiver",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 14,
+        "ordinal": 13,
         "name": "remaining_count",
         "type_info": "Int8"
       },
       {
-        "ordinal": 15,
+        "ordinal": 14,
         "name": "status",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 16,
+        "ordinal": 15,
         "name": "bid_type",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 17,
+        "ordinal": 16,
         "name": "updated_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 18,
+        "ordinal": 17,
         "name": "usd_price",
         "type_info": "Numeric"
       }
@@ -120,7 +115,6 @@
       true,
       true,
       false,
-      true,
       true,
       true,
       true,

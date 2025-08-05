@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS bids (
   nonce VARCHAR(128),
   nft_id VARCHAR(66) DEFAULT NULL,
   price BIGINT,
-  price_str VARCHAR(128),
   receiver VARCHAR(66),
   remaining_count BIGINT,
   status VARCHAR(20),
