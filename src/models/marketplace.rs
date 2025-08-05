@@ -202,11 +202,13 @@ impl BidModel for NftMarketplaceActivity {
 
     fn get_bid_id(&self) -> Option<String> {
         if let Some(status) = self.get_bid_type().as_ref() {
-            return match status.as_str() {
+            let res = match status.as_str() {
                 "solo" => Some(hash_str(&self.token_addr.clone().unwrap_or_default())),
                 "collection" => Some(hash_str(&self.collection_addr.clone().unwrap_or_default())),
                 _ => None,
             };
+
+            return res.map(|id| format!("0x{}", id));
         }
 
         None

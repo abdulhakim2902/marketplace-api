@@ -169,7 +169,8 @@ where
                         .unwrap_or_default(),
                 };
 
-                activity.usd_price = Some(BigDecimal::from(activity.price) / APT_DECIMAL as i64 * &usd);
+                activity.usd_price =
+                    Some(BigDecimal::from(activity.price) / APT_DECIMAL as i64 * &usd);
 
                 self.accumulator.fold_activity(&activity);
                 self.accumulator.fold_bidding(&activity);
