@@ -33,6 +33,7 @@ pub struct NftSchema {
     pub listed_at: Option<DateTime<Utc>>,
     pub list_price: Option<i64>,
     pub list_usd_price: Option<BigDecimal>,
+    pub attributes: Option<serde_json::Value>,
 }
 
 #[async_graphql::Object]
@@ -138,6 +139,15 @@ impl NftSchema {
     async fn background_color(&self) -> Option<&str> {
         self.background_color.as_ref().map(|e| e.as_str())
     }
+
+    #[graphql(name = "attributes")]
+    async fn attributes(&self) -> Vec<NftAttributeSchema> {
+        self.attributes
+            .clone()
+            .map(|e| serde_json::from_value::<Vec<NftAttributeSchema>>(e).unwrap_or_default())
+            .unwrap_or_default()
+    }
+
     #[graphql(name = "top_offer")]
     async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
         fetch_nft_top_offer(ctx, &self.id).await
@@ -145,6 +155,34 @@ impl NftSchema {
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         fetch_collection(ctx, self.collection_id.clone()).await
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, InputObject)]
+pub struct NftAttributeSchema {
+    pub attr_type: Option<String>,
+    pub value: Option<String>,
+    pub rarity: Option<BigDecimal>,
+    pub score: Option<BigDecimal>,
+}
+
+#[async_graphql::Object()]
+impl NftAttributeSchema {
+    #[graphql(name = "type")]
+    async fn attr_type(&self) -> Option<&str> {
+        self.attr_type.as_ref().map(|e| e.as_str())
+    }
+
+    async fn value(&self) -> Option<&str> {
+        self.value.as_ref().map(|e| e.as_str())
+    }
+
+    async fn rarity(&self) -> Option<String> {
+        self.rarity.as_ref().map(|e| e.to_string())
+    }
+
+    async fn score(&self) -> Option<String> {
+        self.score.as_ref().map(|e| e.to_string())
     }
 }
 

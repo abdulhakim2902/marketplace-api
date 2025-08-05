@@ -159,7 +159,15 @@ impl INfts for Nfts {
                     SELECT
                         a.collection_id,
                         a.nft_id,
-                        SUM(ar.score)            AS score
+                        json_agg(
+                            json_build_object(
+                                'attr_type', a.attr_type,
+                                'value', a.value,
+                                'score', ar.score,
+                                'rarity', ar.rarity
+                            )
+                        )                       AS attributes, 
+                        SUM(ar.score)           AS score
                     FROM attributes a
                         LEFT JOIN attribute_rarities ar ON a.collection_id = ar.collection_id
                                                                 AND a.attr_type = ar.type
@@ -174,6 +182,7 @@ impl INfts for Nfts {
                         n.collection_id,
                         burned,
                         n.properties,
+                        ar.attributes,
                         COALESCE(n.description, nm.description)     AS description,
                         COALESCE(nm.image, n.uri)                   AS image_url,
                         nm.animation_url,
@@ -226,6 +235,7 @@ impl INfts for Nfts {
                 n.image_url,
                 n.royalty,
                 n.version,
+                n.attributes,
                 n.updated_at,
                 n.list_price,
                 n.list_usd_price,
