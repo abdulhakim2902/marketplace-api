@@ -132,7 +132,7 @@ impl Processable for TokenExtractor {
                     }
                 }
 
-                let mut deposit_event_owner: AHashMap<String, Option<String>> = AHashMap::new();
+                let mut token_owner: AHashMap<String, Option<String>> = AHashMap::new();
                 for event in events.iter() {
                     let token_event = TokenEvent::from_event(
                         event.type_str.as_ref(),
@@ -148,11 +148,11 @@ impl Processable for TokenExtractor {
 
                         match token_event {
                             TokenEvent::DepositTokenEvent(inner) => {
-                                deposit_event_owner
+                                token_owner
                                     .insert(inner.id.token_data_id.to_addr(), account_address);
                             }
                             TokenEvent::TokenDeposit(inner) => {
-                                deposit_event_owner
+                                token_owner
                                     .insert(inner.id.token_data_id.to_addr(), account_address);
                             }
                             _ => {}
@@ -160,8 +160,8 @@ impl Processable for TokenExtractor {
                     }
                 }
 
-                let mut mint_payer: AHashMap<String, BigDecimal> = AHashMap::new();
-                let mut owner_activity: AHashMap<String, DbActivity> = AHashMap::new();
+                let mut mint_prices: AHashMap<String, BigDecimal> = AHashMap::new();
+                let mut mint_activities: AHashMap<String, DbActivity> = AHashMap::new();
                 for (event_index, event) in events.iter().enumerate() {
                     let event_model = EventModel::from_event(
                         event,
@@ -169,47 +169,40 @@ impl Processable for TokenExtractor {
                         txn_block_height,
                         event_index as i64,
                         txn_ts,
-                    )
-                    .map_err(|e| ProcessorError::ProcessError {
-                        message: format!("{e:#}"),
-                    })?;
+                    );
 
-                    if let Some(event) = event_model {
+                    if let Some(event) = event_model.unwrap() {
                         let coin = CoinEvent::from_event(
                             &event.type_str,
                             &event.data.to_string(),
                             txn_version,
-                        )
-                        .unwrap_or_default();
-                        if let Some(coin) = coin {
-                            match coin {
-                                CoinEvent::WithdrawEvent(withdraw) => {
-                                    if let Some(activity_owner) =
-                                        owner_activity.get(&event.account_address)
-                                    {
-                                        if let Some(activity) = self
-                                            .current_activities
-                                            .get_mut(&activity_owner.tx_index)
-                                        {
-                                            let price = activity
-                                                .price
-                                                .as_ref()
-                                                .map_or(withdraw.amount.clone(), |price| {
-                                                    price + &withdraw.amount
-                                                });
+                        );
 
-                                            activity.price =
-                                                Some(price.to_i64().unwrap_or_default());
-                                        }
-                                    } else {
-                                        mint_payer
-                                            .entry(event.account_address.clone())
-                                            .and_modify(|existing| {
-                                                *existing += &withdraw.amount;
-                                            })
-                                            .or_insert(withdraw.amount);
-                                    }
+                        if let Some(coin) = coin.unwrap() {
+                            let CoinEvent::WithdrawEvent(withdraw) = coin;
+
+                            let mint_index = mint_activities
+                                .get(&event.account_address)
+                                .map(|e| e.tx_index);
+
+                            if let Some(idx) = mint_index {
+                                if let Some(activity) = self.current_activities.get_mut(&idx) {
+                                    let price = activity
+                                        .price
+                                        .as_ref()
+                                        .map_or(withdraw.amount.clone(), |price| {
+                                            price + &withdraw.amount
+                                        });
+
+                                    activity.price = price.to_i64();
                                 }
+                            } else {
+                                mint_prices
+                                    .entry(event.account_address.clone())
+                                    .and_modify(|existing| {
+                                        *existing += &withdraw.amount;
+                                    })
+                                    .or_insert(withdraw.amount);
                             }
                         }
 
@@ -217,50 +210,15 @@ impl Processable for TokenExtractor {
                             &event,
                             &txn_id,
                             txn_version,
-                        )
-                        .unwrap();
+                        );
 
-                        if let Some(mut activity) = activity_token_v1 {
-                            let tx_type = activity.tx_type.as_ref().unwrap().to_string();
-                            if tx_type == MarketplaceEventType::Burn.to_string() {
-                                if let Some(nft) =
-                                    self.current_nfts.get_mut(activity.nft_id.as_ref().unwrap())
-                                {
-                                    nft.burned = Some(true);
-                                    nft.owner = None;
-                                } else {
-                                    let nft: DbNft = activity.clone().into();
-                                    self.current_burn_nfts.insert(nft.id.clone(), nft);
-                                }
-                            }
-
-                            if tx_type == MarketplaceEventType::Mint.to_string() {
-                                if activity.receiver.is_none() {
-                                    if let Some(owner) =
-                                        deposit_event_owner.get(activity.nft_id.as_ref().unwrap())
-                                    {
-                                        activity.receiver = owner.clone();
-                                    }
-                                }
-
-                                if let Some(receiver) = activity.receiver.as_ref() {
-                                    activity.price = mint_payer
-                                        .remove(receiver)
-                                        .as_ref()
-                                        .map(|e| e.to_i64().unwrap_or_default());
-                                    owner_activity.insert(receiver.to_string(), activity.clone());
-                                }
-                            }
-
-                            if let Some(address) = activity.sender.as_ref() {
-                                self.current_wallets.insert(address.to_string());
-                            }
-
-                            if let Some(address) = activity.receiver.as_ref() {
-                                self.current_wallets.insert(address.to_string());
-                            }
-
-                            self.current_activities.insert(activity.tx_index, activity);
+                        if let Some(activity) = activity_token_v1.unwrap() {
+                            self.merge_update(
+                                activity,
+                                &mut mint_prices,
+                                &mut mint_activities,
+                                &token_owner,
+                            );
                         }
 
                         let activity_token_v2 = DbActivity::get_action_from_token_event_v2(
@@ -269,105 +227,63 @@ impl Processable for TokenExtractor {
                             txn_version,
                             &token_metadata_helper,
                             sender.as_ref(),
-                        )
-                        .unwrap();
+                        );
 
-                        if let Some(mut activity) = activity_token_v2 {
-                            let tx_type = activity.tx_type.as_ref().unwrap().to_string();
-                            if tx_type == MarketplaceEventType::Burn.to_string() {
-                                if let Some(nft) =
-                                    self.current_nfts.get_mut(activity.nft_id.as_ref().unwrap())
-                                {
-                                    nft.burned = Some(true);
-                                    nft.owner = None;
-                                } else {
-                                    let nft: DbNft = activity.clone().into();
-                                    self.current_burn_nfts.insert(nft.id.clone(), nft);
-                                }
-                            }
-
-                            if tx_type == MarketplaceEventType::Mint.to_string() {
-                                if let Some(receiver) = activity.receiver.as_ref() {
-                                    activity.price = mint_payer
-                                        .remove(receiver)
-                                        .as_ref()
-                                        .map(|e| e.to_i64().unwrap_or_default());
-                                    owner_activity.insert(receiver.to_string(), activity.clone());
-                                }
-                            }
-
-                            if let Some(address) = activity.sender.as_ref() {
-                                self.current_wallets.insert(address.to_string());
-                            }
-
-                            if let Some(address) = activity.receiver.as_ref() {
-                                self.current_wallets.insert(address.to_string());
-                            }
-
-                            self.current_activities.insert(activity.tx_index, activity);
+                        if let Some(activity) = activity_token_v2.unwrap() {
+                            self.merge_update(
+                                activity,
+                                &mut mint_prices,
+                                &mut mint_activities,
+                                &token_owner,
+                            );
                         }
                     }
                 }
 
                 for wsc in txn_info.changes.iter() {
-                    match wsc.change.as_ref().unwrap() {
+                    let (collection_result, nft_result) = match wsc.change.as_ref().unwrap() {
                         Change::WriteTableItem(table_item) => {
                             let collection_result = DbCollection::get_from_write_table_item(
                                 table_item,
                                 txn_version,
                                 &table_handler_to_owner,
-                            )
-                            .unwrap();
-
-                            if let Some(collection) = collection_result {
-                                self.current_collections
-                                    .insert(collection.id.clone(), collection);
-                            }
+                            );
 
                             let nft_result = DbNft::get_from_write_table_item(
                                 table_item,
                                 txn_version,
                                 &table_handler_to_owner,
-                                &deposit_event_owner,
-                            )
-                            .unwrap();
+                                &token_owner,
+                            );
 
-                            if let Some(mut nft) = nft_result {
-                                let burned_nft = self.current_burn_nfts.remove(nft.id.as_str());
-                                if let Some(_) = burned_nft {
-                                    nft.burned = Some(true);
-                                    nft.owner = None;
-                                }
-                                self.current_nfts.insert(nft.id.clone(), nft);
-                            }
+                            (collection_result.unwrap(), nft_result.unwrap())
                         }
                         Change::WriteResource(resource) => {
-                            let colletion_result = DbCollection::get_from_write_resource(
+                            let collection_result = DbCollection::get_from_write_resource(
                                 resource,
                                 &token_metadata_helper,
-                            )
-                            .unwrap();
-
-                            if let Some(collection) = colletion_result {
-                                self.current_collections
-                                    .insert(collection.id.clone(), collection);
-                            }
+                            );
 
                             let nft_result =
-                                DbNft::get_from_write_resource(resource, &token_metadata_helper)
-                                    .unwrap();
+                                DbNft::get_from_write_resource(resource, &token_metadata_helper);
 
-                            if let Some(mut nft) = nft_result {
-                                let burned_nft = self.current_burn_nfts.remove(nft.id.as_str());
-                                if let Some(_) = burned_nft {
-                                    nft.burned = Some(true);
-                                    nft.owner = None;
-                                }
-
-                                self.current_nfts.insert(nft.id.clone(), nft);
-                            }
+                            (collection_result.unwrap(), nft_result.unwrap())
                         }
-                        _ => {}
+                        _ => (None, None),
+                    };
+
+                    if let Some(collection) = collection_result {
+                        self.current_collections
+                            .insert(collection.id.clone(), collection);
+                    }
+
+                    if let Some(mut nft) = nft_result {
+                        let burned_nft = self.current_burn_nfts.remove(nft.id.as_str());
+                        if let Some(_) = burned_nft {
+                            nft.burned = Some(true);
+                            nft.owner = None;
+                        }
+                        self.current_nfts.insert(nft.id.clone(), nft);
                     }
                 }
             }
@@ -412,5 +328,52 @@ impl TokenExtractor {
             nfts,
             self.current_wallets.drain().map(|v| v).collect(),
         )
+    }
+
+    fn merge_update(
+        &mut self,
+        activity: DbActivity,
+        mint_prices: &mut AHashMap<String, BigDecimal>,
+        mint_activities: &mut AHashMap<String, DbActivity>,
+        token_owner: &AHashMap<String, Option<String>>,
+    ) {
+        let mut activity = activity;
+
+        let tx_type = activity.tx_type.as_ref().unwrap().to_string();
+        if tx_type == MarketplaceEventType::Burn.to_string() {
+            if let Some(nft) = self.current_nfts.get_mut(activity.nft_id.as_ref().unwrap()) {
+                nft.burned = Some(true);
+                nft.owner = None;
+            } else {
+                let nft: DbNft = activity.clone().into();
+                self.current_burn_nfts.insert(nft.id.clone(), nft);
+            }
+        }
+
+        if tx_type == MarketplaceEventType::Mint.to_string() {
+            if activity.receiver.is_none() {
+                if let Some(owner) = token_owner.get(activity.nft_id.as_ref().unwrap()) {
+                    activity.receiver = owner.clone();
+                }
+            }
+
+            if let Some(receiver) = activity.receiver.as_ref() {
+                if let Some(price) = mint_prices.remove(receiver).as_ref() {
+                    activity.price = price.to_i64();
+                } else {
+                    mint_activities.insert(receiver.to_string(), activity.clone());
+                }
+            }
+        }
+
+        if let Some(address) = activity.sender.as_ref() {
+            self.current_wallets.insert(address.to_string());
+        }
+
+        if let Some(address) = activity.receiver.as_ref() {
+            self.current_wallets.insert(address.to_string());
+        }
+
+        self.current_activities.insert(activity.tx_index, activity);
     }
 }
