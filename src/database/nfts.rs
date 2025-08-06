@@ -152,7 +152,7 @@ impl INfts for Nfts {
                         a.block_time, 
                         a.price 
                     FROM activities a
-                    WHERE a.tx_type = 'buy'
+                    WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
                     ORDER BY a.nft_id, a.block_time DESC
                 ),
                 attribute_rarities AS (

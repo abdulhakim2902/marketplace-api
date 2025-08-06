@@ -341,12 +341,12 @@ impl ICollections for Collections {
             WITH 
                 nft_activities AS (
                     SELECT a.nft_id, COUNT(*) FROM activities a
-                    WHERE a.tx_type IN ('mint', 'buy', 'transfer') AND a.collection_id = $1
+                    WHERE a.tx_type IN ('mint', 'buy', 'transfer', 'accept-bid', 'accept-collection-bid') AND a.collection_id = $1
                     GROUP BY a.nft_id
                 ),
                 price_activities AS (
                     SELECT DISTINCT ON (a.nft_id) a.nft_id, a,price FROM activities a
-                    WHERE a.tx_type IN ('mint', 'buy', 'transfer') 
+                    WHERE a.tx_type IN ('mint', 'buy', 'transfer', 'accept-bid', 'accept-collection-bid') 
                         AND a.collection_id = $1
                         AND a.price > 0
                     ORDER BY a.nft_id, a.block_time DESC
@@ -393,14 +393,14 @@ impl ICollections for Collections {
                 transfer_in AS (
                     SELECT a.collection_id, a.receiver AS address, COUNT(*) FROM activities a
                     WHERE ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL) 
-                        AND a.tx_type IN ('transfer', 'buy')
+                        AND a.tx_type IN ('transfer', 'buy', 'accept-bid', 'accept-collection-bid')
                         AND a.collection_id = $1
                     GROUP BY a.collection_id, a.receiver
                 ),
                 transfer_out AS (
                     SELECT a.collection_id, a.sender AS address, COUNT(*) FROM activities a
                     WHERE ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL) 
-                        AND a.tx_type IN ('transfer', 'buy')
+                        AND a.tx_type IN ('transfer', 'buy', 'accept-bid', 'accept-collection-bid')
                         AND a.collection_id = $1
                     GROUP BY a.collection_id, a.sender
                 )
@@ -439,12 +439,12 @@ impl ICollections for Collections {
             WITH
                 bought_activities AS (
                     SELECT a.collection_id, a.receiver AS address, COUNT(*) AS bought, SUM(price) AS price FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid') AND a.collection_id = $1
                     GROUP BY a.collection_id, a.receiver 
                 ),
                 sold_activities AS (
                     SELECT a.collection_id, a.sender AS address, COUNT(*) AS sold, SUM(price) AS price FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid') AND a.collection_id = $1
                     GROUP BY a.collection_id, a.sender
                 )
             SELECT
@@ -501,7 +501,7 @@ impl ICollections for Collections {
                 COUNT(*)        AS bought, 
                 SUM(a.price)    AS volume
             FROM activities a
-            WHERE a.tx_type = 'buy'
+            WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
                 AND a.collection_id = $1
                 AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
             GROUP BY a.collection_id, a.receiver
@@ -531,7 +531,7 @@ impl ICollections for Collections {
                 COUNT(*)            AS sold, 
                 SUM(a.price)        AS volume
             FROM activities a
-            WHERE a.tx_type = 'buy'
+            WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
                 AND a.collection_id = $1
                 AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
             GROUP BY a.collection_id, a.sender
@@ -571,7 +571,7 @@ impl ICollections for Collections {
                         a.sender    AS address, 
                         COUNT(*)    AS count
                     FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid') AND a.collection_id = $1
                     GROUP BY a.sender
                 ),
                 receive_activities AS (
@@ -579,7 +579,7 @@ impl ICollections for Collections {
                         a.receiver  AS address, 
                         COUNT(*)    AS count
                     FROM activities a
-                    WHERE a.tx_type = 'buy' AND a.collection_id = $1
+                    WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid') AND a.collection_id = $1
                     GROUP BY a.receiver
                 ),
                 nft_owners AS (
@@ -690,7 +690,7 @@ impl ICollections for Collections {
                             - EXTRACT(EPOCH FROM ra.block_time) AS period 
                     FROM activities ra
                         LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
-                    WHERE ra.receiver IS NOT NULL AND ra.collection_id = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint')
+                    WHERE ra.receiver IS NOT NULL AND ra.collection_id = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint', 'accept-bid', 'accept-collection-bid')
                 )
             SELECT
                 SUM(

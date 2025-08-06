@@ -84,7 +84,7 @@ impl IWallets for Wallets {
                             SUM(COALESCE(ra.usd_price, 0))    AS trade_volumes, 
                             SUM(
                                 CASE
-                                    WHEN ra.tx_type = 'buy' OR (ra.tx_type = 'mint' AND ra.price > 0) THEN 1
+                                    WHEN ra.tx_type = 'buy' OR ra.tx_type = 'accept-bid' OR ra.tx_type = 'accept-collection-bid' OR (ra.tx_type = 'mint' AND ra.price > 0) THEN 1
                                     ELSE 0 
                                 END
                             )                                 AS total_buys,
@@ -98,12 +98,12 @@ impl IWallets for Wallets {
                             LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
                         WHERE ra.receiver = $1 
                             AND ra.sender IS NOT NULL
-                            AND ra.tx_type IN ('transfer', 'buy', 'mint')
+                            AND ra.tx_type IN ('transfer', 'buy', 'mint', 'accept-bid', 'accept-collection-bid')
                         GROUP BY ra.receiver
                 ),
                 sale_activities AS (
                         SELECT a.sender AS address, COUNT(*) FROM activities a
-                        WHERE a.sender = $1 AND a.tx_type = 'buy'
+                        WHERE a.sender = $1 AND a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
                         GROUP BY a.sender
                 ),
                 mint_activities AS (
@@ -151,7 +151,7 @@ impl IWallets for Wallets {
                     EXTRACT(EPOCH FROM ra.block_time) AS period 
             FROM activities ra
                 LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
-            WHERE ra.receiver IS NOT NULL AND ra.receiver = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint')
+            WHERE ra.receiver IS NOT NULL AND ra.receiver = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint', 'accept-bid', 'accept-collection-bid')
             ORDER BY period DESC
             LIMIT 10
             "#,

@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                ra.collection_id,\n                ra.nft_id,\n                COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) -\n                    EXTRACT(EPOCH FROM ra.block_time) AS period \n            FROM activities ra\n                LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id\n            WHERE ra.receiver IS NOT NULL AND ra.receiver = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint', 'accept-bid', 'accept-collection-bid')\n            ORDER BY period DESC\n            LIMIT 10\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "nft_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "period",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "f8eee4cbad68fec56d721dd0766f43d65aeec1d30e84ea063cb2c40adb82aca5"
+}

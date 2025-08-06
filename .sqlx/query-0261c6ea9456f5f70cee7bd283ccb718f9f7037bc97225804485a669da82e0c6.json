@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH \n                current_nft_owners AS (\n                    SELECT n.owner, COUNT(*) FROM nfts n\n                    WHERE n.burned IS NULL OR NOT n.burned AND n.collection_id = $1\n                    GROUP BY n.collection_id, n.owner\n                ),\n                transfer_in AS (\n                    SELECT a.collection_id, a.receiver AS address, COUNT(*) FROM activities a\n                    WHERE ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL) \n                        AND a.tx_type IN ('transfer', 'buy', 'accept-bid', 'accept-collection-bid')\n                        AND a.collection_id = $1\n                    GROUP BY a.collection_id, a.receiver\n                ),\n                transfer_out AS (\n                    SELECT a.collection_id, a.sender AS address, COUNT(*) FROM activities a\n                    WHERE ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL) \n                        AND a.tx_type IN ('transfer', 'buy', 'accept-bid', 'accept-collection-bid')\n                        AND a.collection_id = $1\n                    GROUP BY a.collection_id, a.sender\n                )\n            SELECT \n                w.address, \n                (COALESCE(tout.count, 0) - COALESCE(tin.count, 0)) \tAS change,\n                COALESCE(co.count, 0) \t\t\t\t\t\t\t\tAS quantity\t\n            FROM wallets w\n                JOIN transfer_in tin ON tin.address = w.address\n                JOIN transfer_out tout ON tout.address = w.address\n                JOIN current_nft_owners co ON co.owner = w.address\n            ORDER BY change DESC\n            LIMIT $3 OFFSET $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "change",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "quantity",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Interval",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "0261c6ea9456f5f70cee7bd283ccb718f9f7037bc97225804485a669da82e0c6"
+}
