@@ -40,6 +40,7 @@ pub trait ICollections: Send + Sync {
         &self,
         query: &WhereCollectionSchema,
         order_by: Option<OrderCollectionSchema>,
+        interval: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
@@ -183,11 +184,40 @@ impl ICollections for Collections {
         &self,
         query: &WhereCollectionSchema,
         order: Option<OrderCollectionSchema>,
+        interval: Option<String>,
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>> {
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
+            WITH sales AS (
+                SELECT
+                    activities.collection_id, 
+                    SUM(activities.price)           AS volume,
+                    COUNT(*)                        AS total
+                FROM activities
+                WHERE activities.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
+            "#,
+        );
+
+        if let Some(collection_id) = query.collection_id.as_ref() {
+            query_builder.push(" AND activities.collection_id = ");
+            query_builder.push_bind(collection_id);
+        }
+
+        if let Some(interval) = interval.as_ref() {
+            if let Some(pg_interval) =
+                string_utils::str_to_pginterval(&interval).expect("Invalid interval")
+            {
+                query_builder.push(" AND activities.block_time >= NOW() - ");
+                query_builder.push_bind(pg_interval);
+            }
+        }
+
+        query_builder.push(
+            r#"
+                GROUP BY activities.collection_id
+            )
             SELECT
                 c.id,
                 c.slug, 
@@ -200,12 +230,14 @@ impl ICollections for Collections {
                 c.discord,
                 c.twitter,
                 c.royalty,
-                cs.volumes::BIGINT           AS total_volume,
-                cs.sales::BIGINT             AS total_sale,
+                s.volume::BIGINT             AS volume,
+                s.total::BIGINT              AS sale,
+                cs.volumes::BIGINT           AS total_volume,   
                 co.owners::BIGINT            AS total_owner,
                 cl.floor_price::BIGINT       AS floor,
                 cl.listed::BIGINT
             FROM collections c
+                LEFT JOIN sales s ON s.collection_id = c.id
                 LEFT JOIN collection_sales cs ON cs.collection_id = c.id
                 LEFT JOIN collection_listings cl ON cl.collection_id = c.id
                 LEFT JOIN collection_owners co ON co.collection_id = c.id
@@ -238,37 +270,48 @@ impl ICollections for Collections {
         if let Some(order) = order.as_ref() {
             let mut order_builder = String::new();
             if let Some(order_type) = order.volume {
-                order_builder.push_str(format!(" cs.volumes {},", order_type.to_string()).as_str());
+                order_builder
+                    .push_str(format!(" s.volume {} NULLS LAST,", order_type.to_string()).as_str());
             }
 
             if let Some(order_type) = order.floor {
-                order_builder
-                    .push_str(format!(" cl.floor_price {}", order_type.to_string()).as_str());
+                order_builder.push_str(
+                    format!(" cl.floor_price {} NULLS LAST,", order_type.to_string()).as_str(),
+                );
             }
 
             if let Some(order_type) = order.owners {
-                order_builder.push_str(format!(" co.owners {},", order_type.to_string()).as_str());
+                order_builder.push_str(
+                    format!(" co.owners {} NULLS LAST,", order_type.to_string()).as_str(),
+                );
             }
 
             if let Some(order_type) = order.market_cap {
                 order_builder.push_str(
-                    format!(" cl.floor_price * c.supply {},", order_type.to_string()).as_str(),
+                    format!(
+                        " cl.floor_price * c.supply {} NULLS LAST,",
+                        order_type.to_string()
+                    )
+                    .as_str(),
                 );
             }
 
             if let Some(order_type) = order.sales {
-                order_builder.push_str(format!(" cs.sales {},", order_type.to_string()).as_str());
+                order_builder
+                    .push_str(format!(" s.total {} NULLS LAST,", order_type.to_string()).as_str());
             }
 
             if let Some(order_type) = order.listed {
-                order_builder.push_str(format!(" cl.listed {},", order_type.to_string()).as_str());
+                order_builder.push_str(
+                    format!(" cl.listed {} NULLS LAST,", order_type.to_string()).as_str(),
+                );
             }
 
             let ordering = &order_builder[..(order_builder.len() - 1)];
             if ordering.trim().is_empty() {
-                query_builder.push("ORDER BY cs.volume DESC ");
+                query_builder.push(" ORDER BY cs.volume DESC NULLS LAST ");
             } else {
-                query_builder.push(format!("ORDER BY {}", ordering.to_lowercase().trim()));
+                query_builder.push(format!(" ORDER BY {}", ordering.to_lowercase().trim()));
             }
         }
 

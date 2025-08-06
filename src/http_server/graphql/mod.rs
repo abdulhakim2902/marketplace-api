@@ -84,13 +84,14 @@ impl Query {
 
         let filter = filter.unwrap_or_default();
         let query = filter.where_.unwrap_or_default();
+        let interval = filter.interval;
         let order_by = filter.order_by;
 
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
         db.collections()
-            .fetch_collections(&query, order_by, limit, offset)
+            .fetch_collections(&query, order_by, interval, limit, offset)
             .await
             .expect("Failed to fetch collections")
     }

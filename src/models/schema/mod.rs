@@ -10,9 +10,12 @@ use crate::{
         Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
         collections::ICollections, nfts::INfts,
     },
-    models::schema::{
-        collection::{CollectionSaleSchema, CollectionSchema, WhereCollectionSchema},
-        nft::{NftSchema, WhereNftSchema},
+    models::{
+        marketplace::APT_DECIMAL,
+        schema::{
+            collection::{CollectionSchema, WhereCollectionSchema},
+            nft::{NftSchema, WhereNftSchema},
+        },
     },
     utils::string_utils,
 };
@@ -62,7 +65,7 @@ async fn fetch_collection(
     };
 
     db.collections()
-        .fetch_collections(&query, None, 1, 0)
+        .fetch_collections(&query, None, None, 1, 0)
         .await
         .unwrap_or_default()
         .first()
@@ -163,12 +166,11 @@ async fn fetch_collection_past_floor(
         .data::<Arc<Database>>()
         .expect("Missing database in the context");
 
-    let res = db.activities().fetch_past_floor(collection_id, i).await;
-    if res.is_err() {
-        None
-    } else {
-        res.unwrap().map(|e| e.to_plain_string())
-    }
+    db.activities()
+        .fetch_past_floor(collection_id, i)
+        .await
+        .ok()
+        .map(|e| (BigDecimal::from(e) / APT_DECIMAL).to_plain_string())
 }
 
 async fn fetch_collection_top_offer(
@@ -203,26 +205,6 @@ async fn fetch_nft_top_offer(ctx: &Context<'_>, nft_id: &str) -> Option<String> 
     }
 
     res.unwrap().map(|e| e.to_plain_string())
-}
-
-async fn fetch_collection_sale(
-    ctx: &Context<'_>,
-    collection_id: Option<String>,
-    interval: Option<String>,
-) -> Option<CollectionSaleSchema> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    let i =
-        string_utils::str_to_pginterval(&interval.unwrap_or_default()).expect("Invalid interval");
-
-    let collection_id = collection_id.as_ref().unwrap();
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    db.activities().fetch_sale(collection_id, i).await.ok()
 }
 
 async fn fetch_total_nft(

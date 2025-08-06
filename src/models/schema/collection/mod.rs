@@ -15,7 +15,7 @@ use sqlx::prelude::FromRow;
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{
-        OrderingType, fetch_collection_past_floor, fetch_collection_rarity, fetch_collection_sale,
+        OrderingType, fetch_collection_past_floor, fetch_collection_rarity,
         fetch_collection_top_offer, fetch_total_collection_offer, fetch_total_collection_trait,
         fetch_total_nft,
     },
@@ -34,8 +34,9 @@ pub struct CollectionSchema {
     pub discord: Option<String>,
     pub twitter: Option<String>,
     pub royalty: Option<BigDecimal>,
+    pub volume: Option<i64>,
+    pub sale: Option<i64>,
     pub total_volume: Option<i64>,
-    pub total_sale: Option<i64>,
     pub total_owner: Option<i64>,
     pub floor: Option<i64>,
     pub listed: Option<i64>,
@@ -106,16 +107,21 @@ impl CollectionSchema {
             .map(|value| value.to_plain_string())
     }
 
+    #[graphql(name = "sales")]
+    async fn sale(&self) -> Option<i64> {
+        self.sale
+    }
+
     #[graphql(name = "volume")]
+    async fn volume(&self) -> Option<i64> {
+        self.volume
+    }
+
+    #[graphql(name = "total_volume")]
     async fn total_volume(&self) -> Option<String> {
         self.total_volume
             .as_ref()
             .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
-    }
-
-    #[graphql(name = "sales")]
-    async fn total_sale(&self) -> Option<i64> {
-        self.total_sale
     }
 
     #[graphql(name = "owners")]
@@ -137,14 +143,6 @@ impl CollectionSchema {
             self.supply.unwrap_or_default(),
         )
         .await
-    }
-
-    async fn sale(
-        &self,
-        ctx: &Context<'_>,
-        interval: Option<String>,
-    ) -> Option<CollectionSaleSchema> {
-        fetch_collection_sale(ctx, self.id.clone(), interval).await
     }
 
     #[graphql(name = "top_offer")]
@@ -197,6 +195,7 @@ pub struct FilterCollectionSchema {
     pub where_: Option<WhereCollectionSchema>,
     #[graphql(name = "order_by")]
     pub order_by: Option<OrderCollectionSchema>,
+    pub interval: Option<String>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }

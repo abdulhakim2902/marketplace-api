@@ -12,7 +12,6 @@ use crate::models::{
     },
 };
 use anyhow::Context;
-use bigdecimal::BigDecimal;
 use sqlx::{
     PgPool, Postgres, QueryBuilder, Transaction,
     postgres::{PgQueryResult, types::PgInterval},
@@ -37,7 +36,7 @@ pub trait IActivities: Send + Sync {
         &self,
         collection_id: &str,
         interval: Option<PgInterval>,
-    ) -> anyhow::Result<Option<BigDecimal>>;
+    ) -> anyhow::Result<i64>;
 
     async fn fetch_sale(
         &self,
@@ -158,7 +157,7 @@ impl IActivities for Activities {
             WHERE (($1::TEXT IS NULL OR $1::TEXT = '' OR a.sender = $1) OR ($1::TEXT IS NULL OR $1::TEXT = '' OR a.receiver = $1))
                 AND ($2::TEXT IS NULL OR $2::TEXT = '' OR a.collection_id = $2)
                 AND ($3::TEXT IS NULL OR $3::TEXT = '' OR a.nft_id = $3)
-            ORDER BY a.block_time
+            ORDER BY a.block_time, a.tx_index ASC
             LIMIT $4 OFFSET $5
             "#,
             query.wallet_address,
@@ -178,10 +177,10 @@ impl IActivities for Activities {
         &self,
         collection_id: &str,
         interval: Option<PgInterval>,
-    ) -> anyhow::Result<Option<BigDecimal>> {
+    ) -> anyhow::Result<i64> {
         let res = sqlx::query_scalar!(
             r#"
-            SELECT SUM(a.price) FROM activities a
+            SELECT MIN(a.price) FROM activities a
             WHERE a.tx_type = 'buy' 
                 AND a.collection_id = $1
                 AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
@@ -194,7 +193,7 @@ impl IActivities for Activities {
         .await
         .context("Failed to fetch volume")?;
 
-        Ok(res)
+        Ok(res.unwrap_or_default())
     }
 
     async fn fetch_sale(
