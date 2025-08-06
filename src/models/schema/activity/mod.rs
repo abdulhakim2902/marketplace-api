@@ -1,16 +1,18 @@
 pub mod profit_loss;
 
-use async_graphql::{Context, InputObject};
+use async_graphql::{Context, Enum, InputObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
+use strum::{Display, EnumString};
 
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
 };
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct ActivitySchema {
     pub tx_type: Option<String>,
     pub tx_index: i64,
@@ -122,4 +124,17 @@ pub struct WhereActivitySchema {
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,
+    pub tx_types: Option<Vec<TxType>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(rename_items = "snake_case")]
+pub enum TxType {
+    Sales,
+    Offers,
+    Listings,
+    Transfers,
+    Mints,
 }

@@ -166,29 +166,6 @@ impl CollectionSchema {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
-pub struct CollectionSaleSchema {
-    pub total: Option<i64>,
-    pub volume: Option<BigDecimal>,
-    pub volume_usd: Option<BigDecimal>,
-}
-
-#[async_graphql::Object]
-impl CollectionSaleSchema {
-    async fn total(&self) -> Option<i64> {
-        self.total
-    }
-
-    async fn volume(&self) -> Option<String> {
-        self.volume.as_ref().map(|e| e.to_string())
-    }
-
-    #[graphql(name = "volume_usd")]
-    async fn volume_usd(&self) -> Option<String> {
-        self.volume_usd.as_ref().map(|e| e.to_string())
-    }
-}
-
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 pub struct FilterCollectionSchema {
     #[graphql(name = "where")]

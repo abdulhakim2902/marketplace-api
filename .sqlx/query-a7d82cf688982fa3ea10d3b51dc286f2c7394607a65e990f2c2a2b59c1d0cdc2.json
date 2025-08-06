@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT MIN(a.price) FROM activities a\n            WHERE a.tx_type = 'list' \n                AND a.collection_id = $1\n                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)\n            GROUP BY a.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "min",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Interval"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a7d82cf688982fa3ea10d3b51dc286f2c7394607a65e990f2c2a2b59c1d0cdc2"
+}

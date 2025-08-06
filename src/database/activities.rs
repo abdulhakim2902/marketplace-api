@@ -4,10 +4,9 @@ use crate::models::{
     db::activity::DbActivity,
     schema::{
         activity::{
-            ActivitySchema, WhereActivitySchema,
+            ActivitySchema, TxType, WhereActivitySchema,
             profit_loss::{ProfitLossSchema, WhereProfitLossSchema},
         },
-        collection::CollectionSaleSchema,
         data_point::DataPointSchema,
     },
 };
@@ -37,12 +36,6 @@ pub trait IActivities: Send + Sync {
         collection_id: &str,
         interval: Option<PgInterval>,
     ) -> anyhow::Result<i64>;
-
-    async fn fetch_sale(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<CollectionSaleSchema>;
 
     async fn fetch_contribution_chart(
         &self,
@@ -135,8 +128,7 @@ impl IActivities for Activities {
         limit: i64,
         offset: i64,
     ) -> anyhow::Result<Vec<ActivitySchema>> {
-        let res = sqlx::query_as!(
-            ActivitySchema,
+        let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             SELECT 
                 a.tx_type,
@@ -154,21 +146,73 @@ impl IActivities for Activities {
                 a.block_height,
                 a.amount
             FROM activities a
-            WHERE (($1::TEXT IS NULL OR $1::TEXT = '' OR a.sender = $1) OR ($1::TEXT IS NULL OR $1::TEXT = '' OR a.receiver = $1))
-                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR a.collection_id = $2)
-                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR a.nft_id = $3)
-            ORDER BY a.block_time, a.tx_index ASC
-            LIMIT $4 OFFSET $5
+            WHERE TRUE
             "#,
-            query.wallet_address,
-            query.collection_id,
-            query.nft_id,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection activities")?;
+        );
+
+        if let Some(addr) = query.wallet_address.as_ref() {
+            query_builder.push(" AND (a.sender = ");
+            query_builder.push_bind(addr);
+            query_builder.push(" OR a.receiver = ");
+            query_builder.push_bind(addr);
+            query_builder.push(")");
+        }
+
+        if let Some(collection_id) = query.collection_id.as_ref() {
+            query_builder.push(" AND a.collection_id = ");
+            query_builder.push_bind(collection_id);
+        }
+
+        if let Some(nft_id) = query.nft_id.as_ref() {
+            query_builder.push(" AND a.nft_id = ");
+            query_builder.push_bind(nft_id);
+        }
+
+        if let Some(tx_types) = query.tx_types.as_ref() {
+            let mut types = Vec::new();
+
+            for tx_type in tx_types {
+                match tx_type {
+                    TxType::Mints => {
+                        types.push("mint".to_string());
+                    }
+                    TxType::Transfers => {
+                        types.push("transfer".to_string());
+                    }
+                    TxType::Sales => {
+                        types.push("buy".to_string());
+                    }
+                    TxType::Offers => {
+                        types.push("solo-bid".to_string());
+                        types.push("unlist-bid".to_string());
+                        types.push("accept-bid".to_string());
+                        types.push("collection-bid".to_string());
+                        types.push("cancel-collection-bid".to_string());
+                        types.push("accept-collection-bid".to_string());
+                    }
+                    TxType::Listings => {
+                        types.push("list".to_string());
+                        types.push("unlist".to_string());
+                    }
+                }
+            }
+
+            query_builder.push(" AND a.tx_type = ANY(");
+            query_builder.push_bind(types);
+            query_builder.push(")");
+        }
+
+        query_builder.push(" ORDER BY a.block_time, a.tx_index ASC");
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset);
+
+        let res = query_builder
+            .build_query_as::<ActivitySchema>()
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch activities")?;
 
         Ok(res)
     }
@@ -181,7 +225,7 @@ impl IActivities for Activities {
         let res = sqlx::query_scalar!(
             r#"
             SELECT MIN(a.price) FROM activities a
-            WHERE a.tx_type = 'buy' 
+            WHERE a.tx_type = 'list' 
                 AND a.collection_id = $1
                 AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
             GROUP BY a.collection_id
@@ -194,31 +238,6 @@ impl IActivities for Activities {
         .context("Failed to fetch volume")?;
 
         Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_sale(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<CollectionSaleSchema> {
-        let res = sqlx::query_as!(
-            CollectionSaleSchema,
-            r#"
-            SELECT COUNT(*) AS total, SUM(a.price) AS volume, SUM(a.usd_price) AS volume_usd
-            FROM activities a
-            WHERE a.tx_type = 'buy'
-                AND a.collection_id = $1
-                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-            GROUP BY a.collection_id
-            "#,
-            collection_id,
-            interval,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch sales")?;
-
-        Ok(res)
     }
 
     async fn fetch_contribution_chart(
