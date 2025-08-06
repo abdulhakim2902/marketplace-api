@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct DbListing {
+    pub id: Option<String>,
     pub block_height: Option<i64>,
     pub block_time: Option<NaiveDateTime>,
     pub market_contract_id: Option<String>,

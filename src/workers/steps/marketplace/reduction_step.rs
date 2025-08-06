@@ -18,22 +18,18 @@ use aptos_indexer_processor_sdk::{
 use bigdecimal::BigDecimal;
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-pub type BidIdType = (Option<String>, Option<String>, Option<String>);
-
-pub type ListingIdType = (Option<String>, Option<String>);
-
 const APT_TOKEN_ADDR: &str = "0x000000000000000000000000000000000000000000000000000000000000000a";
 
 #[derive(Clone, Debug, Default)]
 pub struct NFTAccumulator {
-    activities: HashMap<i64, DbActivity>,
-    bids: HashMap<BidIdType, DbBid>,
-    listings: HashMap<ListingIdType, DbListing>,
+    activities: HashMap<String, DbActivity>,
+    bids: HashMap<String, DbBid>,
+    listings: HashMap<String, DbListing>,
 }
 
 impl NFTAccumulator {
     pub fn fold_activity(&mut self, activity: &NftMarketplaceActivity) {
-        let key = activity.get_tx_index();
+        let key = activity.get_activity_id();
         let activity: DbActivity = activity.to_owned().into();
 
         self.activities.insert(key, activity);
@@ -42,14 +38,10 @@ impl NFTAccumulator {
     pub fn fold_bidding(&mut self, activity: &NftMarketplaceActivity) {
         if activity.is_valid_bid() {
             let bid: DbBid = activity.to_owned().into();
-            let key = (
-                bid.market_contract_id.clone(),
-                bid.id.clone(),
-                bid.bidder.clone(),
-            );
+            let key = bid.id.as_ref().unwrap();
 
             self.bids
-                .entry(key)
+                .entry(key.to_string())
                 .and_modify(|existing: &mut DbBid| {
                     if let Some(nonce) = bid.nonce.as_ref() {
                         existing.nonce = Some(nonce.to_string());
@@ -81,9 +73,9 @@ impl NFTAccumulator {
     pub fn fold_listing(&mut self, activity: &NftMarketplaceActivity) {
         if activity.is_valid_listing() {
             let listing: DbListing = activity.to_owned().into();
-            let key = (listing.market_contract_id.clone(), listing.nft_id.clone());
+            let key = listing.id.as_ref().unwrap();
             self.listings
-                .entry(key)
+                .entry(key.to_string())
                 .and_modify(|existing: &mut DbListing| {
                     let is_listed = listing.listed.unwrap_or(false);
                     let is_latest = listing

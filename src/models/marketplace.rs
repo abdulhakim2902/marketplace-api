@@ -47,6 +47,7 @@ pub struct NftMarketplaceActivity {
 impl From<NftMarketplaceActivity> for DbActivity {
     fn from(value: NftMarketplaceActivity) -> Self {
         Self {
+            id: Some(value.get_activity_id()),
             tx_index: value.get_tx_index(),
             price: Some(value.price),
             market_contract_id: value.contract_address,
@@ -91,6 +92,7 @@ impl From<NftMarketplaceActivity> for DbBid {
 impl From<NftMarketplaceActivity> for DbListing {
     fn from(value: NftMarketplaceActivity) -> Self {
         Self {
+            id: value.get_listing_id(),
             tx_index: Some(value.get_tx_index()),
             listed: value.get_listing_status(),
             price: Some(value.price),
@@ -107,6 +109,10 @@ impl From<NftMarketplaceActivity> for DbListing {
 }
 
 impl NftMarketplaceActivity {
+    pub fn get_activity_id(&self) -> String {
+        format!("0x{}", hash_str(&self.get_tx_index().to_string()))
+    }
+
     pub fn get_tx_index(&self) -> i64 {
         self.txn_version * 100_000 + self.index
     }
@@ -195,23 +201,27 @@ impl MarketplaceModel for NftMarketplaceActivity {
 
 impl BidModel for NftMarketplaceActivity {
     fn is_valid_bid(&self) -> bool {
-        self.contract_address.is_some()
-            && self.get_bid_type().is_some()
-            && self.get_bid_id().is_some()
+        self.get_bid_id().is_some() && self.get_bid_type().is_some()
     }
 
     fn get_bid_id(&self) -> Option<String> {
         if let Some(status) = self.get_bid_type().as_ref() {
-            let res = match status.as_str() {
-                "solo" => Some(hash_str(&self.token_addr.clone().unwrap_or_default())),
-                "collection" => Some(hash_str(&self.collection_addr.clone().unwrap_or_default())),
+            let address = match status.as_str() {
+                "solo" => self.token_addr.as_ref(),
+                "collection" => self.collection_addr.as_ref(),
                 _ => None,
             };
 
-            return res.map(|id| format!("0x{}", id));
+            self.contract_address
+                .as_ref()
+                .zip(address)
+                .map(|(contract_addr, addr)| {
+                    let key = format!("{}::{}", contract_addr, addr);
+                    format!("0x{}", hash_str(&key))
+                })
+        } else {
+            None
         }
-
-        None
     }
 
     fn get_bid_status(&self) -> Option<String> {
@@ -298,9 +308,17 @@ impl BidModel for NftMarketplaceActivity {
 
 impl ListingModel for NftMarketplaceActivity {
     fn is_valid_listing(&self) -> bool {
-        self.contract_address.is_some()
-            && self.token_addr.is_some()
-            && self.get_listing_status().is_some()
+        self.get_listing_id().is_some() && self.get_listing_status().is_some()
+    }
+
+    fn get_listing_id(&self) -> Option<String> {
+        self.contract_address
+            .as_ref()
+            .zip(self.token_addr.as_ref())
+            .map(|(contract_address, token_addr)| {
+                let key = format!("{}::{}", contract_address, token_addr);
+                format!("0x{}", hash_str(&key))
+            })
     }
 
     fn get_listing_status(&self) -> Option<bool> {
@@ -362,6 +380,7 @@ pub trait BidModel {
 }
 
 pub trait ListingModel {
+    fn get_listing_id(&self) -> Option<String>;
     fn get_listing_status(&self) -> Option<bool>;
     fn is_valid_listing(&self) -> bool;
 }

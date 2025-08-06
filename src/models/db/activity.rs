@@ -15,6 +15,7 @@ use crate::{
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct DbActivity {
+    pub id: Option<String>,
     pub tx_type: Option<String>,
     pub tx_index: i64,
     pub tx_id: String,
@@ -42,6 +43,7 @@ impl DbActivity {
         if let Some(token_event) = token_event? {
             let token_activity = match &token_event {
                 TokenEvent::Mint(inner) => Some(DbActivity {
+                    id: Some(event.generate_id()),
                     tx_id: txn_id.to_string(),
                     tx_index: event.get_tx_index(),
                     block_time: Some(event.block_timestamp),
@@ -53,6 +55,7 @@ impl DbActivity {
                     ..Default::default()
                 }),
                 TokenEvent::MintTokenEvent(inner) => Some(DbActivity {
+                    id: Some(event.generate_id()),
                     tx_id: txn_id.to_string(),
                     tx_index: event.get_tx_index(),
                     block_time: Some(event.block_timestamp),
@@ -64,6 +67,7 @@ impl DbActivity {
                     ..Default::default()
                 }),
                 TokenEvent::Burn(inner) => Some(DbActivity {
+                    id: Some(event.generate_id()),
                     tx_id: txn_id.to_string(),
                     tx_index: event.get_tx_index(),
                     block_time: Some(event.block_timestamp),
@@ -76,6 +80,7 @@ impl DbActivity {
                     ..Default::default()
                 }),
                 TokenEvent::BurnTokenEvent(inner) => Some(DbActivity {
+                    id: Some(event.generate_id()),
                     tx_id: txn_id.to_string(),
                     tx_index: event.get_tx_index(),
                     block_time: Some(event.block_timestamp),
@@ -120,6 +125,7 @@ impl DbActivity {
             if let Some(object_data) = object_metadata.get(&token_addr) {
                 let token_activity = match token_event {
                     V2TokenEvent::Mint(mint) => Some(DbActivity {
+                        id: Some(event.generate_id()),
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_height: Some(event.transaction_block_height),
@@ -132,6 +138,7 @@ impl DbActivity {
                         ..Default::default()
                     }),
                     V2TokenEvent::MintEvent(mint) => Some(DbActivity {
+                        id: Some(event.generate_id()),
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_height: Some(event.transaction_block_height),
@@ -144,6 +151,7 @@ impl DbActivity {
                         ..Default::default()
                     }),
                     V2TokenEvent::Burn(burn) => Some(DbActivity {
+                        id: Some(event.generate_id()),
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_height: Some(event.transaction_block_height),
@@ -156,6 +164,7 @@ impl DbActivity {
                         ..Default::default()
                     }),
                     V2TokenEvent::BurnEvent(burn) => Some(DbActivity {
+                        id: Some(event.generate_id()),
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_height: Some(event.transaction_block_height),
@@ -170,6 +179,7 @@ impl DbActivity {
                     V2TokenEvent::TransferEvent(transfer) => {
                         if let Some(token) = &object_data.token {
                             Some(DbActivity {
+                                id: Some(event.generate_id()),
                                 tx_id: txn_id.to_string(),
                                 tx_index: event.get_tx_index(),
                                 block_height: Some(event.transaction_block_height),

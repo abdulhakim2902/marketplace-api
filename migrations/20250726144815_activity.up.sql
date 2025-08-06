@@ -1,5 +1,6 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS activities (
+  id VARCHAR(66) NOT NULL,
   tx_type VARCHAR(30) NOT NULL,
   tx_index BIGINT NOT NULL,
   tx_id VARCHAR(66) NOT NULL,
@@ -14,5 +15,5 @@ CREATE TABLE IF NOT EXISTS activities (
   block_time timestamp(6) WITH time zone DEFAULT NOW() NOT NULL,
   block_height BIGINT NOT NULL,
   amount BIGINT DEFAULT NULL,
-  PRIMARY KEY (tx_index, tx_id)
+  PRIMARY KEY (id)
 )

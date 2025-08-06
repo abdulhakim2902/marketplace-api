@@ -102,7 +102,7 @@ impl IBids for Bids {
         })
         .push(
             r#"
-            ON CONFLICT (market_contract_id, id, bidder) DO UPDATE
+            ON CONFLICT (id) DO UPDATE
             SET 
                 bidder = EXCLUDED.bidder,
                 status = EXCLUDED.status,

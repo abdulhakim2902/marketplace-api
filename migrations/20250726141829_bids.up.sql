@@ -17,5 +17,5 @@ CREATE TABLE IF NOT EXISTS bids (
   status VARCHAR(20),
   bid_type VARCHAR(20),
   updated_at timestamp(6) WITH time zone DEFAULT NOW() NOT NULL,
-  PRIMARY KEY (market_contract_id, id, bidder)
+  PRIMARY KEY (id)
 );

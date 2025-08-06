@@ -82,6 +82,7 @@ impl IActivities for Activities {
         let res = QueryBuilder::<Postgres>::new(
             r#"
             INSERT INTO activities (
+                id,
                 tx_type,
                 tx_index,
                 tx_id,
@@ -100,6 +101,7 @@ impl IActivities for Activities {
             "#,
         )
         .push_values(items, |mut b, item| {
+            b.push_bind(item.id);
             b.push_bind(item.tx_type);
             b.push_bind(item.tx_index);
             b.push_bind(item.tx_id.clone());
@@ -117,7 +119,7 @@ impl IActivities for Activities {
         })
         .push(
             r#"
-            ON CONFLICT (tx_index, tx_id) DO NOTHING
+            ON CONFLICT (id) DO NOTHING
             "#,
         )
         .build()

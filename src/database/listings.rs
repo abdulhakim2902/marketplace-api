@@ -47,6 +47,7 @@ impl IListings for Listings {
         let res = QueryBuilder::<Postgres>::new(
             r#"
             INSERT INTO listings (
+                id,
                 block_height,
                 block_time,
                 market_contract_id, 
@@ -62,6 +63,7 @@ impl IListings for Listings {
             "#,
         )
         .push_values(items, |mut b, item| {
+            b.push_bind(item.id);
             b.push_bind(item.block_height);
             b.push_bind(item.block_time);
             b.push_bind(item.market_contract_id.clone());
@@ -76,7 +78,7 @@ impl IListings for Listings {
         })
         .push(
             r#"
-            ON CONFLICT (market_contract_id, nft_id) DO UPDATE SET 
+            ON CONFLICT (id) DO UPDATE SET 
                 block_height = EXCLUDED.block_height,
                 block_time = EXCLUDED.block_time,
                 price = EXCLUDED.price,
