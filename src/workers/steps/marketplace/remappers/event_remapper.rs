@@ -1,3 +1,4 @@
+use crate::utils::token_utils::CoinEvent;
 use crate::{
     config::marketplace_config::{
         EventFieldRemappings, EventType, MarketplaceEventType, NFTMarketplaceConfig,
@@ -8,12 +9,14 @@ use crate::{
     },
     workers::steps::marketplace::{HashableJsonPath, remappers::TableType},
 };
+use ahash::AHashMap;
 use anyhow::Result;
 use aptos_indexer_processor_sdk::{
     aptos_indexer_transaction_stream::utils::time::parse_timestamp,
     aptos_protos::transaction::v1::{Transaction, transaction::TxnData},
     utils::{convert::standardize_address, extract::hash_str},
 };
+use bigdecimal::{BigDecimal, ToPrimitive};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 use tracing::{debug, warn};
 
@@ -68,9 +71,35 @@ impl EventRemapper {
         let mut activities: Vec<NftMarketplaceActivity> = Vec::new();
 
         if let Some(txn_info) = txn.info.as_ref() {
+            let mut buy_prices: AHashMap<String, BigDecimal> = AHashMap::new();
+            let mut buy_seller: AHashMap<i64, String> = AHashMap::new();
+
             let txn_id = format!("0x{}", hex::encode(txn_info.hash.clone()));
             let events = self.get_events(Arc::new(txn))?;
             for event in events {
+                let coin_result = CoinEvent::from_event(
+                    &event.type_str,
+                    &event.data.to_string(),
+                    event.transaction_version,
+                )?;
+
+                if let Some(coin) = coin_result {
+                    match coin {
+                        CoinEvent::WithdrawEvent(inner) => {
+                            buy_prices
+                                .entry(event.account_address.clone())
+                                .and_modify(|existing| {
+                                    *existing += &inner.amount;
+                                })
+                                .or_insert(inner.amount);
+                        }
+                        CoinEvent::DepositEvent(_) => {
+                            buy_seller
+                                .insert(event.transaction_version, event.account_address.clone());
+                        }
+                    }
+                }
+
                 let event_type_str = event.event_type.to_string();
 
                 // Handle nft activity event
@@ -185,6 +214,22 @@ impl EventRemapper {
                                 activity.creator_address.clone(),
                                 activity.buyer.clone(),
                             );
+                        }
+
+                        // Handle bluemove marketplace, where buy event doesn't have price and seller
+                        if activity.standard_event_type == MarketplaceEventType::Buy {
+                            if let Some(buyer) = activity.buyer.as_ref() {
+                                if let Some(price) = buy_prices.remove(buyer) {
+                                    activity.price = price.to_i64().unwrap_or_default();
+                                }
+                            }
+
+                            if activity.seller.is_none() {
+                                let txn_version = activity.txn_version;
+                                if let Some(seller) = buy_seller.remove(&txn_version).as_ref() {
+                                    activity.seller = Some(seller.clone());
+                                }
+                            }
                         }
 
                         activities.push(activity);

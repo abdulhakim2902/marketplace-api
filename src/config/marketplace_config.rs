@@ -44,7 +44,7 @@ pub struct ResourceRemapping {
     pub resource_fields: HashMap<String, Vec<DbColumn>>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, EnumString, Display)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, EnumString, Display, Eq, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum MarketplaceEventType {

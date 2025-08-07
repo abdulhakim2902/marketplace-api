@@ -2,8 +2,6 @@
 CREATE FUNCTION add_collection_id ()
     RETURNS TRIGGER
     AS $$
-DECLARE 
-    collection_id VARCHAR(66);
 BEGIN
     IF NEW.collection_id IS NULL THEN
         SELECT nfts.collection_id FROM nfts

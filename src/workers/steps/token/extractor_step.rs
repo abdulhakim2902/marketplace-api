@@ -179,30 +179,30 @@ impl Processable for TokenExtractor {
                         );
 
                         if let Some(coin) = coin.unwrap() {
-                            let CoinEvent::WithdrawEvent(withdraw) = coin;
+                            if let CoinEvent::WithdrawEvent(withdraw) = coin {
+                                let mint_index = mint_activities
+                                    .get(&event.account_address)
+                                    .map(|e| e.tx_index);
 
-                            let mint_index = mint_activities
-                                .get(&event.account_address)
-                                .map(|e| e.tx_index);
+                                if let Some(idx) = mint_index {
+                                    if let Some(activity) = self.current_activities.get_mut(&idx) {
+                                        let price = activity
+                                            .price
+                                            .as_ref()
+                                            .map_or(withdraw.amount.clone(), |price| {
+                                                price + &withdraw.amount
+                                            });
 
-                            if let Some(idx) = mint_index {
-                                if let Some(activity) = self.current_activities.get_mut(&idx) {
-                                    let price = activity
-                                        .price
-                                        .as_ref()
-                                        .map_or(withdraw.amount.clone(), |price| {
-                                            price + &withdraw.amount
-                                        });
-
-                                    activity.price = price.to_i64();
+                                        activity.price = price.to_i64();
+                                    }
+                                } else {
+                                    mint_prices
+                                        .entry(event.account_address.clone())
+                                        .and_modify(|existing| {
+                                            *existing += &withdraw.amount;
+                                        })
+                                        .or_insert(withdraw.amount);
                                 }
-                            } else {
-                                mint_prices
-                                    .entry(event.account_address.clone())
-                                    .and_modify(|existing| {
-                                        *existing += &withdraw.amount;
-                                    })
-                                    .or_insert(withdraw.amount);
                             }
                         }
 
