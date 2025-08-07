@@ -272,6 +272,7 @@ nft_marketplace_configs:
     contract_address: 0xd1fd99c1944b84d1670a2536417e997864ad12303d19eac725891691b04d614e
     event_model_mapping:
       marketplaceV2::ListEvent: list
+      marketplaceV2::ChangePriceEvent: relist
       marketplaceV2::DelistEvent: unlist
       marketplaceV2::BuyEvent: buy
       offer_lib::OfferEvent: solo-bid
@@ -282,6 +283,24 @@ nft_marketplace_configs:
       offer_lib::CancelOfferCollectionEvent: cancel-collection-bid
     events:
       marketplaceV2::ListEvent:
+        event_fields:
+          "$.seller_address":
+            - table: nft_marketplace_activities
+              column: seller
+          "$.amount":
+            - table: nft_marketplace_activities
+              column: price
+          "$.id.token_data_id.name":
+            - table: nft_marketplace_activities
+              column: token_name
+          "$.id.token_data_id.creator":
+            - table: nft_marketplace_activities
+              column: creator_address
+          "$.id.token_data_id.collection":
+            - table: nft_marketplace_activities
+              column: collection_name
+
+      marketplaceV2::ChangePriceEvent:
         event_fields:
           "$.seller_address":
             - table: nft_marketplace_activities

@@ -55,6 +55,7 @@ pub enum MarketplaceEventType {
     Deposit,
     // Listing events
     List,
+    Relist,
     Unlist,
     Buy,
     // Token bid events

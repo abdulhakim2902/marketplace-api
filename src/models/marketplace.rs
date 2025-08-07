@@ -200,10 +200,6 @@ impl MarketplaceModel for NftMarketplaceActivity {
 }
 
 impl BidModel for NftMarketplaceActivity {
-    fn is_valid_bid(&self) -> bool {
-        self.get_bid_id().is_some() && self.get_bid_type().is_some()
-    }
-
     fn get_bid_id(&self) -> Option<String> {
         if let Some(status) = self.get_bid_type().as_ref() {
             let address = match status.as_str() {
@@ -304,13 +300,13 @@ impl BidModel for NftMarketplaceActivity {
 
         None
     }
+
+    fn is_valid_bid(&self) -> bool {
+        self.get_bid_id().is_some() && self.get_bid_type().is_some()
+    }
 }
 
 impl ListingModel for NftMarketplaceActivity {
-    fn is_valid_listing(&self) -> bool {
-        self.get_listing_id().is_some() && self.get_listing_status().is_some()
-    }
-
     fn get_listing_id(&self) -> Option<String> {
         self.contract_address
             .as_ref()
@@ -324,10 +320,15 @@ impl ListingModel for NftMarketplaceActivity {
     fn get_listing_status(&self) -> Option<bool> {
         match self.standard_event_type {
             MarketplaceEventType::List => Some(true),
+            MarketplaceEventType::Relist => Some(true),
             MarketplaceEventType::Unlist => Some(false),
             MarketplaceEventType::Buy => Some(false),
             _ => None,
         }
+    }
+
+    fn is_valid_listing(&self) -> bool {
+        self.get_listing_id().is_some() && self.get_listing_status().is_some()
     }
 }
 

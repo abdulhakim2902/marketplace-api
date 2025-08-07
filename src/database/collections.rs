@@ -1,11 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use chrono::{DateTime};
-use sqlx::{
-    PgPool, Postgres, QueryBuilder, Transaction,
-    postgres::{PgQueryResult},
-};
+use chrono::DateTime;
+use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
 use crate::models::schema::collection::top_wallet::{FilterTopWalletSchema, TopWalletType};
