@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use crate::models::{
-    db::bid::DbBid,
-    schema::offer::{OfferSchema, WhereOfferSchema},
-};
+use crate::models::schema::offer::FilterOfferSchema;
+use crate::models::{db::bid::DbBid, schema::offer::OfferSchema};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
@@ -19,9 +17,7 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
-        query: &WhereOfferSchema,
-        limit: i64,
-        offset: i64,
+        filter: Option<FilterOfferSchema>,
     ) -> anyhow::Result<Vec<OfferSchema>>;
 
     async fn fetch_collection_top_offer(
@@ -125,10 +121,14 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
-        query: &WhereOfferSchema,
-        limit: i64,
-        offset: i64,
+        filter: Option<FilterOfferSchema>,
     ) -> anyhow::Result<Vec<OfferSchema>> {
+        let filter = filter.unwrap_or_default();
+
+        let query = filter.where_.unwrap_or_default();
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let res = sqlx::query_as!(
             OfferSchema,
             r#"

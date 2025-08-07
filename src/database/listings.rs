@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use crate::models::{
-    db::listing::DbListing,
-    schema::listing::{ListingSchema, WhereListingSchema},
-};
+use crate::models::schema::listing::FilterListingSchema;
+use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -17,9 +15,7 @@ pub trait IListings: Send + Sync {
 
     async fn fetch_listings(
         &self,
-        query: &WhereListingSchema,
-        limit: i64,
-        offset: i64,
+        filter: Option<FilterListingSchema>,
     ) -> anyhow::Result<Vec<ListingSchema>>;
 }
 
@@ -98,10 +94,14 @@ impl IListings for Listings {
 
     async fn fetch_listings(
         &self,
-        query: &WhereListingSchema,
-        limit: i64,
-        offset: i64,
+        filter: Option<FilterListingSchema>,
     ) -> anyhow::Result<Vec<ListingSchema>> {
+        let filter = filter.unwrap_or_default();
+
+        let query = filter.where_.unwrap_or_default();
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let res = sqlx::query_as!(
             ListingSchema,
             r#"

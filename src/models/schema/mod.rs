@@ -5,6 +5,8 @@ use bigdecimal::{BigDecimal, One};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
+use crate::models::schema::collection::FilterCollectionSchema;
+use crate::models::schema::nft::FilterNftSchema;
 use crate::{
     database::{
         Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
@@ -60,12 +62,16 @@ async fn fetch_collection(
 
     let query = WhereCollectionSchema {
         collection_id,
-        search: None,
-        wallet_address: None,
+        ..Default::default()
+    };
+
+    let filter = FilterCollectionSchema {
+        where_: Some(query),
+        ..Default::default()
     };
 
     db.collections()
-        .fetch_collections(&query, None, None, 1, 0)
+        .fetch_collections(filter)
         .await
         .unwrap_or_default()
         .first()
@@ -88,18 +94,16 @@ async fn fetch_nft(
     let query = WhereNftSchema {
         collection_id,
         nft_id,
-        search: None,
-        type_: None,
-        wallet_address: None,
-        rarity: None,
-        burned: None,
-        attributes: None,
-        market_contract_ids: None,
-        price: None,
+        ..Default::default()
+    };
+
+    let filter = FilterNftSchema {
+        where_: Some(query),
+        ..Default::default()
     };
 
     db.nfts()
-        .fetch_nfts(&query, None, 1, 0)
+        .fetch_nfts(filter)
         .await
         .unwrap_or_default()
         .first()

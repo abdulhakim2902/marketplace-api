@@ -3,8 +3,7 @@ pub mod nft_change;
 pub mod nft_distribution;
 pub mod nft_holder;
 pub mod profit_leaderboard;
-pub mod top_buyer;
-pub mod top_seller;
+pub mod top_wallet;
 pub mod trending;
 
 use async_graphql::{Context, InputObject};
@@ -172,7 +171,6 @@ pub struct FilterCollectionSchema {
     pub where_: Option<WhereCollectionSchema>,
     #[graphql(name = "order_by")]
     pub order_by: Option<OrderCollectionSchema>,
-    pub interval: Option<String>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -183,6 +181,7 @@ pub struct WhereCollectionSchema {
     pub search: Option<String>,
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
+    pub interval: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]

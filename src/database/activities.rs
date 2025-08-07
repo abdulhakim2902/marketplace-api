@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
+use crate::models::schema::activity::FilterActivitySchema;
+use crate::models::schema::activity::profit_loss::FilterProfitLossSchema;
 use crate::models::{
     db::activity::DbActivity,
     schema::{
-        activity::{
-            ActivitySchema, TxType, WhereActivitySchema,
-            profit_loss::{ProfitLossSchema, WhereProfitLossSchema},
-        },
+        activity::{ActivitySchema, TxType, profit_loss::ProfitLossSchema},
         data_point::DataPointSchema,
     },
 };
@@ -26,9 +25,7 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_activities(
         &self,
-        query: &WhereActivitySchema,
-        limit: i64,
-        offset: i64,
+        filter: FilterActivitySchema,
     ) -> anyhow::Result<Vec<ActivitySchema>>;
 
     async fn fetch_past_floor(
@@ -44,9 +41,7 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_profit_and_loss(
         &self,
-        query: &WhereProfitLossSchema,
-        limit: i64,
-        offset: i64,
+        filter: Option<FilterProfitLossSchema>,
     ) -> anyhow::Result<Vec<ProfitLossSchema>>;
 }
 
@@ -124,10 +119,12 @@ impl IActivities for Activities {
 
     async fn fetch_activities(
         &self,
-        query: &WhereActivitySchema,
-        limit: i64,
-        offset: i64,
+        filter: FilterActivitySchema,
     ) -> anyhow::Result<Vec<ActivitySchema>> {
+        let query = filter.where_.unwrap_or_default();
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             SELECT 
@@ -276,10 +273,14 @@ impl IActivities for Activities {
 
     async fn fetch_profit_and_loss(
         &self,
-        query: &WhereProfitLossSchema,
-        limit: i64,
-        offset: i64,
+        filter: Option<FilterProfitLossSchema>,
     ) -> anyhow::Result<Vec<ProfitLossSchema>> {
+        let filter = filter.unwrap_or_default();
+
+        let query = filter.where_.unwrap_or_default();
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let res = sqlx::query_as!(
             ProfitLossSchema,
             r#"

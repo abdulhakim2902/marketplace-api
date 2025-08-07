@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT\n                    a.sender            AS address,\n                    COUNT(*)            AS total,\n                    SUM(a.price)        AS volume\n                FROM activities a\n                WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')\n                    AND a.collection_id = $1\n                    AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)\n                GROUP BY a.collection_id, a.sender\n                ORDER BY total DESC, volume DESC\n                LIMIT $3\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "total",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "volume",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Interval",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "a759c290908056ce535dad8fd9614e6d142d14d10d765121d8c73d5775c695a9"
+}

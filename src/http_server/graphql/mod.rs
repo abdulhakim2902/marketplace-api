@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
+use crate::models::schema::data_point::FilterFloorChartSchema;
 use crate::{
     database::{
         Database, IDatabase, activities::IActivities, bids::IBids, collections::ICollections,
@@ -17,8 +19,7 @@ use crate::{
             nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
             nft_holder::NftHolderSchema,
             profit_leaderboard::{FilterLeaderboardSchema, ProfitLeaderboardSchema},
-            top_buyer::TopBuyerSchema,
-            top_seller::TopSellerSchema,
+            top_wallet::{FilterTopWalletSchema, TopWalletSchema},
             trending::{FilterTrendingSchema, TrendingSchema},
         },
         data_point::DataPointSchema,
@@ -28,11 +29,9 @@ use crate::{
         offer::{FilterOfferSchema, OfferSchema},
         wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema},
     },
-    utils::string_utils,
 };
 use async_graphql::{Context, Object, http::GraphiQLSource};
 use axum::response::{Html, IntoResponse};
-use chrono::DateTime;
 
 pub async fn graphql() -> impl IntoResponse {
     Html(GraphiQLSource::build().endpoint("/gql").finish())
@@ -61,14 +60,8 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let filter = filter.unwrap_or_default();
-        let query = filter.where_.unwrap_or_default();
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         db.activities()
-            .fetch_activities(&query, limit, offset)
+            .fetch_activities(filter.unwrap_or_default())
             .await
             .expect("Failed to fetch activites")
     }
@@ -82,16 +75,8 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let filter = filter.unwrap_or_default();
-        let query = filter.where_.unwrap_or_default();
-        let interval = filter.interval;
-        let order_by = filter.order_by;
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         db.collections()
-            .fetch_collections(&query, order_by, interval, limit, offset)
+            .fetch_collections(filter.unwrap_or_default())
             .await
             .expect("Failed to fetch collections")
     }
@@ -101,15 +86,8 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let filter = filter.unwrap_or_default();
-        let query = filter.where_.unwrap_or_default();
-        let order_by = filter.order_by;
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         db.nfts()
-            .fetch_nfts(&query, order_by, limit, offset)
+            .fetch_nfts(filter.unwrap_or_default())
             .await
             .expect("Failed to fetch nfts")
     }
@@ -123,14 +101,8 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let filter = filter.unwrap_or_default();
-        let query = filter.where_.unwrap_or_default();
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         db.listings()
-            .fetch_listings(&query, limit, offset)
+            .fetch_listings(filter)
             .await
             .expect("Failed to fetch nfts")
     }
@@ -144,14 +116,8 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let filter = filter.unwrap_or_default();
-        let query = filter.where_.unwrap_or_default();
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         db.bids()
-            .fetch_bids(&query, limit, offset)
+            .fetch_bids(filter)
             .await
             .expect("Failed to fetch bids")
     }
@@ -191,13 +157,8 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let query = filter.where_;
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         db.collections()
-            .fetch_trending(&query, limit, offset)
+            .fetch_trending(filter)
             .await
             .expect("Failed to fetch collection trending")
     }
@@ -211,13 +172,8 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let query = filter.where_;
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         db.collections()
-            .fetch_nft_changes(&query, limit, offset)
+            .fetch_nft_changes(filter)
             .await
             .expect("Failed to fetch collection nft period distribution")
     }
@@ -231,15 +187,55 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let query = filter.where_;
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         db.collections()
-            .fetch_profit_leaderboards(&query, limit, offset)
+            .fetch_profit_leaderboards(filter)
             .await
             .expect("Failed to fetch collection nft period distribution")
+    }
+
+    async fn collection_top_wallets(
+        &self,
+        ctx: &Context<'_>,
+        filter: FilterTopWalletSchema,
+    ) -> Vec<TopWalletSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.collections()
+            .fetch_top_wallets(filter)
+            .await
+            .expect("Failed to fetch collection top buyers")
+    }
+
+    async fn collection_floor_charts(
+        &self,
+        ctx: &Context<'_>,
+        filter: FilterFloorChartSchema,
+    ) -> Vec<DataPointSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.collections()
+            .fetch_floor_charts(filter)
+            .await
+            .expect("Failed to fetch floor chart")
+    }
+
+    async fn collection_nft_holders(
+        &self,
+        ctx: &Context<'_>,
+        filter: FilterNftHolderSchema,
+    ) -> Vec<NftHolderSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.collections()
+            .fetch_nft_holders(filter)
+            .await
+            .expect("Failed to fetch nft holders")
     }
 
     async fn collection_attributes(
@@ -257,75 +253,17 @@ impl Query {
             .expect("Failed to fetch collection attributes")
     }
 
-    async fn collection_top_buyers(
-        &self,
-        ctx: &Context<'_>,
-        id: String,
-        interval: Option<String>,
-    ) -> Vec<TopBuyerSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
-            .expect("Invalid interval");
-
-        db.collections()
-            .fetch_top_buyers(&id, i)
-            .await
-            .expect("Failed to fetch collection top buyers")
-    }
-
-    async fn collection_top_sellers(
-        &self,
-        ctx: &Context<'_>,
-        id: String,
-        interval: Option<String>,
-    ) -> Vec<TopSellerSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let i = string_utils::str_to_pginterval(&interval.unwrap_or_default())
-            .expect("Invalid interval");
-
-        db.collections()
-            .fetch_top_sellers(&id, i)
-            .await
-            .expect("Failed to fetch collection top sellers")
-    }
-
-    async fn collection_nft_holders(
-        &self,
-        ctx: &Context<'_>,
-        id: String,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Vec<NftHolderSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.collections()
-            .fetch_nft_holders(&id, limit, offset)
-            .await
-            .expect("Failed to fetch nft holders")
-    }
-
     async fn collection_nft_amount_distribution(
         &self,
         ctx: &Context<'_>,
-        id: String,
+        collection_id: String,
     ) -> Option<NftAmountDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
         db.collections()
-            .fetch_nft_amount_distribution(&id)
+            .fetch_nft_amount_distribution(&collection_id)
             .await
             .ok()
     }
@@ -345,34 +283,24 @@ impl Query {
             .ok()
     }
 
-    async fn collection_floor_charts(
+    // ================================================
+
+    // ================== Activities ==================
+    async fn profit_loss_activities(
         &self,
         ctx: &Context<'_>,
-        id: String,
-        start_time: i64,
-        end_time: i64,
-        interval: String,
-    ) -> Vec<DataPointSchema> {
+        filter: Option<FilterProfitLossSchema>,
+    ) -> Vec<ProfitLossSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let i = string_utils::str_to_pginterval(&interval)
-            .expect("Invalid interval")
-            .expect("Invalid interval");
-
-        let start_date = DateTime::from_timestamp_millis(start_time).expect("Invalid start time");
-        let end_date = DateTime::from_timestamp_millis(end_time).expect("Invalid end time");
-
-        db.collections()
-            .fetch_floor_charts(&id, start_date, end_date, i)
+        db.activities()
+            .fetch_profit_and_loss(filter)
             .await
-            .expect("Failed to fetch floor chart")
+            .expect("Failed to fetch wallet profit loss")
     }
 
-    // ================================================
-
-    // ================== Activities ==================
     async fn contribution_chart_activities(
         &self,
         ctx: &Context<'_>,
@@ -386,26 +314,5 @@ impl Query {
             .fetch_contribution_chart(&wallet_address)
             .await
             .expect("Failed to fetch contribution chart")
-    }
-
-    async fn profit_loss_activities(
-        &self,
-        ctx: &Context<'_>,
-        filter: Option<FilterProfitLossSchema>,
-    ) -> Vec<ProfitLossSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let filter = filter.unwrap_or_default();
-        let query = filter.where_.unwrap_or_default();
-
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
-        db.activities()
-            .fetch_profit_and_loss(&query, limit, offset)
-            .await
-            .expect("Failed to fetch wallet profit loss")
     }
 }

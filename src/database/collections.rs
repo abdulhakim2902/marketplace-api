@@ -1,26 +1,31 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime};
 use sqlx::{
     PgPool, Postgres, QueryBuilder, Transaction,
-    postgres::{PgQueryResult, types::PgInterval},
+    postgres::{PgQueryResult},
 };
 
+use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
+use crate::models::schema::collection::top_wallet::{FilterTopWalletSchema, TopWalletType};
+use crate::models::schema::data_point::FilterFloorChartSchema;
 use crate::{
     models::{
         db::collection::DbCollection,
         schema::{
             collection::{
-                CollectionSchema, OrderCollectionSchema, WhereCollectionSchema,
+                CollectionSchema, FilterCollectionSchema,
                 attribute::AttributeSchema,
-                nft_change::{NftChangeSchema, WhereNftChangeSchema},
+                nft_change::FilterNftChangeSchema,
+                nft_change::NftChangeSchema,
                 nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
                 nft_holder::NftHolderSchema,
-                profit_leaderboard::{ProfitLeaderboardSchema, WhereLeaderboardSchema},
-                top_buyer::TopBuyerSchema,
-                top_seller::TopSellerSchema,
-                trending::{TrendingSchema, WhereTrendingSchema},
+                profit_leaderboard::FilterLeaderboardSchema,
+                profit_leaderboard::ProfitLeaderboardSchema,
+                top_wallet::TopWalletSchema,
+                trending::FilterTrendingSchema,
+                trending::TrendingSchema,
             },
             data_point::DataPointSchema,
         },
@@ -38,53 +43,34 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_collections(
         &self,
-        query: &WhereCollectionSchema,
-        order_by: Option<OrderCollectionSchema>,
-        interval: Option<String>,
-        limit: i64,
-        offset: i64,
+        filter: FilterCollectionSchema,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
 
     async fn fetch_trending(
         &self,
-        query: &WhereTrendingSchema,
-        page: i64,
-        size: i64,
+        filter: FilterTrendingSchema,
     ) -> anyhow::Result<Vec<TrendingSchema>>;
 
     async fn fetch_nft_changes(
         &self,
-        query: &WhereNftChangeSchema,
-        limit: i64,
-        offset: i64,
+        filter: FilterNftChangeSchema,
     ) -> anyhow::Result<Vec<NftChangeSchema>>;
 
     async fn fetch_profit_leaderboards(
         &self,
-        query: &WhereLeaderboardSchema,
-        limit: i64,
-        offset: i64,
+        filter: FilterLeaderboardSchema,
     ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>>;
 
     async fn fetch_attributes(&self, collection_id: &str) -> anyhow::Result<Vec<AttributeSchema>>;
 
-    async fn fetch_top_buyers(
+    async fn fetch_top_wallets(
         &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopBuyerSchema>>;
-
-    async fn fetch_top_sellers(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopSellerSchema>>;
+        filter: FilterTopWalletSchema,
+    ) -> anyhow::Result<Vec<TopWalletSchema>>;
 
     async fn fetch_nft_holders(
         &self,
-        collection_id: &str,
-        limit: i64,
-        offset: i64,
+        filter: FilterNftHolderSchema,
     ) -> anyhow::Result<Vec<NftHolderSchema>>;
 
     async fn fetch_nft_amount_distribution(
@@ -99,10 +85,7 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_floor_charts(
         &self,
-        collection_id: &str,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
-        interval: PgInterval,
+        filter: FilterFloorChartSchema,
     ) -> anyhow::Result<Vec<DataPointSchema>>;
 }
 
@@ -182,12 +165,13 @@ impl ICollections for Collections {
 
     async fn fetch_collections(
         &self,
-        query: &WhereCollectionSchema,
-        order: Option<OrderCollectionSchema>,
-        interval: Option<String>,
-        limit: i64,
-        offset: i64,
+        filter: FilterCollectionSchema,
     ) -> anyhow::Result<Vec<CollectionSchema>> {
+        let query = filter.where_.unwrap_or_default();
+        let order = filter.order_by;
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             WITH sales AS (
@@ -205,9 +189,9 @@ impl ICollections for Collections {
             query_builder.push_bind(collection_id);
         }
 
-        if let Some(interval) = interval.as_ref() {
+        if let Some(interval) = query.interval.as_ref() {
             if let Some(pg_interval) =
-                string_utils::str_to_pginterval(&interval).expect("Invalid interval")
+                string_utils::str_to_pginterval(interval).expect("Invalid interval")
             {
                 query_builder.push(" AND activities.block_time >= NOW() - ");
                 query_builder.push_bind(pg_interval);
@@ -331,10 +315,12 @@ impl ICollections for Collections {
 
     async fn fetch_trending(
         &self,
-        query: &WhereTrendingSchema,
-        limit: i64,
-        offset: i64,
+        filter: FilterTrendingSchema,
     ) -> anyhow::Result<Vec<TrendingSchema>> {
+        let query = filter.where_;
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let res = sqlx::query_as!(
             TrendingSchema,
             r#"
@@ -375,10 +361,13 @@ impl ICollections for Collections {
 
     async fn fetch_nft_changes(
         &self,
-        query: &WhereNftChangeSchema,
-        limit: i64,
-        offset: i64,
+        filter: FilterNftChangeSchema,
     ) -> anyhow::Result<Vec<NftChangeSchema>> {
+        let query = filter.where_;
+
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let interval =
             string_utils::str_to_pginterval(&query.interval.clone().unwrap_or_default())?;
         let res = sqlx::query_as!(
@@ -429,10 +418,12 @@ impl ICollections for Collections {
 
     async fn fetch_profit_leaderboards(
         &self,
-        query: &WhereLeaderboardSchema,
-        limit: i64,
-        offset: i64,
+        filter: FilterLeaderboardSchema,
     ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>> {
+        let query = filter.where_;
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let res = sqlx::query_as!(
             ProfitLeaderboardSchema,
             r#"
@@ -488,72 +479,79 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn fetch_top_buyers(
+    async fn fetch_top_wallets(
         &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopBuyerSchema>> {
-        let res = sqlx::query_as!(
-            TopBuyerSchema,
-            r#"
-            SELECT
-                a.receiver      AS buyer, 
-                COUNT(*)        AS bought, 
-                SUM(a.price)    AS volume
-            FROM activities a
-            WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
-                AND a.collection_id = $1
-                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-            GROUP BY a.collection_id, a.receiver
-            ORDER BY bought DESC, volume DESC
-            LIMIT 10
-            "#,
-            collection_id,
-            interval,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection top buyers")?;
+        filter: FilterTopWalletSchema,
+    ) -> anyhow::Result<Vec<TopWalletSchema>> {
+        let query = filter.where_;
 
-        Ok(res)
-    }
+        let type_ = query.type_;
+        let collection_id = query.collection_id.as_str();
+        let interval = string_utils::str_to_pginterval(&query.interval.unwrap_or_default())
+            .expect("Invalid interval");
 
-    async fn fetch_top_sellers(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<Vec<TopSellerSchema>> {
-        let res = sqlx::query_as!(
-            TopSellerSchema,
-            r#"
-            SELECT
-                a.sender            AS seller, 
-                COUNT(*)            AS sold, 
-                SUM(a.price)        AS volume
-            FROM activities a
-            WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
-                AND a.collection_id = $1
-                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-            GROUP BY a.collection_id, a.sender
-            ORDER BY sold DESC, volume DESC
-            LIMIT 10
-            "#,
-            collection_id,
-            interval,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch collection top buyers")?;
+        let limit = filter.limit.unwrap_or(10);
+
+        let res = match type_ {
+            TopWalletType::Buyer => sqlx::query_as!(
+                TopWalletSchema,
+                r#"
+                SELECT
+                    a.receiver      AS address,
+                    COUNT(*)        AS total,
+                    SUM(a.price)    AS volume
+                FROM activities a
+                WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
+                    AND a.collection_id = $1
+                    AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
+                GROUP BY a.collection_id, a.receiver
+                ORDER BY total DESC, volume DESC
+                LIMIT $3
+                "#,
+                collection_id,
+                interval,
+                limit,
+            )
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch collection top buyers"),
+            TopWalletType::Seller => sqlx::query_as!(
+                TopWalletSchema,
+                r#"
+                SELECT
+                    a.sender            AS address,
+                    COUNT(*)            AS total,
+                    SUM(a.price)        AS volume
+                FROM activities a
+                WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
+                    AND a.collection_id = $1
+                    AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
+                GROUP BY a.collection_id, a.sender
+                ORDER BY total DESC, volume DESC
+                LIMIT $3
+                "#,
+                collection_id,
+                interval,
+                limit,
+            )
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch collection top sellers"),
+        }?;
 
         Ok(res)
     }
 
     async fn fetch_nft_holders(
         &self,
-        collection_id: &str,
-        limit: i64,
-        offset: i64,
+        filter: FilterNftHolderSchema,
     ) -> anyhow::Result<Vec<NftHolderSchema>> {
+        let query = filter.where_;
+
+        let collection_id = query.collection_id.as_str();
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let res = sqlx::query_as!(
             NftHolderSchema,
             r#"
@@ -743,11 +741,20 @@ impl ICollections for Collections {
 
     async fn fetch_floor_charts(
         &self,
-        collection_id: &str,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
-        interval: PgInterval,
+        filter: FilterFloorChartSchema,
     ) -> anyhow::Result<Vec<DataPointSchema>> {
+        let query = filter.where_;
+
+        let collection_id = query.collection_id.as_str();
+
+        let interval = string_utils::str_to_pginterval(query.interval.as_str())
+            .expect("Invalid interval")
+            .expect("Invalid interval");
+
+        let start_date =
+            DateTime::from_timestamp_millis(query.start_time).expect("Invalid start time");
+        let end_date = DateTime::from_timestamp_millis(query.end_time).expect("Invalid end time");
+
         let res = sqlx::query_as!(
             DataPointSchema,
             r#"
@@ -794,8 +801,8 @@ impl ICollections for Collections {
             ORDER BY ts.time_bin
             "#,
             collection_id,
-            start_time,
-            end_time,
+            start_date,
+            end_date,
             interval,
         )
         .fetch_all(&*self.pool)

@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use crate::models::schema::nft::FilterNftSchema;
 use crate::models::{
     db::nft::{DbNft, DbNftUri},
-    schema::nft::{CoinType, FilterType, NftSchema, OrderNftSchema, WhereNftSchema},
+    schema::nft::{CoinType, FilterType, NftSchema},
 };
 use anyhow::Context;
 use chrono::Utc;
@@ -16,13 +17,7 @@ pub trait INfts: Send + Sync {
         items: Vec<DbNft>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_nfts(
-        &self,
-        query: &WhereNftSchema,
-        order: Option<OrderNftSchema>,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<NftSchema>>;
+    async fn fetch_nfts(&self, filter: FilterNftSchema) -> anyhow::Result<Vec<NftSchema>>;
 
     async fn fetch_nft_uri(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNftUri>>;
 
@@ -108,13 +103,12 @@ impl INfts for Nfts {
         Ok(res)
     }
 
-    async fn fetch_nfts(
-        &self,
-        query: &WhereNftSchema,
-        order: Option<OrderNftSchema>,
-        limit: i64,
-        offset: i64,
-    ) -> anyhow::Result<Vec<NftSchema>> {
+    async fn fetch_nfts(&self, filter: FilterNftSchema) -> anyhow::Result<Vec<NftSchema>> {
+        let query = filter.where_.unwrap_or_default();
+        let order = filter.order_by;
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             WITH
