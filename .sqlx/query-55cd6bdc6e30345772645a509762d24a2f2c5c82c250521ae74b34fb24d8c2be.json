@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                ca.type                      AS type_,\n                jsonb_agg(DISTINCT ca.value) AS values\n            FROM collection_attributes ca\n            WHERE ca.collection_id = $1\n            GROUP BY ca.collection_id, ca.type\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "type_",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "values",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "55cd6bdc6e30345772645a509762d24a2f2c5c82c250521ae74b34fb24d8c2be"
+}

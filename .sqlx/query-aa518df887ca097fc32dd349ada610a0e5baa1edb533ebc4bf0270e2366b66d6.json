@@ -1,0 +1,55 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                na.collection_id,\n                na.nft_id,\n                na.type                 AS attr_type,\n                na.value,\n                ca.rarity,\n                ca.score\n            FROM nft_attributes na\n                LEFT JOIN collection_attributes ca ON na.collection_id = ca.collection_id\n                                                        AND na.type = ca.type\n                                                        AND na.value = ca.value\n            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR na.collection_id = $1)\n                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR na.nft_id = $2)\n            LIMIT $3 OFFSET $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "nft_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "attr_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "value",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "rarity",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "score",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "aa518df887ca097fc32dd349ada610a0e5baa1edb533ebc4bf0270e2366b66d6"
+}

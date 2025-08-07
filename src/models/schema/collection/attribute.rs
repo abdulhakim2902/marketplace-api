@@ -1,16 +1,16 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct AttributeSchema {
-    pub attr_type: String,
+pub struct CollectionAttributeSchema {
+    pub type_: String,
     pub values: serde_json::Value,
 }
 
 #[async_graphql::Object]
-impl AttributeSchema {
+impl CollectionAttributeSchema {
     #[graphql(name = "type")]
     async fn attr_type(&self) -> &str {
-        &self.attr_type
+        &self.type_
     }
 
     async fn values(&self) -> Vec<String> {

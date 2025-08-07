@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT COUNT(*) FROM attributes\n            WHERE nft_id = $1\n            ",
+  "query": "\n            SELECT COUNT(*) FROM nft_attributes\n            WHERE nft_id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       null
     ]
   },
-  "hash": "0fbe9f0167677886088fe674cb2e6f9f8502b2b0ba72584fe60f165aa20f2f2f"
+  "hash": "94316a106a5a1bb0904f0e692430825498288fafb85cb2556cee82665d4af793"
 }

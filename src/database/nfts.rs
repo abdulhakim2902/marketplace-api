@@ -149,24 +149,24 @@ impl INfts for Nfts {
                     WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
                     ORDER BY a.nft_id, a.block_time DESC
                 ),
-                attribute_rarities AS (
+                nft_attributes AS (
                     SELECT
-                        a.collection_id,
-                        a.nft_id,
+                        na.collection_id,
+                        na.nft_id,
                         json_agg(
                             json_build_object(
-                                'attr_type', a.attr_type,
-                                'value', a.value,
-                                'score', ar.score,
-                                'rarity', ar.rarity
+                                'attr_type', na.type,
+                                'value', na.value,
+                                'score', ca.score,
+                                'rarity', ca.rarity
                             )
                         )                       AS attributes, 
-                        SUM(ar.score)           AS score
-                    FROM attributes a
-                        LEFT JOIN attribute_rarities ar ON a.collection_id = ar.collection_id
-                                                                AND a.attr_type = ar.type
-                                                                AND a.value = ar.value
-                    GROUP BY a.collection_id, a.nft_id
+                        SUM(ca.score)           AS score
+                    FROM nft_attributes na
+                        LEFT JOIN collection_attributes ca ON na.collection_id = ca.collection_id
+                                                                AND na.type = ca.type
+                                                                AND na.value = ca.value
+                    GROUP BY na.collection_id, na.nft_id
                 ),
                 nfts AS (
                     SELECT 
@@ -176,7 +176,7 @@ impl INfts for Nfts {
                         n.collection_id,
                         burned,
                         n.properties,
-                        ar.attributes,
+                        na.attributes,
                         COALESCE(n.description, nm.description)     AS description,
                         COALESCE(nm.image, n.uri)                   AS image_url,
                         nm.animation_url,
@@ -201,17 +201,17 @@ impl INfts for Nfts {
                         END                                         AS listed_at,
                         s.price                                     AS last_sale,
                         s.block_time                                AS received_at,
-                        ar.score,
+                        na.score,
                         CASE
-                            WHEN ar.score IS NOT NULL
+                            WHEN na.score IS NOT NULL
                             THEN RANK () OVER (
                                 PARTITION BY n.collection_id
-                                ORDER BY ar.score DESC
+                                ORDER BY na.score DESC
                             )
                             END                                     AS rank
                     FROM nfts n
                         LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
-                        LEFT JOIN attribute_rarities ar ON ar.nft_id = n.id AND ar.collection_id = n.collection_id
+                        LEFT JOIN nft_attributes na ON na.nft_id = n.id AND na.collection_id = n.collection_id
                         LEFT JOIN listing_prices lp ON lp.nft_id = n.id AND lp.seller = n.owner
                         LEFT JOIN sales s ON s.nft_id = n.id
                         LEFT JOIN bid_prices bp ON bp.nft_id = n.id AND bp.bidder != n.owner
@@ -331,16 +331,16 @@ impl INfts for Nfts {
 
         if let Some(attributes) = query.attributes.as_ref() {
             for attribute in attributes {
-                query_builder.push(" AND n.id IN (SELECT a.nft_id FROM attributes a WHERE TRUE");
+                query_builder.push(" AND n.id IN (SELECT na.nft_id FROM nft_attributes na WHERE TRUE");
 
                 if let Some(collection_id) = query.collection_id.as_ref() {
-                    query_builder.push(" AND a.collection_id = ");
+                    query_builder.push(" AND na.collection_id = ");
                     query_builder.push_bind(collection_id);
                 }
 
-                query_builder.push(" AND a.attr_type = ");
+                query_builder.push(" AND na.attr_type = ");
                 query_builder.push_bind(attribute.type_.as_str());
-                query_builder.push(" AND a.value = ANY(");
+                query_builder.push(" AND na.value = ANY(");
                 query_builder.push_bind(attribute.values.as_slice());
                 query_builder.push("))");
             }

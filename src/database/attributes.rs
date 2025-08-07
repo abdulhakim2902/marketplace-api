@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use crate::models::{db::attribute::DbAttribute, schema::attribute::AttributeSchema};
+use crate::models::db::attribute::DbAttribute;
+use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
@@ -13,7 +14,10 @@ pub trait IAttributes: Send + Sync {
         items: Vec<DbAttribute>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<AttributeSchema>>;
+    async fn fetch_attributes(
+        &self,
+        filter: FilterAttributeSchema,
+    ) -> anyhow::Result<Vec<AttributeSchema>>;
 
     async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
 
@@ -45,10 +49,10 @@ impl IAttributes for Attributes {
 
         let res = QueryBuilder::<Postgres>::new(
             r#"
-            INSERT INTO attributes (
+            INSERT INTO nft_attributes (
                 collection_id,
                 nft_id,
-                attr_type,
+                type,
                 value
             )
             "#,
@@ -61,7 +65,7 @@ impl IAttributes for Attributes {
         })
         .push(
             r#"
-            ON CONFLICT (collection_id, nft_id, attr_type, value) DO NOTHING
+            ON CONFLICT (collection_id, nft_id, type, value) DO NOTHING
             "#,
         )
         .build()
@@ -72,45 +76,36 @@ impl IAttributes for Attributes {
         Ok(res)
     }
 
-    async fn fetch_attributes(&self, page: i64, size: i64) -> anyhow::Result<Vec<AttributeSchema>> {
+    async fn fetch_attributes(
+        &self,
+        filter: FilterAttributeSchema,
+    ) -> anyhow::Result<Vec<AttributeSchema>> {
+        let query = filter.where_.unwrap_or_default();
+        let limit = filter.limit.unwrap_or(10);
+        let offset = filter.offset.unwrap_or(0);
+
         let res = sqlx::query_as!(
             AttributeSchema,
             r#"
-            WITH
-                collection_nfts AS (
-                    SELECT nfts.collection_id, COUNT(*)::NUMERIC FROM nfts
-                    GROUP BY nfts.collection_id
-                ),
-                collection_attributes AS (
-                    SELECT atr.collection_id, atr.attr_type, atr.value, COUNT(*)::NUMERIC FROM attributes atr
-                        JOIN collection_nfts cn ON cn.collection_id = atr.collection_id
-                    GROUP by atr.collection_id, atr.attr_type, atr.value
-                ),
-                collection_rarities AS (
-                    SELECT
-                        ca.collection_id,
-                        ca.attr_type, 
-                        ca.value, 
-                        (ca.count / cn.count) AS rarity,
-                        -log(2, ca.count / cn.count) AS score
-                    FROM collection_attributes ca
-                        JOIN collection_nfts cn ON ca.collection_id = cn.collection_id
-                )
             SELECT
-                attr.collection_id,
-                attr.nft_id,
-                attr.attr_type,
-                attr.value,
-                cr.rarity::NUMERIC,
-                cr.score::NUMERIC
-            FROM attributes attr
-                JOIN collection_rarities cr ON cr.collection_id = attr.collection_id 
-                                                    AND cr.attr_type = attr.attr_type
-                                                    AND cr.value = attr.value
-            LIMIT $1 OFFSET $2
+                na.collection_id,
+                na.nft_id,
+                na.type                 AS attr_type,
+                na.value,
+                ca.rarity,
+                ca.score
+            FROM nft_attributes na
+                LEFT JOIN collection_attributes ca ON na.collection_id = ca.collection_id
+                                                        AND na.type = ca.type
+                                                        AND na.value = ca.value
+            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR na.collection_id = $1)
+                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR na.nft_id = $2)
+            LIMIT $3 OFFSET $4
             "#,
-            size,
-            size * (page - 1),
+            query.collection_id,
+            query.nft_id,
+            limit,
+            offset,
         )
         .fetch_all(&*self.pool)
         .await
@@ -122,10 +117,10 @@ impl IAttributes for Attributes {
     async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
         let res = sqlx::query_scalar!(
             r#"
-            SELECT SUM(ar.score) 
-            FROM attribute_rarities ar
-            WHERE ar.collection_id = $1
-            GROUP BY ar.collection_id
+            SELECT SUM(ca.score)
+            FROM collection_attributes ca
+            WHERE ca.collection_id = $1
+            GROUP BY ca.collection_id
             "#,
             collection_id,
         )
@@ -139,9 +134,9 @@ impl IAttributes for Attributes {
     async fn total_collection_trait(&self, collection_id: &str) -> anyhow::Result<i64> {
         let res = sqlx::query_scalar!(
             r#"
-            SELECT COUNT(*) FROM attributes
+            SELECT COUNT(*) FROM collection_attributes
             WHERE collection_id = $1
-            GROUP BY collection_id, attr_type
+            GROUP BY collection_id, type
             "#,
             collection_id
         )
@@ -155,14 +150,14 @@ impl IAttributes for Attributes {
     async fn total_nft_trait(&self, nft_id: &str) -> anyhow::Result<i64> {
         let res = sqlx::query_scalar!(
             r#"
-            SELECT COUNT(*) FROM attributes
+            SELECT COUNT(*) FROM nft_attributes
             WHERE nft_id = $1
             "#,
             nft_id,
         )
         .fetch_one(&*self.pool)
         .await
-        .context("Failed to fetch collection trait")?;
+        .context("Failed to fetch nft trait")?;
 
         Ok(res.unwrap_or_default())
     }

@@ -13,7 +13,7 @@ use crate::{
         schema::{
             collection::{
                 CollectionSchema, FilterCollectionSchema,
-                attribute::AttributeSchema,
+                attribute::CollectionAttributeSchema,
                 nft_change::FilterNftChangeSchema,
                 nft_change::NftChangeSchema,
                 nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
@@ -58,7 +58,7 @@ pub trait ICollections: Send + Sync {
         filter: FilterLeaderboardSchema,
     ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>>;
 
-    async fn fetch_attributes(&self, collection_id: &str) -> anyhow::Result<Vec<AttributeSchema>>;
+    async fn fetch_attributes(&self, collection_id: &str) -> anyhow::Result<Vec<CollectionAttributeSchema>>;
 
     async fn fetch_top_wallets(
         &self,
@@ -456,16 +456,16 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn fetch_attributes(&self, collection_id: &str) -> anyhow::Result<Vec<AttributeSchema>> {
+    async fn fetch_attributes(&self, collection_id: &str) -> anyhow::Result<Vec<CollectionAttributeSchema>> {
         let res = sqlx::query_as!(
-            AttributeSchema,
+            CollectionAttributeSchema,
             r#"
             SELECT 
-                ar.type                      AS attr_type, 
-                jsonb_agg(DISTINCT ar.value) AS values 
-            FROM attribute_rarities ar
-            WHERE ar.collection_id = $1
-            GROUP BY ar.collection_id, ar.type
+                ca.type                      AS type_,
+                jsonb_agg(DISTINCT ca.value) AS values
+            FROM collection_attributes ca
+            WHERE ca.collection_id = $1
+            GROUP BY ca.collection_id, ca.type
             "#,
             collection_id,
         )

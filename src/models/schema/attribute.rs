@@ -1,12 +1,59 @@
+use async_graphql::InputObject;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct AttributeSchema {
-    pub collection_id: Option<String>,
-    pub nft_id: Option<String>,
-    pub attr_type: Option<String>,
-    pub value: Option<String>,
+    pub collection_id: String,
+    pub nft_id: String,
+    pub attr_type: String,
+    pub value: String,
     pub rarity: Option<BigDecimal>,
     pub score: Option<BigDecimal>,
+}
+
+#[async_graphql::Object]
+impl AttributeSchema {
+    #[graphql(name = "collection_id")]
+    async fn collection_id(&self) -> &str {
+        &self.collection_id
+    }
+
+    #[graphql(name = "nft_id")]
+    async fn nft_id(&self) -> &str {
+        &self.nft_id
+    }
+
+    #[graphql(name = "type")]
+    async fn attr_type(&self) -> &str {
+        &self.attr_type
+    }
+
+    async fn value(&self) -> &str {
+        &self.value
+    }
+
+    async fn score(&self) -> Option<String> {
+        self.score.as_ref().map(|e| e.to_plain_string())
+    }
+
+    async fn rarity(&self) -> Option<String> {
+        self.rarity.as_ref().map(|e| e.to_plain_string())
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+pub struct FilterAttributeSchema {
+    #[graphql(name = "where")]
+    pub where_: Option<WhereAttributeSchema>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct WhereAttributeSchema {
+    pub nft_id: Option<String>,
+    pub collection_id: Option<String>,
 }

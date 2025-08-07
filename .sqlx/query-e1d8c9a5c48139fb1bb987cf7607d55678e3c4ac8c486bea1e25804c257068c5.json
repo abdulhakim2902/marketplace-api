@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT SUM(ar.score) \n            FROM attribute_rarities ar\n            WHERE ar.collection_id = $1\n            GROUP BY ar.collection_id\n            ",
+  "query": "\n            SELECT SUM(ca.score)\n            FROM collection_attributes ca\n            WHERE ca.collection_id = $1\n            GROUP BY ca.collection_id\n            ",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       null
     ]
   },
-  "hash": "63cc5b665503d5f868f3eaebf103a14973fb8e165dd3bf4ff1f0b7c410eec6f3"
+  "hash": "e1d8c9a5c48139fb1bb987cf7607d55678e3c4ac8c486bea1e25804c257068c5"
 }

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::database::attributes::IAttributes;
+use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
 use crate::models::schema::data_point::FilterFloorChartSchema;
 use crate::{
@@ -14,7 +16,7 @@ use crate::{
         },
         collection::{
             CollectionSchema, FilterCollectionSchema,
-            attribute::AttributeSchema,
+            attribute::CollectionAttributeSchema,
             nft_change::{FilterNftChangeSchema, NftChangeSchema},
             nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
             nft_holder::NftHolderSchema,
@@ -49,6 +51,21 @@ impl Query {
             .fetch_marketplaces()
             .await
             .expect("Failed to fetch marketplaces")
+    }
+
+    async fn attributes(
+        &self,
+        ctx: &Context<'_>,
+        filter: Option<FilterAttributeSchema>,
+    ) -> Vec<AttributeSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.attributes()
+            .fetch_attributes(filter.unwrap_or_default())
+            .await
+            .expect("Failed to fetch attributes")
     }
 
     async fn activities(
@@ -242,7 +259,7 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         collection_id: String,
-    ) -> Vec<AttributeSchema> {
+    ) -> Vec<CollectionAttributeSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
