@@ -161,7 +161,7 @@ where
                 None => self
                     .db
                     .token_prices()
-                    .get_token_price(APT_TOKEN_ADDR)
+                    .fetch_token_price(APT_TOKEN_ADDR)
                     .await
                     .unwrap_or_default(),
             };

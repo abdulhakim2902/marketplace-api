@@ -10,7 +10,7 @@ pub trait ITokenPrices: Send + Sync {
     async fn insert_token_price(&self, token_price: &DbTokenPrice)
     -> anyhow::Result<PgQueryResult>;
 
-    async fn get_token_price(&self, token_addr: &str) -> anyhow::Result<BigDecimal>;
+    async fn fetch_token_price(&self, token_addr: &str) -> anyhow::Result<BigDecimal>;
 }
 
 pub struct TokenPrices {
@@ -46,7 +46,7 @@ impl ITokenPrices for TokenPrices {
         Ok(res)
     }
 
-    async fn get_token_price(&self, token_addr: &str) -> anyhow::Result<BigDecimal> {
+    async fn fetch_token_price(&self, token_addr: &str) -> anyhow::Result<BigDecimal> {
         let res = sqlx::query!(
             r#"
             SELECT tp.price FROM token_prices tp
