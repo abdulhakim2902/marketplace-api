@@ -57,7 +57,6 @@ impl INfts for Nfts {
                 owner,
                 collection_id,
                 properties,
-                image_url,
                 description,
                 burned,
                 version,
@@ -73,7 +72,6 @@ impl INfts for Nfts {
             b.push_bind(item.owner.clone());
             b.push_bind(item.collection_id.clone());
             b.push_bind(item.properties.clone());
-            b.push_bind(item.image_url.clone());
             b.push_bind(item.description.clone());
             b.push_bind(item.burned);
             b.push_bind(item.version.clone());

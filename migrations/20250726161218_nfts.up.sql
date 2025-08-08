@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS nfts (
   collection_id VARCHAR(66) DEFAULT NULL,
   properties JSONB DEFAULT NULL,
   uri VARCHAR DEFAULT NULL,
-  image_url VARCHAR DEFAULT NULL,
   description VARCHAR DEFAULT NULL,
   burned BOOLEAN DEFAULT false,
   royalty NUMERIC(20, 5),

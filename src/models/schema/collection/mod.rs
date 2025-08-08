@@ -15,7 +15,7 @@ use sqlx::prelude::FromRow;
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{
-        OrderingType, fetch_collection_past_floor, fetch_collection_rarity,
+        OrderingType,
         fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
     },
 };

@@ -25,7 +25,6 @@ pub struct DbNft {
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
     pub uri: Option<String>,
-    pub image_url: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -48,10 +47,6 @@ impl DbNft {
                 version: Some("v2".to_string()),
                 ..Default::default()
             };
-
-            if !inner.uri.ends_with(".json") {
-                nft.image_url = Some(inner.uri);
-            }
 
             if let Some(object_data) = object_metadata.get(&token_addr) {
                 let object_core = object_data.object.object_core.clone();
@@ -123,7 +118,7 @@ impl DbNft {
                         }
                     };
 
-                    let mut nft = DbNft {
+                    let nft = DbNft {
                         id: token_data_id_struct.to_addr(),
                         owner: owner_address,
                         collection_id: Some(token_data_id_struct.get_collection_addr()),
@@ -135,10 +130,6 @@ impl DbNft {
                         version: Some("v1".to_string()),
                         ..Default::default()
                     };
-
-                    if !token_data.uri.ends_with(".json") {
-                        nft.image_url = Some(token_data.uri)
-                    }
 
                     return Ok(Some(nft));
                 }

@@ -8,17 +8,15 @@ use crate::models::schema::collection::FilterCollectionSchema;
 use crate::models::schema::nft::FilterNftSchema;
 use crate::{
     database::{
-        Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
+        Database, IDatabase, attributes::IAttributes, bids::IBids,
         collections::ICollections, nfts::INfts,
     },
     models::{
-        marketplace::APT_DECIMAL,
         schema::{
             collection::{CollectionSchema, WhereCollectionSchema},
             nft::{NftSchema, WhereNftSchema},
         },
     },
-    utils::string_utils,
 };
 
 pub mod activity;
@@ -152,30 +150,6 @@ async fn fetch_total_collection_offer(
     res.unwrap().as_ref().map(|e| e.to_plain_string())
 }
 
-async fn fetch_collection_past_floor(
-    ctx: &Context<'_>,
-    collection_id: Option<String>,
-    interval: Option<String>,
-) -> Option<String> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    let i =
-        string_utils::str_to_pginterval(&interval.unwrap_or_default()).expect("Invalid interval");
-
-    let collection_id = collection_id.as_ref().unwrap();
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    db.activities()
-        .fetch_past_floor(collection_id, i)
-        .await
-        .ok()
-        .map(|e| (BigDecimal::from(e) / APT_DECIMAL).to_plain_string())
-}
-
 async fn fetch_nft_top_offer(ctx: &Context<'_>, nft_id: &str) -> Option<String> {
     let db = ctx
         .data::<Arc<Database>>()
@@ -214,27 +188,4 @@ async fn fetch_total_nft(
         .fetch_total_nft(&wallet_address, collection_id)
         .await
         .ok()
-}
-
-async fn fetch_collection_rarity(
-    ctx: &Context<'_>,
-    collection_id: Option<String>,
-) -> Option<String> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    let collection_id = collection_id.as_ref().unwrap();
-
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    let res = db.attributes().collection_score(collection_id).await;
-    if res.is_err() {
-        return None;
-    }
-
-    res.unwrap()
-        .map(|e| (BigDecimal::one() / e).to_plain_string())
 }
