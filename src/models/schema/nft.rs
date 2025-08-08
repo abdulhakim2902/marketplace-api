@@ -270,7 +270,6 @@ pub enum FilterType {
     All,
     Listed,
     HasOffer,
-    OnAuction,
 }
 
 impl Default for FilterType {

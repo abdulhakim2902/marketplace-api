@@ -5,7 +5,7 @@ use bigdecimal::{BigDecimal, One};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
-use crate::models::schema::collection::FilterCollectionSchema;
+use crate::models::schema::collection::{FilterCollectionSchema};
 use crate::models::schema::nft::FilterNftSchema;
 use crate::{
     database::{

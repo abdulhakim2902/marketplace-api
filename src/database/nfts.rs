@@ -109,36 +109,12 @@ impl INfts for Nfts {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
-        let mut query_builder = QueryBuilder::<Postgres>::new(
-            r#"
+        let mut query_builder = QueryBuilder::<Postgres>::new(r#"
             WITH
                 latest_prices AS (
                     SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
                     WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
                     ORDER BY tp.token_address, tp.created_at DESC
-                ),
-                listing_prices AS (
-                    SELECT 
-                        l.nft_id,
-                        l.price,
-                        l.block_time,
-                        l.seller,
-                        l.market_name,
-                        l.market_contract_id,
-                        l.nonce
-                    FROM listings l
-                    WHERE l.listed
-                ),
-                bid_prices AS (
-                    SELECT DISTINCT ON (b.nft_id)
-                        b.bidder,
-                        b.nft_id,
-                        b.price,
-                        b.nonce
-                    FROM bids b
-                    WHERE b.status = 'active' 
-                        AND b.expired_at > NOW()
-                        AND b.bid_type = 'solo'
                 ),
                 sales AS (
                     SELECT DISTINCT ON (a.nft_id) 
@@ -170,7 +146,7 @@ impl INfts for Nfts {
                 ),
                 nfts AS (
                     SELECT 
-                        id,
+                        n.id,
                         COALESCE(n.name, nm.name)                   AS name,
                         owner,
                         n.collection_id,
@@ -187,18 +163,11 @@ impl INfts for Nfts {
                         royalty,
                         version,
                         updated_at,
-                        lp.price                                    AS list_price,
-                        lp.price * ltp.price                        AS list_usd_price,
-                        lp.market_name,
-                        lp.market_contract_id,
-                        lp.nonce                                    AS list_nonce,
-                        bp.nonce                                    AS bid_nonce,
-                        bpa.nonce                                   AS auction_nonce,
-                        CASE
-                        WHEN lp.block_time IS NOT NULL
-                            THEN lp.block_time
-                            ELSE NULL
-                        END                                         AS listed_at,
+                        l.price                                     AS list_price,
+                        l.price * lp.price                          AS list_usd_price,
+                        l.block_time                                AS listed_at,
+                        l.market_name,
+                        l.market_contract_id,
                         s.price                                     AS last_sale,
                         s.block_time                                AS received_at,
                         na.score,
@@ -212,11 +181,9 @@ impl INfts for Nfts {
                     FROM nfts n
                         LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
                         LEFT JOIN nft_attributes na ON na.nft_id = n.id AND na.collection_id = n.collection_id
-                        LEFT JOIN listing_prices lp ON lp.nft_id = n.id AND lp.seller = n.owner
+                        LEFT JOIN listings l ON l.nft_id = n.id AND l.seller = n.owner AND l.listed
                         LEFT JOIN sales s ON s.nft_id = n.id
-                        LEFT JOIN bid_prices bp ON bp.nft_id = n.id AND bp.bidder != n.owner
-                        LEFT JOIN bid_prices bpa ON bpa.nft_id = n.id AND bpa.bidder = n.owner
-                        LEFT JOIN latest_prices ltp ON TRUE
+                        LEFT JOIN latest_prices lp ON TRUE
                 )
             SELECT
                 n.id,
@@ -234,6 +201,7 @@ impl INfts for Nfts {
                 n.list_price,
                 n.list_usd_price,
                 n.listed_at,
+                n.received_at,
                 n.last_sale,
                 n.score,
                 n.rank,
@@ -244,19 +212,27 @@ impl INfts for Nfts {
                 n.background_color
             FROM nfts n
             WHERE TRUE
-            "#,
-        );
+            "#,);
 
         if let Some(type_) = query.type_.as_ref() {
             match type_ {
                 FilterType::Listed => {
-                    query_builder.push(" AND n.list_nonce IS NOT NULL ");
+                    query_builder.push(" AND n.list_price IS NOT NULL ");
                 }
                 FilterType::HasOffer => {
-                    query_builder.push(" AND n.bid_nonce IS NOT NULL ");
-                }
-                FilterType::OnAuction => {
-                    query_builder.push(" AND n.auction_nonce IS NOT NULL ");
+                    query_builder.push(" AND n.id IN (");
+                    query_builder.push(
+                        r#"
+                        SELECT DISTINCT ON (b.nft_id) b.nft_id
+                        FROM bids b
+                        WHERE b.status = 'active'
+                            AND (b.expired_at IS NULL OR b.expired_at > NOW())
+                            AND b.accepted_tx_id IS NULL
+                            AND b.cancelled_tx_id IS NULL
+                            AND b.bid_type = 'solo'
+                        "#
+                    );
+                    query_builder.push(")");
                 }
                 _ => {}
             }
