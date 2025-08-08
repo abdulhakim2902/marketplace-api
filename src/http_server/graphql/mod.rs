@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::database::attributes::IAttributes;
 use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
+use crate::models::schema::collection::stat::CollectionStatSchema;
 use crate::models::schema::data_point::FilterFloorChartSchema;
 use crate::{
     database::{
@@ -166,6 +167,21 @@ impl Query {
     // ================================================
 
     // ============= COLLECTION ANALYTICS =============
+    async fn collection_stat(
+        &self,
+        ctx: &Context<'_>,
+        collection_id: String,
+    ) -> CollectionStatSchema {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.collections()
+            .fetch_stat(&collection_id)
+            .await
+            .expect("Failed to fetch collection stat")
+    }
+
     async fn collection_trending(
         &self,
         ctx: &Context<'_>,

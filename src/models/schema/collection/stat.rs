@@ -1,27 +1,10 @@
-pub mod attribute;
-pub mod nft_change;
-pub mod nft_distribution;
-pub mod nft_holder;
-pub mod profit_leaderboard;
-pub mod stat;
-pub mod top_wallet;
-pub mod trending;
-
-use async_graphql::{Context, Enum, InputObject};
+use crate::models::marketplace::APT_DECIMAL;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
-use sqlx::prelude::FromRow;
-
-use crate::models::{
-    marketplace::APT_DECIMAL,
-    schema::{
-        OrderingType, fetch_collection_past_floor, fetch_collection_rarity,
-        fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
-    },
-};
+use sqlx::FromRow;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
-pub struct CollectionSchema {
+pub struct CollectionStatSchema {
     pub id: Option<String>,
     pub slug: Option<String>,
     pub supply: Option<i64>,
@@ -39,10 +22,16 @@ pub struct CollectionSchema {
     pub volume_usd: Option<BigDecimal>,
     pub sales: Option<i64>,
     pub listed: Option<i64>,
+    pub top_offers: Option<i64>,
+    pub volume_24h: Option<i64>,
+    pub sales_24h: Option<i64>,
+    pub rarity: Option<BigDecimal>,
+    pub previous_floor: Option<i64>,
+    pub total_offer: Option<i64>,
 }
 
 #[async_graphql::Object]
-impl CollectionSchema {
+impl CollectionStatSchema {
     async fn id(&self) -> Option<&str> {
         self.id.as_ref().map(|e| e.as_str())
     }
@@ -125,63 +114,40 @@ impl CollectionSchema {
             .map(|value| value.to_plain_string())
     }
 
-    #[graphql(name = "total_nft")]
-    async fn total_nft(&self, ctx: &Context<'_>, wallet_address: Option<String>) -> Option<i64> {
-        fetch_total_nft(
-            ctx,
-            self.id.clone(),
-            wallet_address,
-            self.supply.unwrap_or_default(),
-        )
-        .await
+    #[graphql(name = "top_offers")]
+    async fn top_offers(&self) -> Option<String> {
+        self.top_offers
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
-    #[graphql(name = "total_trait")]
-    async fn total_trait(&self, ctx: &Context<'_>) -> Option<i64> {
-        fetch_total_collection_trait(ctx, self.id.clone()).await
+    #[graphql(name = "volume_24h")]
+    async fn volume_24h(&self) -> Option<String> {
+        self.volume_24h
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
+    }
+
+    #[graphql(name = "sales_24h")]
+    async fn sales_24h(&self) -> Option<i64> {
+        self.sales_24h
+    }
+
+    async fn rarity(&self) -> Option<String> {
+        self.rarity.as_ref().map(|e| e.to_plain_string())
+    }
+
+    #[graphql(name = "previous_floor")]
+    async fn previous_floor(&self) -> Option<String> {
+        self.previous_floor
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
     #[graphql(name = "total_offer")]
-    async fn total_offer(&self, ctx: &Context<'_>) -> Option<String> {
-        fetch_total_collection_offer(ctx, self.id.clone()).await
+    async fn total_offer(&self) -> Option<String> {
+        self.total_offer
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterCollectionSchema {
-    #[graphql(name = "where")]
-    pub where_: Option<WhereCollectionSchema>,
-    #[graphql(name = "order_by")]
-    pub order_by: Option<OrderCollectionSchema>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereCollectionSchema {
-    pub search: Option<String>,
-    pub wallet_address: Option<String>,
-    pub collection_id: Option<String>,
-    pub periods: Option<PeriodType>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct OrderCollectionSchema {
-    pub volume: Option<OrderingType>,
-    pub floor: Option<OrderingType>,
-    pub owners: Option<OrderingType>,
-    pub market_cap: Option<OrderingType>,
-    pub sales: Option<OrderingType>,
-    pub listed: Option<OrderingType>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
-#[graphql(rename_items = "snake_case")]
-pub enum PeriodType {
-    Hours1,
-    Hours6,
-    Days1,
-    Days7,
 }

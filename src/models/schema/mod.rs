@@ -176,27 +176,6 @@ async fn fetch_collection_past_floor(
         .map(|e| (BigDecimal::from(e) / APT_DECIMAL).to_plain_string())
 }
 
-async fn fetch_collection_top_offer(
-    ctx: &Context<'_>,
-    collection_id: Option<String>,
-) -> Option<String> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    let collection_id = collection_id.as_ref().unwrap();
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    let res = db.bids().fetch_collection_top_offer(collection_id).await;
-    if res.is_err() {
-        return None;
-    }
-
-    res.unwrap().map(|e| e.to_plain_string())
-}
-
 async fn fetch_nft_top_offer(ctx: &Context<'_>, nft_id: &str) -> Option<String> {
     let db = ctx
         .data::<Arc<Database>>()
