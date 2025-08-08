@@ -349,7 +349,7 @@ impl ICollections for Collections {
                     SELECT
                         b.collection_id,
                         MAX(b.price)                AS price,
-                        SUM(b.price)::NUMERIC       AS total_offer
+                        SUM(b.price)::BIGINT        AS total_offer
                     FROM bids b
                     WHERE b.collection_id = $1
                         AND b.status = 'active'
