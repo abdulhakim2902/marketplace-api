@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS activities (
   usd_price NUMERIC(20, 2) DEFAULT 0,
   block_time timestamp(6) WITH time zone DEFAULT NOW() NOT NULL,
   block_height BIGINT NOT NULL,
+--     amount is not exists in tradeport
   amount BIGINT DEFAULT NULL,
+--     contract is exists in tradeport
   PRIMARY KEY (id)
 )

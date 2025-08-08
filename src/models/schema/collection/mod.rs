@@ -6,7 +6,7 @@ pub mod profit_leaderboard;
 pub mod top_wallet;
 pub mod trending;
 
-use async_graphql::{Context, InputObject};
+use async_graphql::{Context, Enum, InputObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
@@ -33,11 +33,11 @@ pub struct CollectionSchema {
     pub discord: Option<String>,
     pub twitter: Option<String>,
     pub royalty: Option<BigDecimal>,
-    pub volume: Option<i64>,
-    pub sale: Option<i64>,
-    pub total_volume: Option<i64>,
-    pub total_owner: Option<i64>,
     pub floor: Option<i64>,
+    pub owners: Option<i64>,
+    pub volume: Option<i64>,
+    pub volume_usd: Option<BigDecimal>,
+    pub sales: Option<i64>,
     pub listed: Option<i64>,
 }
 
@@ -68,16 +68,6 @@ impl CollectionSchema {
         self.cover_url.as_ref().map(|e| e.as_str())
     }
 
-    async fn floor(&self) -> Option<String> {
-        self.floor
-            .as_ref()
-            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
-    }
-
-    async fn listed(&self) -> Option<i64> {
-        self.listed
-    }
-
     async fn verified(&self) -> Option<bool> {
         self.verified
     }
@@ -98,34 +88,39 @@ impl CollectionSchema {
         self.royalty.as_ref().map(|e| e.to_plain_string())
     }
 
+    async fn floor(&self) -> Option<String> {
+        self.floor
+            .as_ref()
+            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
+    }
+
+    async fn owners(&self) -> Option<i64> {
+        self.owners
+    }
+
+    async fn volume(&self) -> Option<i64> {
+        self.volume
+    }
+
+    #[graphql(name = "volume_usd")]
+    async fn volume_usd(&self) -> Option<String> {
+        self.volume_usd.as_ref().map(|e| e.to_plain_string())
+    }
+
+    async fn sales(&self) -> Option<i64> {
+        self.sales
+    }
+
+    async fn listed(&self) -> Option<i64> {
+        self.listed
+    }
+
     #[graphql(name = "market_cap")]
     async fn market_cap(&self) -> Option<String> {
         self.supply
             .zip(self.floor)
             .map(|(supply, floor)| BigDecimal::from(supply * floor) / APT_DECIMAL)
             .map(|value| value.to_plain_string())
-    }
-
-    #[graphql(name = "sales")]
-    async fn sale(&self) -> Option<i64> {
-        self.sale
-    }
-
-    #[graphql(name = "volume")]
-    async fn volume(&self) -> Option<i64> {
-        self.volume
-    }
-
-    #[graphql(name = "total_volume")]
-    async fn total_volume(&self) -> Option<String> {
-        self.total_volume
-            .as_ref()
-            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
-    }
-
-    #[graphql(name = "owners")]
-    async fn total_owner(&self) -> Option<i64> {
-        self.total_owner
     }
 
     #[graphql(name = "rarity")]
@@ -181,7 +176,7 @@ pub struct WhereCollectionSchema {
     pub search: Option<String>,
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
-    pub interval: Option<String>,
+    pub periods: Option<PeriodType>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
@@ -193,4 +188,13 @@ pub struct OrderCollectionSchema {
     pub market_cap: Option<OrderingType>,
     pub sales: Option<OrderingType>,
     pub listed: Option<OrderingType>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
+#[graphql(rename_items = "snake_case")]
+pub enum PeriodType {
+    Hours1,
+    Hours6,
+    Days1,
+    Days7,
 }

@@ -1,11 +1,10 @@
-use std::sync::Arc;
-
 use async_graphql::{Context, Enum};
 use bigdecimal::{BigDecimal, One};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use strum::{Display, EnumString};
 
-use crate::models::schema::collection::{FilterCollectionSchema};
+use crate::models::schema::collection::FilterCollectionSchema;
 use crate::models::schema::nft::FilterNftSchema;
 use crate::{
     database::{

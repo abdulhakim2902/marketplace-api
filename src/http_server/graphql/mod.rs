@@ -38,6 +38,7 @@ use axum::response::{Html, IntoResponse};
 pub async fn graphql() -> impl IntoResponse {
     Html(GraphiQLSource::build().endpoint("/gql").finish())
 }
+
 pub struct Query;
 
 #[Object]

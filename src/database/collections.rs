@@ -4,6 +4,7 @@ use anyhow::Context;
 use chrono::DateTime;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
+use crate::models::schema::collection::PeriodType;
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
 use crate::models::schema::collection::top_wallet::{FilterTopWalletSchema, TopWalletType};
 use crate::models::schema::data_point::FilterFloorChartSchema;
@@ -58,7 +59,10 @@ pub trait ICollections: Send + Sync {
         filter: FilterLeaderboardSchema,
     ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>>;
 
-    async fn fetch_attributes(&self, collection_id: &str) -> anyhow::Result<Vec<CollectionAttributeSchema>>;
+    async fn fetch_attributes(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Vec<CollectionAttributeSchema>>;
 
     async fn fetch_top_wallets(
         &self,
@@ -169,36 +173,69 @@ impl ICollections for Collections {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
-        let mut query_builder = QueryBuilder::<Postgres>::new(
-            r#"
-            WITH sales AS (
-                SELECT
-                    activities.collection_id, 
-                    SUM(activities.price)           AS volume,
-                    COUNT(*)                        AS total
-                FROM activities
-                WHERE activities.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
-            "#,
-        );
+        let mut query_builder = QueryBuilder::<Postgres>::new("");
 
-        if let Some(collection_id) = query.collection_id.as_ref() {
-            query_builder.push(" AND activities.collection_id = ");
-            query_builder.push_bind(collection_id);
-        }
+        if let Some(period) = query.periods {
+            query_builder.push(
+                r#"
+                WITH sale_activities AS (
+                    SELECT
+                        activities.collection_id,
+                        SUM(activities.price)::BIGINT   AS volume,
+                        SUM(activities.usd_price)       AS volume_usd,
+                        COUNT(*)                        AS sales
+                    FROM activities
+                "#,
+            );
 
-        if let Some(interval) = query.interval.as_ref() {
-            if let Some(pg_interval) =
-                string_utils::str_to_pginterval(interval).expect("Invalid interval")
-            {
-                query_builder.push(" AND activities.block_time >= NOW() - ");
-                query_builder.push_bind(pg_interval);
+            match period {
+                PeriodType::Hours1 => {
+                    query_builder.push(
+                        r#"
+                        WHERE activities.block_time >= NOW() - '1h'::INTERVAL
+                        "#,
+                    );
+                }
+                PeriodType::Hours6 => {
+                    query_builder.push(
+                        r#"
+                        WHERE activities.block_time >= NOW() - '6h'::INTERVAL
+                        "#,
+                    );
+                }
+                PeriodType::Days1 => {
+                    query_builder.push(
+                        r#"
+                        WHERE activities.block_time >= NOW() - '24h'::INTERVAL
+                        "#,
+                    );
+                }
+                PeriodType::Days7 => {
+                    query_builder.push(
+                        r#"
+                        WHERE activities.block_time >= NOW() - '7d'::INTERVAL
+                        "#,
+                    );
+                }
             }
+
+            query_builder.push(" GROUP BY activities.collection_id)");
+        } else {
+            query_builder.push(
+                r#"
+                WITH sale_activities AS (
+                    SELECT
+                        NULL::TEXT                      AS collection_id,
+                        NULL::BIGINT                    AS volume,
+                        NULL::NUMERIC                   AS volume_usd,
+                        NULL::BIGINT                    AS sales
+                )
+                "#,
+            );
         }
 
         query_builder.push(
             r#"
-                GROUP BY activities.collection_id
-            )
             SELECT
                 c.id,
                 c.slug, 
@@ -211,17 +248,14 @@ impl ICollections for Collections {
                 c.discord,
                 c.twitter,
                 c.royalty,
-                s.volume::BIGINT             AS volume,
-                s.total::BIGINT              AS sale,
-                cs.volumes::BIGINT           AS total_volume,   
-                co.owners::BIGINT            AS total_owner,
-                cl.floor_price::BIGINT       AS floor,
-                cl.listed::BIGINT
+                c.floor,
+                c.owners,
+                COALESCE(sa.volume, c.volume)               AS volume,
+                COALESCE(sa.volume_usd, c.volume_usd)       AS volume_usd,
+                COALESCE(sa.sales, c.sales)                 AS sales,
+                c.listed
             FROM collections c
-                LEFT JOIN sales s ON s.collection_id = c.id
-                LEFT JOIN collection_sales cs ON cs.collection_id = c.id
-                LEFT JOIN collection_listings cl ON cl.collection_id = c.id
-                LEFT JOIN collection_owners co ON co.collection_id = c.id
+                LEFT JOIN sale_activities sa ON sa.collection_id = c.id
             WHERE TRUE
             "#,
         );
@@ -252,45 +286,38 @@ impl ICollections for Collections {
             let mut order_builder = String::new();
             if let Some(order_type) = order.volume {
                 order_builder
-                    .push_str(format!(" s.volume {} NULLS LAST,", order_type.to_string()).as_str());
+                    .push_str(format!(" volume {} NULLS LAST,", order_type.to_string()).as_str());
             }
 
             if let Some(order_type) = order.floor {
-                order_builder.push_str(
-                    format!(" cl.floor_price {} NULLS LAST,", order_type.to_string()).as_str(),
-                );
+                order_builder
+                    .push_str(format!(" c.floor {} NULLS LAST,", order_type.to_string()).as_str());
             }
 
             if let Some(order_type) = order.owners {
-                order_builder.push_str(
-                    format!(" co.owners {} NULLS LAST,", order_type.to_string()).as_str(),
-                );
+                order_builder
+                    .push_str(format!(" c.owners {} NULLS LAST,", order_type.to_string()).as_str());
             }
 
             if let Some(order_type) = order.market_cap {
                 order_builder.push_str(
-                    format!(
-                        " cl.floor_price * c.supply {} NULLS LAST,",
-                        order_type.to_string()
-                    )
-                    .as_str(),
+                    format!(" c.floor * c.supply {} NULLS LAST,", order_type.to_string()).as_str(),
                 );
             }
 
             if let Some(order_type) = order.sales {
                 order_builder
-                    .push_str(format!(" s.total {} NULLS LAST,", order_type.to_string()).as_str());
+                    .push_str(format!(" sales {} NULLS LAST,", order_type.to_string()).as_str());
             }
 
             if let Some(order_type) = order.listed {
-                order_builder.push_str(
-                    format!(" cl.listed {} NULLS LAST,", order_type.to_string()).as_str(),
-                );
+                order_builder
+                    .push_str(format!(" c.listed {} NULLS LAST,", order_type.to_string()).as_str());
             }
 
             let ordering = &order_builder[..(order_builder.len() - 1)];
             if ordering.trim().is_empty() {
-                query_builder.push(" ORDER BY cs.volume DESC NULLS LAST ");
+                query_builder.push(" ORDER BY c.volume DESC NULLS LAST ");
             } else {
                 query_builder.push(format!(" ORDER BY {}", ordering.to_lowercase().trim()));
             }
@@ -456,7 +483,10 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn fetch_attributes(&self, collection_id: &str) -> anyhow::Result<Vec<CollectionAttributeSchema>> {
+    async fn fetch_attributes(
+        &self,
+        collection_id: &str,
+    ) -> anyhow::Result<Vec<CollectionAttributeSchema>> {
         let res = sqlx::query_as!(
             CollectionAttributeSchema,
             r#"

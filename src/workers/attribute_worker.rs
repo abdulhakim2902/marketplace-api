@@ -59,7 +59,10 @@ where
 
             let nft_metadata_fut = nfts.iter().map(|nft| async move {
                 let uri = nft.uri.as_ref().unwrap();
-                let response = client.get(uri).send().await?;
+                let response = client
+                    .get(uri.replace("ipfs://", "https://ipfs.io/ipfs/"))
+                    .send()
+                    .await?;
                 let result = response.json::<NFTMetadata>().await?;
 
                 let mut nft_metadata: DbNFTMetadata = result.into();

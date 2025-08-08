@@ -109,7 +109,8 @@ impl INfts for Nfts {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
-        let mut query_builder = QueryBuilder::<Postgres>::new(r#"
+        let mut query_builder = QueryBuilder::<Postgres>::new(
+            r#"
             WITH
                 latest_prices AS (
                     SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
@@ -212,7 +213,8 @@ impl INfts for Nfts {
                 n.background_color
             FROM nfts n
             WHERE TRUE
-            "#,);
+            "#,
+        );
 
         if let Some(type_) = query.type_.as_ref() {
             match type_ {
@@ -230,7 +232,7 @@ impl INfts for Nfts {
                             AND b.accepted_tx_id IS NULL
                             AND b.cancelled_tx_id IS NULL
                             AND b.bid_type = 'solo'
-                        "#
+                        "#,
                     );
                     query_builder.push(")");
                 }
@@ -307,7 +309,8 @@ impl INfts for Nfts {
 
         if let Some(attributes) = query.attributes.as_ref() {
             for attribute in attributes {
-                query_builder.push(" AND n.id IN (SELECT na.nft_id FROM nft_attributes na WHERE TRUE");
+                query_builder
+                    .push(" AND n.id IN (SELECT na.nft_id FROM nft_attributes na WHERE TRUE");
 
                 if let Some(collection_id) = query.collection_id.as_ref() {
                     query_builder.push(" AND na.collection_id = ");
