@@ -147,7 +147,6 @@ impl INfts for Nfts {
                         n.collection_id,
                         burned,
                         n.properties,
-                        na.attributes,
                         COALESCE(n.description, nm.description)     AS description,
                         COALESCE(nm.image, n.uri)                   AS image_url,
                         nm.animation_url,
