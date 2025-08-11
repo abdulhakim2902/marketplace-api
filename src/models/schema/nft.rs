@@ -63,7 +63,7 @@ impl NftSchema {
         self.description.as_ref().map(|e| e.as_str())
     }
 
-    #[graphql(name = "image_url")]
+    #[graphql(name = "media_url")]
     async fn image_url(&self) -> Option<&str> {
         self.image_url.as_ref().map(|e| e.as_str())
     }

@@ -77,17 +77,17 @@ impl INfts for Nfts {
             b.push_bind(item.version.clone());
             b.push_bind(item.royalty.clone());
             b.push_bind(Utc::now());
-            b.push_bind(item.uri);
+            b.push_bind(item.uri.clone());
         })
         .push(
             r#"
             ON CONFLICT (id) DO UPDATE SET
-                owner = EXCLUDED.owner,
                 name = COALESCE(EXCLUDED.name, nfts.name),
                 uri = COALESCE(EXCLUDED.uri, nfts.uri),
                 description = COALESCE(EXCLUDED.description, nfts.description),
                 properties = COALESCE(EXCLUDED.properties, nfts.properties),
                 royalty = COALESCE(EXCLUDED.royalty, nfts.royalty),
+                owner = EXCLUDED.owner,
                 burned = EXCLUDED.burned,
                 updated_at = EXCLUDED.updated_at
             "#,
@@ -131,15 +131,12 @@ impl INfts for Nfts {
                             json_build_object(
                                 'attr_type', na.type,
                                 'value', na.value,
-                                'score', ca.score,
-                                'rarity', ca.rarity
+                                'score', na.score,
+                                'rarity', na.rarity
                             )
                         )                       AS attributes, 
-                        SUM(ca.score)           AS score
-                    FROM nft_attributes na
-                        LEFT JOIN collection_attributes ca ON na.collection_id = ca.collection_id
-                                                                AND na.type = ca.type
-                                                                AND na.value = ca.value
+                        SUM(na.score)           AS score
+                    FROM attributes na
                     GROUP BY na.collection_id, na.nft_id
                 ),
                 nfts AS (
@@ -168,6 +165,7 @@ impl INfts for Nfts {
                         l.market_contract_id,
                         s.price                                     AS last_sale,
                         s.block_time                                AS received_at,
+                        na.attributes,
                         na.score,
                         CASE
                             WHEN na.score IS NOT NULL
@@ -307,14 +305,14 @@ impl INfts for Nfts {
         if let Some(attributes) = query.attributes.as_ref() {
             for attribute in attributes {
                 query_builder
-                    .push(" AND n.id IN (SELECT na.nft_id FROM nft_attributes na WHERE TRUE");
+                    .push(" AND n.id IN (SELECT na.nft_id FROM attributes na WHERE TRUE");
 
                 if let Some(collection_id) = query.collection_id.as_ref() {
                     query_builder.push(" AND na.collection_id = ");
                     query_builder.push_bind(collection_id);
                 }
 
-                query_builder.push(" AND na.attr_type = ");
+                query_builder.push(" AND na.type = ");
                 query_builder.push_bind(attribute.type_.as_str());
                 query_builder.push(" AND na.value = ANY(");
                 query_builder.push_bind(attribute.values.as_slice());

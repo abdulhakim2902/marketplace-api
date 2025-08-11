@@ -1,0 +1,154 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH\n                top_bids AS (\n                    SELECT\n                        b.collection_id,\n                        MAX(b.price)                AS price,\n                        SUM(b.price)::BIGINT        AS total_offer\n                    FROM bids b\n                    WHERE b.collection_id = $1\n                        AND b.status = 'active'\n                        AND b.bid_type = 'solo'\n                        AND b.expired_at > NOW()\n                    GROUP BY b.collection_id\n                ),\n                sale_activities AS (\n                    SELECT\n                        activities.collection_id,\n                        SUM(activities.price)::BIGINT   AS volume,\n                        COUNT(*)                        AS sales\n                    FROM activities\n                    WHERE activities.block_time >= NOW() - '24h'::INTERVAL\n                        AND activities.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')\n                        AND activities.collection_id = $1\n                    GROUP BY activities.collection_id\n                ),\n                list_activities AS (\n                    SELECT a.collection_id, MIN(a.price) AS price FROM activities a\n                    WHERE a.tx_type = 'list'\n                        AND a.collection_id = $1\n                        AND a.block_time >= NOW() - '24h'::INTERVAL\n                    GROUP BY a.collection_id\n                ),\n                collection_scores AS (\n                    SELECT DISTINCT ON (ca.collection_id, ca.type, ca.value)\n                        ca.collection_id,\n                        SUM(ca.score) AS score\n                    FROM attributes ca\n                    WHERE ca.collection_id = $1\n                    GROUP BY ca.collection_id, ca.type, ca.value\n                )\n            SELECT\n                c.*,\n                tb.price                    AS top_offers,\n                sa.volume                   AS volume_24h,\n                sa.sales                    AS sales_24h,\n                (1 / cs.score)::NUMERIC     AS rarity,\n                la.price                    AS previous_floor,\n                tb.total_offer\n            FROM collections c\n                LEFT JOIN top_bids tb ON tb.collection_id = c.id\n                LEFT JOIN sale_activities sa ON sa.collection_id = c.id\n                LEFT JOIN collection_scores cs ON cs.collection_id = c.id\n                LEFT JOIN list_activities la ON la.collection_id = c.id\n            WHERE c.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "supply",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "twitter",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "website",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "discord",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "cover_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "royalty",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 11,
+        "name": "floor",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "listed",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 13,
+        "name": "volume",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 14,
+        "name": "volume_usd",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 15,
+        "name": "sales",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 16,
+        "name": "owners",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 17,
+        "name": "top_offers",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 18,
+        "name": "volume_24h",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 19,
+        "name": "sales_24h",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 20,
+        "name": "rarity",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 21,
+        "name": "previous_floor",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 22,
+        "name": "total_offer",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0d59660a188febbc8dff2fe4d78f86e7363075827b1493d334dc7e1e002b6028"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH collection_score AS (\n                SELECT DISTINCT ON (collection_id, type, value)\n                    collection_id,\n                    type,\n                    value,\n                    rarity,\n                    score\n                FROM attributes\n                WHERE collection_id = $1\n            )\n            SELECT SUM(ca.score)\n            FROM attributes ca\n            GROUP BY ca.collection_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sum",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2576641b8fccdc6d78474cb84fd70979e73637a7dc8204f3f793d868c1ecb81b"
+}

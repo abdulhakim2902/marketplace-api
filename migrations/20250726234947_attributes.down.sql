@@ -1,8 +1,6 @@
 -- Add down migration script here
-DROP TRIGGER attributes_after_insert_calculate_rarity ON nft_attributes;
+DROP TRIGGER IF EXISTS attributes_before_insert_update_rarity_and_score ON attributes;
 
-DROP FUNCTION calculate_rarity;
+DROP FUNCTION IF EXISTS update_rarity_and_score;
 
-DROP TABLE IF EXISTS nft_attributes;
-
-DROP TABLE IF EXISTS collection_attributes;
+DROP TABLE IF EXISTS attributes;

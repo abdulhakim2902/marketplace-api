@@ -376,10 +376,12 @@ impl ICollections for Collections {
                     GROUP BY a.collection_id
                 ),
                 collection_scores AS (
-                    SELECT ca.collection_id, SUM(ca.score) AS score
-                    FROM collection_attributes ca
+                    SELECT DISTINCT ON (ca.collection_id, ca.type, ca.value)
+                        ca.collection_id,
+                        SUM(ca.score) AS score
+                    FROM attributes ca
                     WHERE ca.collection_id = $1
-                    GROUP BY ca.collection_id
+                    GROUP BY ca.collection_id, ca.type, ca.value
                 )
             SELECT
                 c.*,
@@ -561,7 +563,7 @@ impl ICollections for Collections {
             SELECT 
                 ca.type                      AS type_,
                 jsonb_agg(DISTINCT ca.value) AS values
-            FROM collection_attributes ca
+            FROM attributes ca
             WHERE ca.collection_id = $1
             GROUP BY ca.collection_id, ca.type
             "#,

@@ -49,7 +49,7 @@ impl IAttributes for Attributes {
 
         let res = QueryBuilder::<Postgres>::new(
             r#"
-            INSERT INTO nft_attributes (
+            INSERT INTO attributes (
                 collection_id,
                 nft_id,
                 type,
@@ -92,12 +92,9 @@ impl IAttributes for Attributes {
                 na.nft_id,
                 na.type                 AS attr_type,
                 na.value,
-                ca.rarity,
-                ca.score
-            FROM nft_attributes na
-                LEFT JOIN collection_attributes ca ON na.collection_id = ca.collection_id
-                                                        AND na.type = ca.type
-                                                        AND na.value = ca.value
+                na.rarity,
+                na.score
+            FROM attributes na
             WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR na.collection_id = $1)
                 AND ($2::TEXT IS NULL OR $2::TEXT = '' OR na.nft_id = $2)
             LIMIT $3 OFFSET $4
@@ -117,9 +114,18 @@ impl IAttributes for Attributes {
     async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
         let res = sqlx::query_scalar!(
             r#"
+            WITH collection_score AS (
+                SELECT DISTINCT ON (collection_id, type, value)
+                    collection_id,
+                    type,
+                    value,
+                    rarity,
+                    score
+                FROM attributes
+                WHERE collection_id = $1
+            )
             SELECT SUM(ca.score)
-            FROM collection_attributes ca
-            WHERE ca.collection_id = $1
+            FROM attributes ca
             GROUP BY ca.collection_id
             "#,
             collection_id,
@@ -134,9 +140,11 @@ impl IAttributes for Attributes {
     async fn total_collection_trait(&self, collection_id: &str) -> anyhow::Result<i64> {
         let res = sqlx::query_scalar!(
             r#"
-            SELECT COUNT(*) FROM collection_attributes
-            WHERE collection_id = $1
-            GROUP BY collection_id, type
+            SELECT COUNT(*) FROM (
+                SELECT collection_id, type FROM attributes
+                WHERE collection_id = $1
+                GROUP BY collection_id, type
+            ) AS collection_attributes
             "#,
             collection_id
         )
@@ -150,7 +158,7 @@ impl IAttributes for Attributes {
     async fn total_nft_trait(&self, nft_id: &str) -> anyhow::Result<i64> {
         let res = sqlx::query_scalar!(
             r#"
-            SELECT COUNT(*) FROM nft_attributes
+            SELECT COUNT(*) FROM attributes
             WHERE nft_id = $1
             "#,
             nft_id,
