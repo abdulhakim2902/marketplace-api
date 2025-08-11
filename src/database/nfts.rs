@@ -85,7 +85,6 @@ impl INfts for Nfts {
                 owner = EXCLUDED.owner,
                 name = COALESCE(EXCLUDED.name, nfts.name),
                 uri = COALESCE(EXCLUDED.uri, nfts.uri),
-                image_url = COALESCE(EXCLUDED.image_url, nfts.image_url),
                 description = COALESCE(EXCLUDED.description, nfts.description),
                 properties = COALESCE(EXCLUDED.properties, nfts.properties),
                 royalty = COALESCE(EXCLUDED.royalty, nfts.royalty),
