@@ -1,3 +1,7 @@
+use crate::utils::{
+    generate_activity_id, generate_bid_id, generate_collection_id, generate_listing_id,
+    generate_nft_id,
+};
 use crate::{
     config::marketplace_config::MarketplaceEventType,
     models::db::{activity::DbActivity, bid::DbBid, listing::DbListing},
@@ -46,6 +50,13 @@ pub struct NftMarketplaceActivity {
 
 impl From<NftMarketplaceActivity> for DbActivity {
     fn from(value: NftMarketplaceActivity) -> Self {
+        let _activity_id = generate_activity_id(value.get_tx_index());
+        let _collection_id = value
+            .collection_addr
+            .as_ref()
+            .map(|e| generate_collection_id(e));
+        let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
+
         Self {
             id: Some(value.get_activity_id()),
             tx_index: value.get_tx_index(),
@@ -68,6 +79,12 @@ impl From<NftMarketplaceActivity> for DbActivity {
 
 impl From<NftMarketplaceActivity> for DbBid {
     fn from(value: NftMarketplaceActivity) -> Self {
+        let _collection_id = value
+            .collection_addr
+            .as_ref()
+            .map(|e| generate_collection_id(e));
+        let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
+
         Self {
             id: value.get_bid_id(),
             created_tx_id: value.get_created_txn_id(),
@@ -91,6 +108,12 @@ impl From<NftMarketplaceActivity> for DbBid {
 
 impl From<NftMarketplaceActivity> for DbListing {
     fn from(value: NftMarketplaceActivity) -> Self {
+        let _collection_id = value
+            .collection_addr
+            .as_ref()
+            .map(|e| generate_collection_id(e));
+        let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
+
         Self {
             id: value.get_listing_id(),
             tx_index: Some(value.get_tx_index()),
@@ -202,22 +225,31 @@ impl MarketplaceModel for NftMarketplaceActivity {
 impl BidModel for NftMarketplaceActivity {
     fn get_bid_id(&self) -> Option<String> {
         if let Some(status) = self.get_bid_type().as_ref() {
-            let address = match status.as_str() {
-                "solo" => self.token_addr.as_ref(),
-                "collection" => self.collection_addr.as_ref(),
-                _ => None,
-            };
+            if let Some(bidder) = self.buyer.as_ref() {
+                let address = match status.as_str() {
+                    "solo" => self.token_addr.as_ref(),
+                    "collection" => self.collection_addr.as_ref(),
+                    _ => None,
+                };
 
-            self.contract_address
-                .as_ref()
-                .zip(address)
-                .map(|(contract_addr, addr)| {
-                    let key = format!("{}::{}", contract_addr, addr);
-                    format!("0x{}", hash_str(&key))
-                })
-        } else {
-            None
+                let _bid_id = self.contract_address.as_ref().zip(address).map(
+                    |(contract_address, address)| {
+                        generate_bid_id(contract_address, address, bidder)
+                    },
+                );
+
+                return self
+                    .contract_address
+                    .as_ref()
+                    .zip(address)
+                    .map(|(contract_addr, addr)| {
+                        let key = format!("{}::{}::{}", contract_addr, addr, bidder);
+                        format!("0x{}", hash_str(&key))
+                    });
+            }
         }
+
+        None
     }
 
     fn get_bid_status(&self) -> Option<String> {
@@ -308,6 +340,14 @@ impl BidModel for NftMarketplaceActivity {
 
 impl ListingModel for NftMarketplaceActivity {
     fn get_listing_id(&self) -> Option<String> {
+        let _listing_id = self
+            .contract_address
+            .as_ref()
+            .zip(self.token_addr.as_ref())
+            .map(|(contract_address, token_addr)| {
+                generate_listing_id(contract_address, token_addr)
+            });
+
         self.contract_address
             .as_ref()
             .zip(self.token_addr.as_ref())

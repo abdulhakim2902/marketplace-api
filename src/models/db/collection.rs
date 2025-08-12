@@ -1,3 +1,4 @@
+use crate::utils::generate_collection_id;
 use crate::{
     models::resources::{
         FromWriteResource,
@@ -59,6 +60,7 @@ impl DbCollection {
                     let collection_addr = collection_id_struct.to_addr();
 
                     // TODO: collection slug
+                    let _collection_id = generate_collection_id(collection_addr.as_str());
 
                     let collection = DbCollection {
                         id: collection_addr.clone(),
@@ -85,6 +87,8 @@ impl DbCollection {
         if let Some(inner) = CollectionResourceData::from_write_resource(wr)? {
             // TODO: collection slug
             let address = standardize_address(&wr.address);
+            let _collection_id = generate_collection_id(address.as_str());
+
             let mut collection = DbCollection {
                 id: address.clone(),
                 slug: Some(address.clone()),

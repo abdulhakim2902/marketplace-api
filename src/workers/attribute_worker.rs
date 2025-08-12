@@ -3,6 +3,7 @@ use std::sync::Arc;
 use futures::future::join_all;
 use reqwest::Client;
 
+use crate::utils::{generate_collection_id, generate_nft_id};
 use crate::{
     database::{IDatabase, attributes::IAttributes, nft_metadata::INFTMetadata, nfts::INfts},
     models::{
@@ -67,6 +68,11 @@ where
 
                 let mut nft_metadata: DbNFTMetadata = result.into();
 
+                let _collection_id = nft
+                    .collection_id
+                    .as_ref()
+                    .map(|e| generate_collection_id(e));
+
                 nft_metadata.uri = Some(uri.to_string());
                 nft_metadata.collection_id = nft.collection_id.clone();
 
@@ -93,6 +99,12 @@ where
                 for nft_id in nft_ids {
                     if let Some(nft_attributes) = nft_attributes.as_ref() {
                         for attribute in nft_attributes {
+                            let _collection_id = nft_metadata
+                                .collection_id
+                                .as_ref()
+                                .map(|e| generate_collection_id(e));
+                            let _nft_id = generate_nft_id(nft_id);
+
                             let nft_attribute = DbAttribute {
                                 collection_id: nft_metadata.collection_id.clone(),
                                 nft_id: Some(nft_id.to_string()),

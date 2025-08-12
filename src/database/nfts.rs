@@ -303,8 +303,7 @@ impl INfts for Nfts {
 
         if let Some(attributes) = query.attributes.as_ref() {
             for attribute in attributes {
-                query_builder
-                    .push(" AND n.id IN (SELECT na.nft_id FROM attributes na WHERE TRUE");
+                query_builder.push(" AND n.id IN (SELECT na.nft_id FROM attributes na WHERE TRUE");
 
                 if let Some(collection_id) = query.collection_id.as_ref() {
                     query_builder.push(" AND na.collection_id = ");

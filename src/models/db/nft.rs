@@ -1,3 +1,4 @@
+use crate::utils::{generate_collection_id, generate_nft_id};
 use crate::{
     models::resources::{
         FromWriteResource, TYPE_TOKEN_STORE_V1,
@@ -37,6 +38,8 @@ impl DbNft {
     ) -> Result<Option<Self>> {
         if let Some(inner) = TokenResourceData::from_write_resource(wr)? {
             let token_addr = standardize_address(&wr.address);
+            let _collection_id = generate_collection_id(inner.get_collection_address().as_str());
+            let _nft_id = generate_nft_id(token_addr.as_str());
 
             let mut nft = DbNft {
                 id: token_addr.clone(),
@@ -117,6 +120,10 @@ impl DbNft {
                             }
                         }
                     };
+
+                    let _collection_id =
+                        generate_collection_id(token_data_id_struct.get_collection_addr().as_str());
+                    let _nft_id = generate_nft_id(token_data_id_struct.to_addr().as_str());
 
                     let nft = DbNft {
                         id: token_data_id_struct.to_addr(),

@@ -4,6 +4,7 @@ use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
+use crate::utils::{generate_collection_id, generate_nft_id};
 use crate::{
     config::marketplace_config::MarketplaceEventType,
     models::{EventModel, db::nft::DbNft},
@@ -42,56 +43,82 @@ impl DbActivity {
         let token_event = TokenEvent::from_event(&event_type, &event.data.to_string(), txn_version);
         if let Some(token_event) = token_event? {
             let token_activity = match &token_event {
-                TokenEvent::Mint(inner) => Some(DbActivity {
-                    id: Some(event.generate_id()),
-                    tx_id: txn_id.to_string(),
-                    tx_index: event.get_tx_index(),
-                    block_time: Some(event.block_timestamp),
-                    block_height: Some(event.transaction_block_height),
-                    tx_type: Some(MarketplaceEventType::Mint.to_string()),
-                    collection_id: Some(inner.id.get_collection_addr()),
-                    nft_id: Some(inner.id.to_addr()),
-                    amount: Some(1),
-                    ..Default::default()
-                }),
-                TokenEvent::MintTokenEvent(inner) => Some(DbActivity {
-                    id: Some(event.generate_id()),
-                    tx_id: txn_id.to_string(),
-                    tx_index: event.get_tx_index(),
-                    block_time: Some(event.block_timestamp),
-                    block_height: Some(event.transaction_block_height),
-                    tx_type: Some(MarketplaceEventType::Mint.to_string()),
-                    collection_id: Some(inner.id.get_collection_addr()),
-                    amount: Some(1),
-                    nft_id: Some(inner.id.to_addr()),
-                    ..Default::default()
-                }),
-                TokenEvent::Burn(inner) => Some(DbActivity {
-                    id: Some(event.generate_id()),
-                    tx_id: txn_id.to_string(),
-                    tx_index: event.get_tx_index(),
-                    block_time: Some(event.block_timestamp),
-                    block_height: Some(event.transaction_block_height),
-                    tx_type: Some(MarketplaceEventType::Burn.to_string()),
-                    sender: Some(inner.get_account()),
-                    collection_id: Some(inner.id.token_data_id.get_collection_addr()),
-                    nft_id: Some(inner.id.token_data_id.to_addr()),
-                    amount: Some(1),
-                    ..Default::default()
-                }),
-                TokenEvent::BurnTokenEvent(inner) => Some(DbActivity {
-                    id: Some(event.generate_id()),
-                    tx_id: txn_id.to_string(),
-                    tx_index: event.get_tx_index(),
-                    block_time: Some(event.block_timestamp),
-                    block_height: Some(event.transaction_block_height),
-                    tx_type: Some(MarketplaceEventType::Burn.to_string()),
-                    sender: Some(standardize_address(&event.account_address)),
-                    collection_id: Some(inner.id.token_data_id.get_collection_addr()),
-                    nft_id: Some(inner.id.token_data_id.to_addr()),
-                    amount: Some(1),
-                    ..Default::default()
-                }),
+                TokenEvent::Mint(inner) => {
+                    let _collection_id =
+                        generate_collection_id(inner.id.get_collection_addr().as_str());
+                    let _nft_id = generate_collection_id(inner.id.to_addr().as_str());
+
+                    Some(DbActivity {
+                        id: Some(event.generate_id()),
+                        tx_id: txn_id.to_string(),
+                        tx_index: event.get_tx_index(),
+                        block_time: Some(event.block_timestamp),
+                        block_height: Some(event.transaction_block_height),
+                        tx_type: Some(MarketplaceEventType::Mint.to_string()),
+                        collection_id: Some(inner.id.get_collection_addr()),
+                        nft_id: Some(inner.id.to_addr()),
+                        amount: Some(1),
+                        ..Default::default()
+                    })
+                }
+                TokenEvent::MintTokenEvent(inner) => {
+                    let _collection_id =
+                        generate_collection_id(inner.id.get_collection_addr().as_str());
+                    let _nft_id = generate_collection_id(inner.id.to_addr().as_str());
+
+                    Some(DbActivity {
+                        id: Some(event.generate_id()),
+                        tx_id: txn_id.to_string(),
+                        tx_index: event.get_tx_index(),
+                        block_time: Some(event.block_timestamp),
+                        block_height: Some(event.transaction_block_height),
+                        tx_type: Some(MarketplaceEventType::Mint.to_string()),
+                        collection_id: Some(inner.id.get_collection_addr()),
+                        amount: Some(1),
+                        nft_id: Some(inner.id.to_addr()),
+                        ..Default::default()
+                    })
+                }
+                TokenEvent::Burn(inner) => {
+                    let _collection_id = generate_collection_id(
+                        inner.id.token_data_id.get_collection_addr().as_str(),
+                    );
+                    let _nft_id = generate_collection_id(inner.id.token_data_id.to_addr().as_str());
+
+                    Some(DbActivity {
+                        id: Some(event.generate_id()),
+                        tx_id: txn_id.to_string(),
+                        tx_index: event.get_tx_index(),
+                        block_time: Some(event.block_timestamp),
+                        block_height: Some(event.transaction_block_height),
+                        tx_type: Some(MarketplaceEventType::Burn.to_string()),
+                        sender: Some(inner.get_account()),
+                        collection_id: Some(inner.id.token_data_id.get_collection_addr()),
+                        nft_id: Some(inner.id.token_data_id.to_addr()),
+                        amount: Some(1),
+                        ..Default::default()
+                    })
+                }
+                TokenEvent::BurnTokenEvent(inner) => {
+                    let _collection_id = generate_collection_id(
+                        inner.id.token_data_id.get_collection_addr().as_str(),
+                    );
+                    let _nft_id = generate_collection_id(inner.id.token_data_id.to_addr().as_str());
+
+                    Some(DbActivity {
+                        id: Some(event.generate_id()),
+                        tx_id: txn_id.to_string(),
+                        tx_index: event.get_tx_index(),
+                        block_time: Some(event.block_timestamp),
+                        block_height: Some(event.transaction_block_height),
+                        tx_type: Some(MarketplaceEventType::Burn.to_string()),
+                        sender: Some(standardize_address(&event.account_address)),
+                        collection_id: Some(inner.id.token_data_id.get_collection_addr()),
+                        nft_id: Some(inner.id.token_data_id.to_addr()),
+                        amount: Some(1),
+                        ..Default::default()
+                    })
+                }
                 _ => None,
             };
 
@@ -124,60 +151,86 @@ impl DbActivity {
 
             if let Some(object_data) = object_metadata.get(&token_addr) {
                 let token_activity = match token_event {
-                    V2TokenEvent::Mint(mint) => Some(DbActivity {
-                        id: Some(event.generate_id()),
-                        tx_id: txn_id.to_string(),
-                        tx_index: event.get_tx_index(),
-                        block_height: Some(event.transaction_block_height),
-                        block_time: Some(event.block_timestamp),
-                        tx_type: Some(MarketplaceEventType::Mint.to_string()),
-                        receiver: Some(object_data.object.object_core.get_owner_address()),
-                        collection_id: Some(mint.get_collection_address()),
-                        amount: Some(1),
-                        nft_id: Some(mint.get_token_address()),
-                        ..Default::default()
-                    }),
-                    V2TokenEvent::MintEvent(mint) => Some(DbActivity {
-                        id: Some(event.generate_id()),
-                        tx_id: txn_id.to_string(),
-                        tx_index: event.get_tx_index(),
-                        block_height: Some(event.transaction_block_height),
-                        block_time: Some(event.block_timestamp),
-                        tx_type: Some(MarketplaceEventType::Mint.to_string()),
-                        receiver: Some(object_data.object.object_core.get_owner_address()),
-                        collection_id: Some(standardize_address(&event.account_address)),
-                        amount: Some(1),
-                        nft_id: Some(mint.get_token_address()),
-                        ..Default::default()
-                    }),
-                    V2TokenEvent::Burn(burn) => Some(DbActivity {
-                        id: Some(event.generate_id()),
-                        tx_id: txn_id.to_string(),
-                        tx_index: event.get_tx_index(),
-                        block_height: Some(event.transaction_block_height),
-                        block_time: Some(event.block_timestamp),
-                        tx_type: Some(MarketplaceEventType::Burn.to_string()),
-                        sender: burn.get_previous_owner_address(),
-                        collection_id: Some(burn.get_collection_address()),
-                        amount: Some(1),
-                        nft_id: Some(burn.get_token_address()),
-                        ..Default::default()
-                    }),
-                    V2TokenEvent::BurnEvent(burn) => Some(DbActivity {
-                        id: Some(event.generate_id()),
-                        tx_id: txn_id.to_string(),
-                        tx_index: event.get_tx_index(),
-                        block_height: Some(event.transaction_block_height),
-                        block_time: Some(event.block_timestamp),
-                        tx_type: Some(MarketplaceEventType::Burn.to_string()),
-                        sender: sender.map(|s| s.to_string()),
-                        collection_id: Some(standardize_address(&event.account_address)),
-                        amount: Some(1),
-                        nft_id: Some(burn.get_token_address()),
-                        ..Default::default()
-                    }),
+                    V2TokenEvent::Mint(mint) => {
+                        let _collection_id =
+                            generate_collection_id(mint.get_collection_address().as_str());
+                        let _nft_id = generate_nft_id(mint.get_token_address().as_str());
+
+                        Some(DbActivity {
+                            id: Some(event.generate_id()),
+                            tx_id: txn_id.to_string(),
+                            tx_index: event.get_tx_index(),
+                            block_height: Some(event.transaction_block_height),
+                            block_time: Some(event.block_timestamp),
+                            tx_type: Some(MarketplaceEventType::Mint.to_string()),
+                            receiver: Some(object_data.object.object_core.get_owner_address()),
+                            collection_id: Some(mint.get_collection_address()),
+                            amount: Some(1),
+                            nft_id: Some(mint.get_token_address()),
+                            ..Default::default()
+                        })
+                    }
+                    V2TokenEvent::MintEvent(mint) => {
+                        let _collection_id = generate_collection_id(&event.account_address);
+                        let _nft_id = generate_nft_id(mint.get_token_address().as_str());
+
+                        Some(DbActivity {
+                            id: Some(event.generate_id()),
+                            tx_id: txn_id.to_string(),
+                            tx_index: event.get_tx_index(),
+                            block_height: Some(event.transaction_block_height),
+                            block_time: Some(event.block_timestamp),
+                            tx_type: Some(MarketplaceEventType::Mint.to_string()),
+                            receiver: Some(object_data.object.object_core.get_owner_address()),
+                            collection_id: Some(standardize_address(&event.account_address)),
+                            amount: Some(1),
+                            nft_id: Some(mint.get_token_address()),
+                            ..Default::default()
+                        })
+                    }
+                    V2TokenEvent::Burn(burn) => {
+                        let _collection_id =
+                            generate_collection_id(burn.get_collection_address().as_str());
+                        let _nft_id = generate_nft_id(burn.get_token_address().as_str());
+
+                        Some(DbActivity {
+                            id: Some(event.generate_id()),
+                            tx_id: txn_id.to_string(),
+                            tx_index: event.get_tx_index(),
+                            block_height: Some(event.transaction_block_height),
+                            block_time: Some(event.block_timestamp),
+                            tx_type: Some(MarketplaceEventType::Burn.to_string()),
+                            sender: burn.get_previous_owner_address(),
+                            collection_id: Some(burn.get_collection_address()),
+                            amount: Some(1),
+                            nft_id: Some(burn.get_token_address()),
+                            ..Default::default()
+                        })
+                    }
+                    V2TokenEvent::BurnEvent(burn) => {
+                        let _collection_id = generate_collection_id(&event.account_address);
+                        let _nft_id = generate_nft_id(burn.get_token_address().as_str());
+
+                        Some(DbActivity {
+                            id: Some(event.generate_id()),
+                            tx_id: txn_id.to_string(),
+                            tx_index: event.get_tx_index(),
+                            block_height: Some(event.transaction_block_height),
+                            block_time: Some(event.block_timestamp),
+                            tx_type: Some(MarketplaceEventType::Burn.to_string()),
+                            sender: sender.map(|s| s.to_string()),
+                            collection_id: Some(standardize_address(&event.account_address)),
+                            amount: Some(1),
+                            nft_id: Some(burn.get_token_address()),
+                            ..Default::default()
+                        })
+                    }
                     V2TokenEvent::TransferEvent(transfer) => {
                         if let Some(token) = &object_data.token {
+                            let _collection_id =
+                                generate_collection_id(token.get_collection_address().as_str());
+                            let _nft_id = generate_nft_id(transfer.get_object_address().as_str());
+
                             Some(DbActivity {
                                 id: Some(event.generate_id()),
                                 tx_id: txn_id.to_string(),
@@ -209,6 +262,11 @@ impl DbActivity {
 
 impl From<DbActivity> for DbNft {
     fn from(value: DbActivity) -> Self {
+        let _collection_id = value
+            .collection_id
+            .as_ref()
+            .map(|e| generate_collection_id(e));
+
         Self {
             id: value.nft_id.unwrap(),
             burned: Some(true),
