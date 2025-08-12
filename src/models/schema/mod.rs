@@ -1,9 +1,3 @@
-use async_graphql::{Context, Enum};
-use bigdecimal::BigDecimal;
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use strum::{Display, EnumString};
-
 use crate::database::token_prices::ITokenPrices;
 use crate::models::schema::collection::FilterCollectionSchema;
 use crate::models::schema::nft::FilterNftSchema;
@@ -17,6 +11,11 @@ use crate::{
         nft::{NftSchema, WhereNftSchema},
     },
 };
+use async_graphql::{Context, Enum};
+use bigdecimal::BigDecimal;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use strum::{Display, EnumString};
 
 pub mod activity;
 pub mod attribute;

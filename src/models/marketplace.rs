@@ -55,7 +55,6 @@ impl From<NftMarketplaceActivity> for DbActivity {
             .collection_addr
             .as_ref()
             .map(|e| generate_collection_id(e));
-        let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
 
         Self {
             id: generate_activity_id(value.get_tx_index()),
@@ -63,7 +62,7 @@ impl From<NftMarketplaceActivity> for DbActivity {
             price: Some(value.price),
             market_contract_id: value.contract_address,
             tx_id: value.txn_id,
-            nft_id: value.token_addr,
+            nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             tx_type: Some(value.standard_event_type.to_string()),
             collection_id: value.collection_addr,
             sender: value.seller,
@@ -86,7 +85,6 @@ impl TryFrom<NftMarketplaceActivity> for DbBid {
             .collection_addr
             .as_ref()
             .map(|e| generate_collection_id(e));
-        let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
 
         Ok(Self {
             id: bid_id,
@@ -100,7 +98,7 @@ impl TryFrom<NftMarketplaceActivity> for DbBid {
             market_contract_id: value.contract_address,
             market_name: value.marketplace,
             collection_id: value.collection_addr,
-            nft_id: value.token_addr,
+            nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             nonce: value.offer_id,
             bidder: value.buyer,
             remaining_count: value.token_amount,
@@ -127,7 +125,7 @@ impl TryFrom<NftMarketplaceActivity> for DbListing {
             price: Some(value.price),
             market_contract_id: value.contract_address,
             collection_id: value.collection_addr,
-            nft_id: value.token_addr,
+            nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             market_name: value.marketplace,
             seller: value.seller,
             block_time: Some(value.block_timestamp),

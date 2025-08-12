@@ -1,17 +1,17 @@
+use crate::models::{
+    marketplace::APT_DECIMAL,
+    schema::{OrderingType, collection::CollectionSchema, fetch_collection, fetch_nft_top_offer},
+};
 use async_graphql::{Context, Enum, InputObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-
-use crate::models::{
-    marketplace::APT_DECIMAL,
-    schema::{OrderingType, collection::CollectionSchema, fetch_collection, fetch_nft_top_offer},
-};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Deserialize, Serialize, FromRow)]
 pub struct NftSchema {
-    pub id: String,
+    pub id: Uuid,
     pub name: Option<String>,
     pub owner: Option<String>,
     pub collection_id: Option<String>,
@@ -19,6 +19,7 @@ pub struct NftSchema {
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
     pub image_url: Option<String>,
+    pub token_id: Option<String>,
     pub animation_url: Option<String>,
     pub avatar_url: Option<String>,
     pub external_url: Option<String>,
@@ -38,8 +39,8 @@ pub struct NftSchema {
 
 #[async_graphql::Object]
 impl NftSchema {
-    async fn id(&self) -> &str {
-        &self.id
+    async fn id(&self) -> String {
+        self.id.to_string()
     }
 
     async fn name(&self) -> Option<&str> {
@@ -66,6 +67,11 @@ impl NftSchema {
     #[graphql(name = "media_url")]
     async fn image_url(&self) -> Option<&str> {
         self.image_url.as_ref().map(|e| e.as_str())
+    }
+
+    #[graphql(name = "token_id")]
+    async fn token_id(&self) -> Option<&str> {
+        self.token_id.as_ref().map(|e| e.as_str())
     }
 
     async fn royalty(&self) -> Option<String> {
@@ -150,7 +156,7 @@ impl NftSchema {
 
     #[graphql(name = "top_offer")]
     async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
-        fetch_nft_top_offer(ctx, &self.id).await
+        fetch_nft_top_offer(ctx, &self.id.to_string()).await
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {

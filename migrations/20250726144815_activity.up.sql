@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS activities (
   sender VARCHAR(66) DEFAULT NULL,
   receiver VARCHAR(66) DEFAULT NULL,
   price BIGINT DEFAULT 0,
-  nft_id VARCHAR(66) DEFAULT NULL,
+  nft_id UUID DEFAULT NULL,
   collection_id VARCHAR(66) DEFAULT NULL,
   market_name VARCHAR(30) DEFAULT NULL,
   market_contract_id VARCHAR(66) DEFAULT NULL,

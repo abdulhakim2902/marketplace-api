@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use crate::models::schema::offer::FilterOfferSchema;
 use crate::models::{db::bid::DbBid, schema::offer::OfferSchema};
@@ -6,6 +6,7 @@ use anyhow::Context;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait IBids: Send + Sync {
@@ -129,11 +130,13 @@ impl IBids for Bids {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
+        let nft_id = query.nft_id.map(|e| Uuid::from_str(&e).ok()).flatten();
+
         let res = sqlx::query_as!(
             OfferSchema,
             r#"
             SELECT * FROM bids b
-            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)
+            WHERE ($1::UUID IS NULL OR b.nft_id = $1)
                 AND ($2::TEXT IS NULL OR $2::TEXT = '' OR b.collection_id = $2)
                 AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)
                 AND ($4::TEXT IS NULL OR $4::TEXT = '' OR b.receiver = $4)
@@ -144,7 +147,7 @@ impl IBids for Bids {
                 AND ($6::TEXT IS NULL OR $6::TEXT = '' OR b.bid_type = $6)
             LIMIT $7 OFFSET $8
             "#,
-            query.nft_id,
+            nft_id,
             query.collection_id,
             query.bidder,
             query.receiver,
@@ -184,6 +187,7 @@ impl IBids for Bids {
     }
 
     async fn fetch_nft_top_offer(&self, nft_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+        let nft_id = Uuid::from_str(nft_id).ok();
         let res = sqlx::query_scalar!(
             r#"
             SELECT MAX(b.price)

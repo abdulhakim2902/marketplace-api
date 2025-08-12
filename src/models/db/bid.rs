@@ -14,7 +14,7 @@ pub struct DbBid {
     pub market_contract_id: Option<String>,
     pub market_name: Option<String>,
     pub nonce: Option<String>,
-    pub nft_id: Option<String>,
+    pub nft_id: Option<Uuid>,
     pub price: Option<i64>,
     pub receiver: Option<String>,
     pub remaining_count: Option<i64>,

@@ -11,7 +11,7 @@ pub struct DbListing {
     pub listed: Option<bool>,
     pub market_name: Option<String>,
     pub collection_id: Option<String>,
-    pub nft_id: Option<String>,
+    pub nft_id: Option<Uuid>,
     pub nonce: Option<String>,
     pub price: Option<i64>,
     pub seller: Option<String>,

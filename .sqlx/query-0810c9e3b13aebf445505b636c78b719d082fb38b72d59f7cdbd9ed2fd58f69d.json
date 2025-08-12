@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT * FROM listings l\n            WHERE ($1::UUID IS NULL OR l.id = $1)\n                AND ($2::TEXT IS NULL OR $2 = '' OR l.nft_id = $2) \n                AND $3::BOOL IS NULL OR l.listed = $3\n            LIMIT $4 OFFSET $5\n            ",
+  "query": "\n            SELECT * FROM listings l\n            WHERE ($1::UUID IS NULL OR l.id = $1)\n                AND ($2::UUID IS NULL OR l.nft_id = $2) \n                AND $3::BOOL IS NULL OR l.listed = $3\n            LIMIT $4 OFFSET $5\n            ",
   "describe": {
     "columns": [
       {
@@ -31,7 +31,7 @@
       {
         "ordinal": 5,
         "name": "nft_id",
-        "type_info": "Varchar"
+        "type_info": "Uuid"
       },
       {
         "ordinal": 6,
@@ -67,7 +67,7 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Text",
+        "Uuid",
         "Bool",
         "Int8",
         "Int8"
@@ -88,5 +88,5 @@
       true
     ]
   },
-  "hash": "bce64510199048fcdfbfdafab0d3df890da638e6822ee6eb682b5bc35f37e781"
+  "hash": "0810c9e3b13aebf445505b636c78b719d082fb38b72d59f7cdbd9ed2fd58f69d"
 }

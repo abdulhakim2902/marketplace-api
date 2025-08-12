@@ -5,10 +5,11 @@ use crate::models::{
 use async_graphql::{Context, InputObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct TrendingSchema {
-    pub nft_id: Option<String>,
+    pub nft_id: Uuid,
     pub collection_id: Option<String>,
     pub tx_frequency: Option<i64>,
     pub last_price: Option<i64>,
@@ -22,8 +23,8 @@ impl TrendingSchema {
     }
 
     #[graphql(name = "nft_id")]
-    async fn nft_id(&self) -> Option<&str> {
-        self.nft_id.as_ref().map(|e| e.as_str())
+    async fn nft_id(&self) -> String {
+        self.nft_id.to_string()
     }
 
     #[graphql(name = "tx_frequency")]
@@ -43,7 +44,12 @@ impl TrendingSchema {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        fetch_nft(ctx, self.nft_id.clone(), self.collection_id.clone()).await
+        fetch_nft(
+            ctx,
+            Some(self.nft_id.to_string()),
+            self.collection_id.clone(),
+        )
+        .await
     }
 }
 

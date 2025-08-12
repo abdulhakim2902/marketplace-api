@@ -169,6 +169,8 @@ impl IActivities for Activities {
         }
 
         if let Some(nft_id) = query.nft_id.as_ref() {
+            let nft_id = Uuid::from_str(nft_id).ok();
+
             query_builder.push(" AND a.nft_id = ");
             query_builder.push_bind(nft_id);
         }

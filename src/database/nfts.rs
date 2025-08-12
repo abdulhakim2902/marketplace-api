@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use crate::models::schema::nft::FilterNftSchema;
 use crate::models::{
@@ -8,6 +8,7 @@ use crate::models::{
 use anyhow::Context;
 use chrono::Utc;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait INfts: Send + Sync {
@@ -62,7 +63,8 @@ impl INfts for Nfts {
                 version,
                 royalty,
                 updated_at,
-                uri
+                uri,
+                token_id
             )
             "#,
         )
@@ -78,6 +80,7 @@ impl INfts for Nfts {
             b.push_bind(item.royalty.clone());
             b.push_bind(Utc::now());
             b.push_bind(item.uri.clone());
+            b.push_bind(item.token_id);
         })
         .push(
             r#"
@@ -87,6 +90,7 @@ impl INfts for Nfts {
                 description = COALESCE(EXCLUDED.description, nfts.description),
                 properties = COALESCE(EXCLUDED.properties, nfts.properties),
                 royalty = COALESCE(EXCLUDED.royalty, nfts.royalty),
+                token_id = COALESCE(EXCLUDED.token_id, nfts.token_id),
                 owner = EXCLUDED.owner,
                 burned = EXCLUDED.burned,
                 updated_at = EXCLUDED.updated_at
@@ -147,6 +151,7 @@ impl INfts for Nfts {
                         n.collection_id,
                         burned,
                         n.properties,
+                        n.token_id,
                         COALESCE(n.description, nm.description)     AS description,
                         COALESCE(nm.image, n.uri)                   AS image_url,
                         nm.animation_url,
@@ -191,6 +196,7 @@ impl INfts for Nfts {
                 n.image_url,
                 n.royalty,
                 n.version,
+                n.token_id,
                 n.attributes,
                 n.updated_at,
                 n.list_price,
@@ -240,6 +246,8 @@ impl INfts for Nfts {
         }
 
         if let Some(nft_id) = query.nft_id.as_ref() {
+            let nft_id = Uuid::from_str(nft_id).ok();
+
             query_builder.push(" AND n.id = ");
             query_builder.push_bind(nft_id);
         }

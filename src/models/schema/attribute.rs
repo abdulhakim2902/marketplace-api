@@ -2,11 +2,12 @@ use async_graphql::InputObject;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct AttributeSchema {
     pub collection_id: String,
-    pub nft_id: String,
+    pub nft_id: Uuid,
     pub attr_type: String,
     pub value: String,
     pub rarity: Option<BigDecimal>,
@@ -21,8 +22,8 @@ impl AttributeSchema {
     }
 
     #[graphql(name = "nft_id")]
-    async fn nft_id(&self) -> &str {
-        &self.nft_id
+    async fn nft_id(&self) -> String {
+        self.nft_id.to_string()
     }
 
     #[graphql(name = "type")]

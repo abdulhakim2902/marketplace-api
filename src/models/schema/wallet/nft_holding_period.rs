@@ -4,11 +4,12 @@ use crate::models::schema::{
 use async_graphql::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NftHoldingPeriod {
     pub collection_id: Option<String>,
-    pub nft_id: Option<String>,
+    pub nft_id: Option<Uuid>,
     pub period: Option<BigDecimal>,
 }
 
@@ -33,6 +34,11 @@ impl NftHoldingPeriod {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        fetch_nft(ctx, self.nft_id.clone(), self.collection_id.clone()).await
+        fetch_nft(
+            ctx,
+            self.nft_id.as_ref().map(|e| e.to_string()),
+            self.collection_id.clone(),
+        )
+        .await
     }
 }

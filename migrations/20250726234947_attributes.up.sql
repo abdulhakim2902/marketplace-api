@@ -1,4 +1,14 @@
 -- Add up migration script here
+CREATE TABLE IF NOT EXISTS attributes (
+      nft_id UUID NOT NULL,
+      collection_id VARCHAR(66) NOT NULL,
+      type VARCHAR NOT NULL,
+      value VARCHAR NOT NULL,
+      rarity NUMERIC(11, 10) DEFAULT 1,
+      score NUMERIC (20, 10) DEFAULT 0,
+      PRIMARY KEY (collection_id, nft_id, type, value)
+);
+
 CREATE FUNCTION update_rarity_and_score ()
     RETURNS TRIGGER
 AS $$
@@ -46,16 +56,6 @@ BEGIN
 END;
 $$
     LANGUAGE plpgsql;
-
-CREATE TABLE IF NOT EXISTS attributes (
-    nft_id VARCHAR(66) NOT NULL,
-    collection_id VARCHAR(66) NOT NULL,
-    type VARCHAR NOT NULL,
-    value VARCHAR NOT NULL,
-    rarity NUMERIC(11, 10) DEFAULT 1,
-    score NUMERIC (20, 10) DEFAULT 0,
-    PRIMARY KEY (collection_id, nft_id, type, value)
-);
 
 CREATE TRIGGER attributes_before_insert_update_rarity_and_score
     BEFORE INSERT ON attributes

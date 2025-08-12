@@ -21,7 +21,7 @@ pub struct OfferSchema {
     pub market_contract_id: Option<String>,
     pub market_name: Option<String>,
     pub nonce: Option<String>,
-    pub nft_id: Option<String>,
+    pub nft_id: Option<Uuid>,
     pub price: Option<i64>,
     pub receiver: Option<String>,
     pub remaining_count: Option<i64>,
@@ -85,8 +85,8 @@ impl OfferSchema {
     }
 
     #[graphql(name = "nft_id")]
-    async fn nft_id(&self) -> Option<&str> {
-        self.nft_id.as_ref().map(|e| e.as_str())
+    async fn nft_id(&self) -> Option<String> {
+        self.nft_id.as_ref().map(|e| e.to_string())
     }
 
     async fn price(&self) -> Option<String> {
@@ -121,7 +121,12 @@ impl OfferSchema {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        fetch_nft(ctx, self.nft_id.clone(), self.collection_id.clone()).await
+        fetch_nft(
+            ctx,
+            self.nft_id.as_ref().map(|e| e.to_string()),
+            self.collection_id.clone(),
+        )
+        .await
     }
 
     async fn collecton(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {

@@ -104,18 +104,19 @@ impl IListings for Listings {
         let offset = filter.offset.unwrap_or(0);
 
         let listing_id = query.id.map(|e| Uuid::from_str(&e).ok()).flatten();
+        let nft_id = query.nft_id.map(|e| Uuid::from_str(&e).ok()).flatten();
 
         let res = sqlx::query_as!(
             ListingSchema,
             r#"
             SELECT * FROM listings l
             WHERE ($1::UUID IS NULL OR l.id = $1)
-                AND ($2::TEXT IS NULL OR $2 = '' OR l.nft_id = $2) 
+                AND ($2::UUID IS NULL OR l.nft_id = $2) 
                 AND $3::BOOL IS NULL OR l.listed = $3
             LIMIT $4 OFFSET $5
             "#,
             listing_id,
-            query.nft_id,
+            nft_id,
             query.is_listed,
             limit,
             offset,

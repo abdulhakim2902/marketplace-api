@@ -1,16 +1,16 @@
-use async_graphql::{Context, InputObject};
-use bigdecimal::BigDecimal;
-use serde::{Deserialize, Serialize};
-
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
 };
+use async_graphql::{Context, InputObject};
+use bigdecimal::BigDecimal;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ProfitLossSchema {
     pub collection_id: Option<String>,
-    pub nft_id: Option<String>,
+    pub nft_id: Option<Uuid>,
     pub bought: Option<i64>,
     pub sold: Option<i64>,
     pub bought_usd: Option<BigDecimal>,
@@ -25,8 +25,8 @@ impl ProfitLossSchema {
     }
 
     #[graphql(name = "nft_id")]
-    async fn nft_id(&self) -> Option<&str> {
-        self.nft_id.as_ref().map(|e| e.as_str())
+    async fn nft_id(&self) -> Option<String> {
+        self.nft_id.as_ref().map(|e| e.to_string())
     }
 
     async fn bought(&self) -> Option<String> {
@@ -52,7 +52,12 @@ impl ProfitLossSchema {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        fetch_nft(ctx, self.nft_id.clone(), self.collection_id.clone()).await
+        fetch_nft(
+            ctx,
+            self.nft_id.as_ref().map(|e| e.to_string()),
+            self.collection_id.clone(),
+        )
+        .await
     }
 
     async fn collecton(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {

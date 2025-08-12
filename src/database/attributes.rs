@@ -1,10 +1,11 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use crate::models::db::attribute::DbAttribute;
 use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait IAttributes: Send + Sync {
@@ -84,6 +85,8 @@ impl IAttributes for Attributes {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
+        let nft_id = query.nft_id.map(|e| Uuid::from_str(&e).ok()).flatten();
+
         let res = sqlx::query_as!(
             AttributeSchema,
             r#"
@@ -96,11 +99,11 @@ impl IAttributes for Attributes {
                 na.score
             FROM attributes na
             WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR na.collection_id = $1)
-                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR na.nft_id = $2)
+                AND ($2::UUID IS NULL OR na.nft_id = $2)
             LIMIT $3 OFFSET $4
             "#,
             query.collection_id,
-            query.nft_id,
+            nft_id,
             limit,
             offset,
         )
@@ -156,6 +159,7 @@ impl IAttributes for Attributes {
     }
 
     async fn total_nft_trait(&self, nft_id: &str) -> anyhow::Result<i64> {
+        let nft_id = Uuid::from_str(nft_id).ok();
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM attributes

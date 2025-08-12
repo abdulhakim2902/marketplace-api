@@ -1,3 +1,4 @@
+use crate::utils::generate_nft_id;
 use crate::{
     config::marketplace_config::MarketplaceEventType,
     models::{
@@ -11,6 +12,7 @@ use crate::{
     },
 };
 use ahash::{AHashMap, AHashSet};
+use anyhow::Result;
 use aptos_indexer_processor_sdk::{
     aptos_indexer_transaction_stream::utils::time::parse_timestamp,
     aptos_protos::transaction::v1::{Transaction, transaction::TxnData, write_set_change::Change},
@@ -19,6 +21,7 @@ use aptos_indexer_processor_sdk::{
     utils::{convert::standardize_address, errors::ProcessorError},
 };
 use bigdecimal::{BigDecimal, ToPrimitive};
+use uuid::Uuid;
 
 pub struct TokenExtractor
 where
@@ -26,8 +29,8 @@ where
 {
     current_wallets: AHashSet<String>,
     current_collections: AHashMap<String, DbCollection>,
-    current_nfts: AHashMap<String, DbNft>,
-    current_burn_nfts: AHashMap<String, DbNft>,
+    current_nfts: AHashMap<Uuid, DbNft>,
+    current_burn_nfts: AHashMap<Uuid, DbNft>,
     current_activities: AHashMap<i64, DbActivity>,
 }
 
@@ -132,7 +135,7 @@ impl Processable for TokenExtractor {
                     }
                 }
 
-                let mut token_owner: AHashMap<String, Option<String>> = AHashMap::new();
+                let mut token_owner: AHashMap<Uuid, Option<String>> = AHashMap::new();
                 for event in events.iter() {
                     let token_event = TokenEvent::from_event(
                         event.type_str.as_ref(),
@@ -148,12 +151,16 @@ impl Processable for TokenExtractor {
 
                         match token_event {
                             TokenEvent::DepositTokenEvent(inner) => {
-                                token_owner
-                                    .insert(inner.id.token_data_id.to_addr(), account_address);
+                                token_owner.insert(
+                                    generate_nft_id(inner.id.token_data_id.to_addr().as_str()),
+                                    account_address,
+                                );
                             }
                             TokenEvent::TokenDeposit(inner) => {
-                                token_owner
-                                    .insert(inner.id.token_data_id.to_addr(), account_address);
+                                token_owner.insert(
+                                    generate_nft_id(inner.id.token_data_id.to_addr().as_str()),
+                                    account_address,
+                                );
                             }
                             _ => {}
                         }
@@ -278,7 +285,7 @@ impl Processable for TokenExtractor {
                     }
 
                     if let Some(mut nft) = nft_result {
-                        let burned_nft = self.current_burn_nfts.remove(nft.id.as_str());
+                        let burned_nft = self.current_burn_nfts.remove(&nft.id);
                         if let Some(_) = burned_nft {
                             nft.burned = Some(true);
                             nft.owner = None;
@@ -335,7 +342,7 @@ impl TokenExtractor {
         activity: DbActivity,
         mint_prices: &mut AHashMap<String, BigDecimal>,
         mint_activities: &mut AHashMap<String, DbActivity>,
-        token_owner: &AHashMap<String, Option<String>>,
+        token_owner: &AHashMap<Uuid, Option<String>>,
     ) {
         let mut activity = activity;
 
@@ -345,15 +352,19 @@ impl TokenExtractor {
                 nft.burned = Some(true);
                 nft.owner = None;
             } else {
-                let nft: DbNft = activity.clone().into();
-                self.current_burn_nfts.insert(nft.id.clone(), nft);
+                let nft_result: Result<DbNft> = activity.clone().try_into();
+                if let Ok(nft) = nft_result {
+                    self.current_burn_nfts.insert(nft.id.clone(), nft);
+                }
             }
         }
 
         if tx_type == MarketplaceEventType::Mint.to_string() {
             if activity.receiver.is_none() {
-                if let Some(owner) = token_owner.get(activity.nft_id.as_ref().unwrap()) {
-                    activity.receiver = owner.clone();
+                if let Some(nft_id) = activity.nft_id.as_ref() {
+                    if let Some(owner) = token_owner.get(nft_id) {
+                        activity.receiver = owner.clone();
+                    }
                 }
             }
 

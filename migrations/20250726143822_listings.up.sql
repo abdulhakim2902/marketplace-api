@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS listings (
   block_time timestamp(6) WITH time zone DEFAULT NOW() NOT NULL,
   market_contract_id VARCHAR(66) DEFAULT NULL,
   collection_id VARCHAR(66),
-  nft_id VARCHAR(66) NOT NULL,
+  nft_id UUID NOT NULL,
   listed BOOLEAN DEFAULT NULL,
   market_name VARCHAR(128),
   nonce VARCHAR(128) DEFAULT NULL,

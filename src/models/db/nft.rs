@@ -15,16 +15,18 @@ use aptos_indexer_processor_sdk::{
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct DbNft {
-    pub id: String,
+    pub id: Uuid,
     pub name: Option<String>,
     pub owner: Option<String>,
     pub collection_id: Option<String>,
     pub burned: Option<bool>,
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
+    pub token_id: Option<String>,
     pub uri: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
@@ -39,14 +41,14 @@ impl DbNft {
         if let Some(inner) = TokenResourceData::from_write_resource(wr)? {
             let token_addr = standardize_address(&wr.address);
             let _collection_id = generate_collection_id(inner.get_collection_address().as_str());
-            let _nft_id = generate_nft_id(token_addr.as_str());
 
             let mut nft = DbNft {
-                id: token_addr.clone(),
+                id: generate_nft_id(token_addr.as_str()),
                 collection_id: Some(inner.get_collection_address()),
                 name: Some(inner.name),
                 uri: Some(inner.uri.clone()),
                 description: Some(inner.description),
+                token_id: Some(token_addr.clone()),
                 version: Some("v2".to_string()),
                 ..Default::default()
             };
@@ -80,7 +82,7 @@ impl DbNft {
         table_item: &WriteTableItem,
         txn_version: i64,
         table_handle_to_owner: &AHashMap<String, TableMetadataForToken>,
-        deposit_event_owner: &HashMap<String, Option<String>>,
+        deposit_event_owner: &HashMap<Uuid, Option<String>>,
     ) -> Result<Option<Self>> {
         if let Some(table_item_data) = table_item.data.as_ref() {
             let maybe_token_data = match TokenWriteSet::from_table_item_type(
@@ -104,14 +106,13 @@ impl DbNft {
                 };
 
                 if let Some(token_data_id_struct) = maybe_token_data_id {
+                    let nft_id = generate_nft_id(token_data_id_struct.to_addr().as_str());
                     let owner_address = match table_handle_to_owner.get(&table_handle) {
                         Some(tm) if tm.table_type == TYPE_TOKEN_STORE_V1 => {
                             Some(tm.get_owner_address())
                         }
                         _ => {
-                            let deposit_event_owner = deposit_event_owner
-                                .get(&token_data_id_struct.to_addr())
-                                .cloned();
+                            let deposit_event_owner = deposit_event_owner.get(&nft_id).cloned();
 
                             if deposit_event_owner.is_none() {
                                 None
@@ -123,14 +124,14 @@ impl DbNft {
 
                     let _collection_id =
                         generate_collection_id(token_data_id_struct.get_collection_addr().as_str());
-                    let _nft_id = generate_nft_id(token_data_id_struct.to_addr().as_str());
 
                     let nft = DbNft {
-                        id: token_data_id_struct.to_addr(),
+                        id: nft_id,
                         owner: owner_address,
                         collection_id: Some(token_data_id_struct.get_collection_addr()),
-                        name: Some(token_data.name),
+                        name: Some(token_data.name.clone()),
                         uri: Some(token_data.uri.clone()),
+                        token_id: Some(token_data.name.replace(" ", "%20")),
                         properties: Some(token_data.default_properties),
                         description: Some(token_data.description),
                         royalty: Some(token_data.royalty.get_royalty()),

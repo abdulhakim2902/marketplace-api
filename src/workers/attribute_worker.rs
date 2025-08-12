@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use futures::future::join_all;
-use reqwest::Client;
-
-use crate::utils::{generate_collection_id, generate_nft_id};
+use crate::utils::generate_collection_id;
 use crate::{
     database::{IDatabase, attributes::IAttributes, nft_metadata::INFTMetadata, nfts::INfts},
     models::{
@@ -12,6 +9,9 @@ use crate::{
     },
     utils::shutdown_utils,
 };
+use futures::future::join_all;
+use reqwest::Client;
+use uuid::Uuid;
 
 pub struct AttributeWorker<TDb: IDatabase> {
     db: Arc<TDb>,
@@ -76,16 +76,16 @@ where
                 nft_metadata.uri = Some(uri.to_string());
                 nft_metadata.collection_id = nft.collection_id.clone();
 
-                let nft_ids = serde_json::from_value::<Vec<String>>(nft.nft_ids.clone())?;
+                let nft_ids = serde_json::from_value::<Vec<Uuid>>(nft.nft_ids.clone())?;
 
-                Ok::<(DbNFTMetadata, Vec<String>), anyhow::Error>((nft_metadata, nft_ids))
+                Ok::<(DbNFTMetadata, Vec<Uuid>), anyhow::Error>((nft_metadata, nft_ids))
             });
 
             let nft_metadata_vec = join_all(nft_metadata_fut)
                 .await
                 .into_iter()
                 .filter_map(Result::ok)
-                .collect::<Vec<(DbNFTMetadata, Vec<String>)>>();
+                .collect::<Vec<(DbNFTMetadata, Vec<Uuid>)>>();
 
             let mut all_attributes = Vec::new();
             let mut all_nft_metadata = Vec::new();
@@ -103,11 +103,10 @@ where
                                 .collection_id
                                 .as_ref()
                                 .map(|e| generate_collection_id(e));
-                            let _nft_id = generate_nft_id(nft_id);
 
                             let nft_attribute = DbAttribute {
                                 collection_id: nft_metadata.collection_id.clone(),
-                                nft_id: Some(nft_id.to_string()),
+                                nft_id: nft_id.clone(),
                                 attr_type: Some(attribute.trait_type.to_lowercase()),
                                 value: Some(attribute.value.to_lowercase()),
                             };

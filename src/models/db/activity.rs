@@ -8,6 +8,7 @@ use crate::{
     },
 };
 use ahash::AHashMap;
+use anyhow::Context;
 use aptos_indexer_processor_sdk::utils::convert::standardize_address;
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
@@ -23,7 +24,7 @@ pub struct DbActivity {
     pub sender: Option<String>,
     pub receiver: Option<String>,
     pub price: Option<i64>,
-    pub nft_id: Option<String>,
+    pub nft_id: Option<Uuid>,
     pub collection_id: Option<String>,
     pub block_time: Option<NaiveDateTime>,
     pub block_height: Option<i64>,
@@ -46,7 +47,7 @@ impl DbActivity {
                 TokenEvent::Mint(inner) => {
                     let _collection_id =
                         generate_collection_id(inner.id.get_collection_addr().as_str());
-                    let _nft_id = generate_collection_id(inner.id.to_addr().as_str());
+                    let nft_id = generate_collection_id(inner.id.to_addr().as_str());
 
                     Some(DbActivity {
                         id: generate_activity_id(event.get_tx_index()),
@@ -56,7 +57,7 @@ impl DbActivity {
                         block_height: Some(event.transaction_block_height),
                         tx_type: Some(MarketplaceEventType::Mint.to_string()),
                         collection_id: Some(inner.id.get_collection_addr()),
-                        nft_id: Some(inner.id.to_addr()),
+                        nft_id: Some(nft_id),
                         amount: Some(1),
                         ..Default::default()
                     })
@@ -64,7 +65,7 @@ impl DbActivity {
                 TokenEvent::MintTokenEvent(inner) => {
                     let _collection_id =
                         generate_collection_id(inner.id.get_collection_addr().as_str());
-                    let _nft_id = generate_collection_id(inner.id.to_addr().as_str());
+                    let nft_id = generate_collection_id(inner.id.to_addr().as_str());
 
                     Some(DbActivity {
                         id: generate_activity_id(event.get_tx_index()),
@@ -75,7 +76,7 @@ impl DbActivity {
                         tx_type: Some(MarketplaceEventType::Mint.to_string()),
                         collection_id: Some(inner.id.get_collection_addr()),
                         amount: Some(1),
-                        nft_id: Some(inner.id.to_addr()),
+                        nft_id: Some(nft_id),
                         ..Default::default()
                     })
                 }
@@ -83,7 +84,7 @@ impl DbActivity {
                     let _collection_id = generate_collection_id(
                         inner.id.token_data_id.get_collection_addr().as_str(),
                     );
-                    let _nft_id = generate_collection_id(inner.id.token_data_id.to_addr().as_str());
+                    let nft_id = generate_collection_id(inner.id.token_data_id.to_addr().as_str());
 
                     Some(DbActivity {
                         id: generate_activity_id(event.get_tx_index()),
@@ -94,7 +95,7 @@ impl DbActivity {
                         tx_type: Some(MarketplaceEventType::Burn.to_string()),
                         sender: Some(inner.get_account()),
                         collection_id: Some(inner.id.token_data_id.get_collection_addr()),
-                        nft_id: Some(inner.id.token_data_id.to_addr()),
+                        nft_id: Some(nft_id),
                         amount: Some(1),
                         ..Default::default()
                     })
@@ -103,7 +104,7 @@ impl DbActivity {
                     let _collection_id = generate_collection_id(
                         inner.id.token_data_id.get_collection_addr().as_str(),
                     );
-                    let _nft_id = generate_collection_id(inner.id.token_data_id.to_addr().as_str());
+                    let nft_id = generate_collection_id(inner.id.token_data_id.to_addr().as_str());
 
                     Some(DbActivity {
                         id: generate_activity_id(event.get_tx_index()),
@@ -114,7 +115,7 @@ impl DbActivity {
                         tx_type: Some(MarketplaceEventType::Burn.to_string()),
                         sender: Some(standardize_address(&event.account_address)),
                         collection_id: Some(inner.id.token_data_id.get_collection_addr()),
-                        nft_id: Some(inner.id.token_data_id.to_addr()),
+                        nft_id: Some(nft_id),
                         amount: Some(1),
                         ..Default::default()
                     })
@@ -154,7 +155,7 @@ impl DbActivity {
                     V2TokenEvent::Mint(mint) => {
                         let _collection_id =
                             generate_collection_id(mint.get_collection_address().as_str());
-                        let _nft_id = generate_nft_id(mint.get_token_address().as_str());
+                        let nft_id = generate_nft_id(mint.get_token_address().as_str());
 
                         Some(DbActivity {
                             id: generate_activity_id(event.get_tx_index()),
@@ -166,13 +167,13 @@ impl DbActivity {
                             receiver: Some(object_data.object.object_core.get_owner_address()),
                             collection_id: Some(mint.get_collection_address()),
                             amount: Some(1),
-                            nft_id: Some(mint.get_token_address()),
+                            nft_id: Some(nft_id),
                             ..Default::default()
                         })
                     }
                     V2TokenEvent::MintEvent(mint) => {
                         let _collection_id = generate_collection_id(&event.account_address);
-                        let _nft_id = generate_nft_id(mint.get_token_address().as_str());
+                        let nft_id = generate_nft_id(mint.get_token_address().as_str());
 
                         Some(DbActivity {
                             id: generate_activity_id(event.get_tx_index()),
@@ -184,14 +185,14 @@ impl DbActivity {
                             receiver: Some(object_data.object.object_core.get_owner_address()),
                             collection_id: Some(standardize_address(&event.account_address)),
                             amount: Some(1),
-                            nft_id: Some(mint.get_token_address()),
+                            nft_id: Some(nft_id),
                             ..Default::default()
                         })
                     }
                     V2TokenEvent::Burn(burn) => {
                         let _collection_id =
                             generate_collection_id(burn.get_collection_address().as_str());
-                        let _nft_id = generate_nft_id(burn.get_token_address().as_str());
+                        let nft_id = generate_nft_id(burn.get_token_address().as_str());
 
                         Some(DbActivity {
                             id: generate_activity_id(event.get_tx_index()),
@@ -203,13 +204,13 @@ impl DbActivity {
                             sender: burn.get_previous_owner_address(),
                             collection_id: Some(burn.get_collection_address()),
                             amount: Some(1),
-                            nft_id: Some(burn.get_token_address()),
+                            nft_id: Some(nft_id),
                             ..Default::default()
                         })
                     }
                     V2TokenEvent::BurnEvent(burn) => {
                         let _collection_id = generate_collection_id(&event.account_address);
-                        let _nft_id = generate_nft_id(burn.get_token_address().as_str());
+                        let nft_id = generate_nft_id(burn.get_token_address().as_str());
 
                         Some(DbActivity {
                             id: generate_activity_id(event.get_tx_index()),
@@ -221,7 +222,7 @@ impl DbActivity {
                             sender: sender.map(|s| s.to_string()),
                             collection_id: Some(standardize_address(&event.account_address)),
                             amount: Some(1),
-                            nft_id: Some(burn.get_token_address()),
+                            nft_id: Some(nft_id),
                             ..Default::default()
                         })
                     }
@@ -229,7 +230,7 @@ impl DbActivity {
                         if let Some(token) = &object_data.token {
                             let _collection_id =
                                 generate_collection_id(token.get_collection_address().as_str());
-                            let _nft_id = generate_nft_id(transfer.get_object_address().as_str());
+                            let nft_id = generate_nft_id(transfer.get_object_address().as_str());
 
                             Some(DbActivity {
                                 id: generate_activity_id(event.get_tx_index()),
@@ -242,7 +243,7 @@ impl DbActivity {
                                 receiver: Some(transfer.get_to_address()),
                                 collection_id: Some(token.get_collection_address()),
                                 amount: Some(1),
-                                nft_id: Some(transfer.get_object_address()),
+                                nft_id: Some(nft_id),
                                 ..Default::default()
                             })
                         } else {
@@ -260,18 +261,21 @@ impl DbActivity {
     }
 }
 
-impl From<DbActivity> for DbNft {
-    fn from(value: DbActivity) -> Self {
+impl TryFrom<DbActivity> for DbNft {
+    type Error = anyhow::Error;
+
+    fn try_from(value: DbActivity) -> anyhow::Result<Self> {
         let _collection_id = value
             .collection_id
             .as_ref()
             .map(|e| generate_collection_id(e));
+        let nft_id = value.nft_id.context("Invalid nft id")?;
 
-        Self {
-            id: value.nft_id.unwrap(),
+        Ok(Self {
+            id: nft_id,
             burned: Some(true),
             collection_id: value.collection_id,
             ..Default::default()
-        }
+        })
     }
 }
