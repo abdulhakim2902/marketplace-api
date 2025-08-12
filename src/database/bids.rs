@@ -132,15 +132,7 @@ impl IBids for Bids {
         let res = sqlx::query_as!(
             OfferSchema,
             r#"
-            WITH latest_prices AS (
-                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
-                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
-            )
-            SELECT 
-                b.*, 
-                b.price * lp.price AS usd_price
-            FROM bids b
-                LEFT JOIN latest_prices lp ON TRUE
+            SELECT * FROM bids b
             WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR b.nft_id = $1)
                 AND ($2::TEXT IS NULL OR $2::TEXT = '' OR b.collection_id = $2)
                 AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)

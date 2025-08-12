@@ -1,16 +1,17 @@
-use async_graphql::{Context, InputObject};
-use bigdecimal::BigDecimal;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-
+use crate::models::schema::fetch_token_price;
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
 };
+use async_graphql::{Context, InputObject};
+use bigdecimal::BigDecimal;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct OfferSchema {
-    pub id: Option<String>,
+    pub id: Uuid,
     pub bidder: Option<String>,
     pub accepted_tx_id: Option<String>,
     pub cancelled_tx_id: Option<String>,
@@ -26,12 +27,15 @@ pub struct OfferSchema {
     pub remaining_count: Option<i64>,
     pub status: Option<String>,
     pub bid_type: Option<String>,
-    pub usd_price: Option<BigDecimal>,
     pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[async_graphql::Object]
 impl OfferSchema {
+    async fn id(&self) -> String {
+        self.id.to_string()
+    }
+
     #[graphql(name = "collection_id")]
     async fn collection_id(&self) -> Option<&str> {
         self.collection_id.as_ref().map(|e| e.as_str())
@@ -91,11 +95,6 @@ impl OfferSchema {
             .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
     }
 
-    #[graphql(name = "usd_price")]
-    async fn usd_price(&self) -> Option<String> {
-        self.usd_price.as_ref().map(|e| e.to_string())
-    }
-
     async fn receiver(&self) -> Option<&str> {
         self.receiver.as_ref().map(|e| e.as_str())
     }
@@ -111,6 +110,14 @@ impl OfferSchema {
     #[graphql(name = "type")]
     async fn bid_type(&self) -> Option<&str> {
         self.bid_type.as_ref().map(|e| e.as_str())
+    }
+
+    #[graphql(name = "usd_price")]
+    async fn usd_price(&self, ctx: &Context<'_>) -> Option<String> {
+        let token_price = fetch_token_price(ctx).await.unwrap_or_default();
+
+        self.price
+            .map(|e| (BigDecimal::from(e) * token_price / APT_DECIMAL).to_plain_string())
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {

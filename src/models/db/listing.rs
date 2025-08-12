@@ -1,9 +1,10 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct DbListing {
-    pub id: Option<String>,
+    pub id: Uuid,
     pub block_height: Option<i64>,
     pub block_time: Option<NaiveDateTime>,
     pub market_contract_id: Option<String>,

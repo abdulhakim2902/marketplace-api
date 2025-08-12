@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use crate::models::schema::listing::FilterListingSchema;
 use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait IListings: Send + Sync {
@@ -102,37 +103,22 @@ impl IListings for Listings {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
+        let listing_id = query.id.map(|e| Uuid::from_str(&e).ok()).flatten();
+
         let res = sqlx::query_as!(
             ListingSchema,
             r#"
-            WITH latest_prices AS (
-                SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
-                WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
-                ORDER BY tp.token_address, tp.created_at DESC
-            )
-            SELECT
-                l.block_height,
-                l.block_time,
-                l.market_contract_id,
-                l.listed,
-                l.market_name,
-                l.collection_id,
-                l.nft_id,
-                l.nonce,
-                l.price,
-                l.price * lp.price      AS usd_price,
-                l.seller,
-                l.tx_index
-            FROM listings l
-                LEFT JOIN latest_prices lp ON TRUE
-            WHERE ($1::TEXT IS NULL OR $1 = '' OR l.nft_id = $1) 
-                AND $2::BOOL IS NULL OR l.listed = $2
-            LIMIT $3 OFFSET $4
+            SELECT * FROM listings l
+            WHERE ($1::UUID IS NULL OR l.id = $1)
+                AND ($2::TEXT IS NULL OR $2 = '' OR l.nft_id = $2) 
+                AND $3::BOOL IS NULL OR l.listed = $3
+            LIMIT $4 OFFSET $5
             "#,
+            listing_id,
             query.nft_id,
             query.is_listed,
             limit,
-           offset,
+            offset,
         )
         .fetch_all(&*self.pool)
         .await

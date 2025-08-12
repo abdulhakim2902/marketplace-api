@@ -1,5 +1,9 @@
 pub mod profit_loss;
 
+use crate::models::{
+    marketplace::APT_DECIMAL,
+    schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
+};
 use async_graphql::{Context, Enum, InputObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
@@ -7,10 +11,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use strum::{Display, EnumString};
 use uuid::Uuid;
-use crate::models::{
-    marketplace::APT_DECIMAL,
-    schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
-};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct ActivitySchema {

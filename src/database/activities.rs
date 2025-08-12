@@ -1,4 +1,4 @@
-use std::{sync::Arc, str::FromStr};
+use std::{str::FromStr, sync::Arc};
 
 use crate::models::schema::activity::FilterActivitySchema;
 use crate::models::schema::activity::profit_loss::FilterProfitLossSchema;

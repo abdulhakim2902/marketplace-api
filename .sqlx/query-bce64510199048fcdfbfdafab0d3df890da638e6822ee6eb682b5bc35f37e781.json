@@ -1,0 +1,92 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT * FROM listings l\n            WHERE ($1::UUID IS NULL OR l.id = $1)\n                AND ($2::TEXT IS NULL OR $2 = '' OR l.nft_id = $2) \n                AND $3::BOOL IS NULL OR l.listed = $3\n            LIMIT $4 OFFSET $5\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "block_height",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "block_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "market_contract_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "collection_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "nft_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "listed",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "market_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "nonce",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 10,
+        "name": "seller",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "tx_index",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bool",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "bce64510199048fcdfbfdafab0d3df890da638e6822ee6eb682b5bc35f37e781"
+}

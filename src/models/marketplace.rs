@@ -6,11 +6,12 @@ use crate::{
     config::marketplace_config::MarketplaceEventType,
     models::db::{activity::DbActivity, bid::DbBid, listing::DbListing},
 };
-use aptos_indexer_processor_sdk::utils::extract::hash_str;
+use anyhow::Context;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
+use uuid::Uuid;
 
 pub const NFT_MARKETPLACE_ACTIVITIES_TABLE_NAME: &str = "nft_marketplace_activities";
 pub const APT_DECIMAL: i32 = 100_000_000;
@@ -76,16 +77,19 @@ impl From<NftMarketplaceActivity> for DbActivity {
     }
 }
 
-impl From<NftMarketplaceActivity> for DbBid {
-    fn from(value: NftMarketplaceActivity) -> Self {
+impl TryFrom<NftMarketplaceActivity> for DbBid {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NftMarketplaceActivity) -> anyhow::Result<Self> {
+        let bid_id = value.get_bid_id().context("Invalid bid")?;
         let _collection_id = value
             .collection_addr
             .as_ref()
             .map(|e| generate_collection_id(e));
         let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
 
-        Self {
-            id: value.get_bid_id(),
+        Ok(Self {
+            id: bid_id,
             created_tx_id: value.get_created_txn_id(),
             accepted_tx_id: value.get_accepted_txn_id(),
             cancelled_tx_id: value.get_cancelled_txn_id(),
@@ -101,20 +105,23 @@ impl From<NftMarketplaceActivity> for DbBid {
             bidder: value.buyer,
             remaining_count: value.token_amount,
             receiver: value.seller,
-        }
+        })
     }
 }
 
-impl From<NftMarketplaceActivity> for DbListing {
-    fn from(value: NftMarketplaceActivity) -> Self {
+impl TryFrom<NftMarketplaceActivity> for DbListing {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NftMarketplaceActivity) -> anyhow::Result<Self> {
+        let listing_id = value.get_listing_id().context("Invalid listing")?;
         let _collection_id = value
             .collection_addr
             .as_ref()
             .map(|e| generate_collection_id(e));
         let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
 
-        Self {
-            id: value.get_listing_id(),
+        Ok(Self {
+            id: listing_id,
             tx_index: Some(value.get_tx_index()),
             listed: value.get_listing_status(),
             price: Some(value.price),
@@ -126,7 +133,7 @@ impl From<NftMarketplaceActivity> for DbListing {
             block_time: Some(value.block_timestamp),
             nonce: value.listing_id,
             block_height: Some(value.block_height),
-        }
+        })
     }
 }
 
@@ -218,7 +225,7 @@ impl MarketplaceModel for NftMarketplaceActivity {
 }
 
 impl BidModel for NftMarketplaceActivity {
-    fn get_bid_id(&self) -> Option<String> {
+    fn get_bid_id(&self) -> Option<Uuid> {
         if let Some(status) = self.get_bid_type().as_ref() {
             if let Some(bidder) = self.buyer.as_ref() {
                 let address = match status.as_str() {
@@ -227,20 +234,11 @@ impl BidModel for NftMarketplaceActivity {
                     _ => None,
                 };
 
-                let _bid_id = self.contract_address.as_ref().zip(address).map(
+                return self.contract_address.as_ref().zip(address).map(
                     |(contract_address, address)| {
                         generate_bid_id(contract_address, address, bidder)
                     },
                 );
-
-                return self
-                    .contract_address
-                    .as_ref()
-                    .zip(address)
-                    .map(|(contract_addr, addr)| {
-                        let key = format!("{}::{}::{}", contract_addr, addr, bidder);
-                        format!("0x{}", hash_str(&key))
-                    });
             }
         }
 
@@ -327,29 +325,21 @@ impl BidModel for NftMarketplaceActivity {
 
         None
     }
-
-    fn is_valid_bid(&self) -> bool {
-        self.get_bid_id().is_some() && self.get_bid_type().is_some()
-    }
 }
 
 impl ListingModel for NftMarketplaceActivity {
-    fn get_listing_id(&self) -> Option<String> {
-        let _listing_id = self
-            .contract_address
-            .as_ref()
-            .zip(self.token_addr.as_ref())
-            .map(|(contract_address, token_addr)| {
-                generate_listing_id(contract_address, token_addr)
-            });
+    fn get_listing_id(&self) -> Option<Uuid> {
+        if self.get_listing_status().is_some() {
+            return self
+                .contract_address
+                .as_ref()
+                .zip(self.token_addr.as_ref())
+                .map(|(contract_address, token_addr)| {
+                    generate_listing_id(contract_address, token_addr)
+                });
+        }
 
-        self.contract_address
-            .as_ref()
-            .zip(self.token_addr.as_ref())
-            .map(|(contract_address, token_addr)| {
-                let key = format!("{}::{}", contract_address, token_addr);
-                format!("0x{}", hash_str(&key))
-            })
+        None
     }
 
     fn get_listing_status(&self) -> Option<bool> {
@@ -360,10 +350,6 @@ impl ListingModel for NftMarketplaceActivity {
             MarketplaceEventType::Buy => Some(false),
             _ => None,
         }
-    }
-
-    fn is_valid_listing(&self) -> bool {
-        self.get_listing_id().is_some() && self.get_listing_status().is_some()
     }
 }
 
@@ -405,18 +391,16 @@ pub trait MarketplaceModel {
 }
 
 pub trait BidModel {
-    fn get_bid_id(&self) -> Option<String>;
+    fn get_bid_id(&self) -> Option<Uuid>;
     fn get_bid_status(&self) -> Option<String>;
     fn get_bid_type(&self) -> Option<String>;
     fn get_created_txn_id(&self) -> Option<String>;
     fn get_cancelled_txn_id(&self) -> Option<String>;
     fn get_accepted_txn_id(&self) -> Option<String>;
     fn get_expiration_time(&self) -> Option<NaiveDateTime>;
-    fn is_valid_bid(&self) -> bool;
 }
 
 pub trait ListingModel {
-    fn get_listing_id(&self) -> Option<String>;
+    fn get_listing_id(&self) -> Option<Uuid>;
     fn get_listing_status(&self) -> Option<bool>;
-    fn is_valid_listing(&self) -> bool;
 }

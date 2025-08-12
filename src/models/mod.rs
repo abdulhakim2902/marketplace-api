@@ -1,7 +1,6 @@
 use anyhow::Context;
 use aptos_indexer_processor_sdk::{
-    aptos_protos::transaction::v1::Event,
-    utils::convert::standardize_address,
+    aptos_protos::transaction::v1::Event, utils::convert::standardize_address,
 };
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};

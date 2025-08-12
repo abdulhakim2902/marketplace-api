@@ -3,10 +3,7 @@ use crate::{
     database::{IDatabase, token_prices::ITokenPrices},
     models::{
         db::{activity::DbActivity, bid::DbBid, listing::DbListing},
-        marketplace::{
-            APT_DECIMAL, BidModel, ListingModel, MarketplaceField, MarketplaceModel,
-            NftMarketplaceActivity,
-        },
+        marketplace::{APT_DECIMAL, MarketplaceField, MarketplaceModel, NftMarketplaceActivity},
     },
 };
 use anyhow::Result;
@@ -24,8 +21,8 @@ const APT_TOKEN_ADDR: &str = "0x000000000000000000000000000000000000000000000000
 #[derive(Clone, Debug, Default)]
 pub struct NFTAccumulator {
     activities: HashMap<Uuid, DbActivity>,
-    bids: HashMap<String, DbBid>,
-    listings: HashMap<String, DbListing>,
+    bids: HashMap<Uuid, DbBid>,
+    listings: HashMap<Uuid, DbListing>,
 }
 
 impl NFTAccumulator {
@@ -36,12 +33,9 @@ impl NFTAccumulator {
     }
 
     pub fn fold_bidding(&mut self, activity: &NftMarketplaceActivity) {
-        if activity.is_valid_bid() {
-            let bid: DbBid = activity.to_owned().into();
-            let key = bid.id.as_ref().unwrap();
-
+        if let Ok(bid) = <NftMarketplaceActivity as TryInto<DbBid>>::try_into(activity.to_owned()) {
             self.bids
-                .entry(key.to_string())
+                .entry(bid.id)
                 .and_modify(|existing: &mut DbBid| {
                     if let Some(nonce) = bid.nonce.as_ref() {
                         existing.nonce = Some(nonce.to_string());
@@ -71,11 +65,11 @@ impl NFTAccumulator {
     }
 
     pub fn fold_listing(&mut self, activity: &NftMarketplaceActivity) {
-        if activity.is_valid_listing() {
-            let listing: DbListing = activity.to_owned().into();
-            let key = listing.id.as_ref().unwrap();
+        if let Ok(listing) =
+            <NftMarketplaceActivity as TryInto<DbListing>>::try_into(activity.to_owned())
+        {
             self.listings
-                .entry(key.to_string())
+                .entry(listing.id)
                 .and_modify(|existing: &mut DbListing| {
                     let is_listed = listing.listed.unwrap_or(false);
                     let is_latest = listing

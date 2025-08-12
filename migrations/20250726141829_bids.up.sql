@@ -1,6 +1,6 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS bids (
-  id VARCHAR(66) NOT NULL,
+  id UUID PRIMARY KEY NOT NULL,
   bidder VARCHAR(66) NOT NULL,
   accepted_tx_id VARCHAR(66) DEFAULT NULL,
   cancelled_tx_id VARCHAR(66) DEFAULT NULL,
@@ -16,6 +16,5 @@ CREATE TABLE IF NOT EXISTS bids (
   remaining_count BIGINT,
   status VARCHAR(20),
   bid_type VARCHAR(20),
-  updated_at timestamp(6) WITH time zone DEFAULT NOW() NOT NULL,
-  PRIMARY KEY (id)
+  updated_at timestamp(6) WITH time zone DEFAULT NOW() NOT NULL
 );

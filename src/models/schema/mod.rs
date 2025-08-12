@@ -1,8 +1,10 @@
 use async_graphql::{Context, Enum};
+use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum::{Display, EnumString};
 
+use crate::database::token_prices::ITokenPrices;
 use crate::models::schema::collection::FilterCollectionSchema;
 use crate::models::schema::nft::FilterNftSchema;
 use crate::{
@@ -182,6 +184,17 @@ async fn fetch_total_nft(
 
     db.nfts()
         .fetch_total_nft(&wallet_address, collection_id)
+        .await
+        .ok()
+}
+
+async fn fetch_token_price(ctx: &Context<'_>) -> Option<BigDecimal> {
+    let db = ctx
+        .data::<Arc<Database>>()
+        .expect("Missing database in the context");
+
+    db.token_prices()
+        .fetch_token_price("0x000000000000000000000000000000000000000000000000000000000000000a")
         .await
         .ok()
 }
