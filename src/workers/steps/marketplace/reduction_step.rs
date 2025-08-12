@@ -17,22 +17,22 @@ use aptos_indexer_processor_sdk::{
 };
 use bigdecimal::BigDecimal;
 use std::{collections::HashMap, str::FromStr, sync::Arc};
+use uuid::Uuid;
 
 const APT_TOKEN_ADDR: &str = "0x000000000000000000000000000000000000000000000000000000000000000a";
 
 #[derive(Clone, Debug, Default)]
 pub struct NFTAccumulator {
-    activities: HashMap<String, DbActivity>,
+    activities: HashMap<Uuid, DbActivity>,
     bids: HashMap<String, DbBid>,
     listings: HashMap<String, DbListing>,
 }
 
 impl NFTAccumulator {
     pub fn fold_activity(&mut self, activity: &NftMarketplaceActivity) {
-        let key = activity.get_activity_id();
         let activity: DbActivity = activity.to_owned().into();
 
-        self.activities.insert(key, activity);
+        self.activities.insert(activity.id, activity);
     }
 
     pub fn fold_bidding(&mut self, activity: &NftMarketplaceActivity) {

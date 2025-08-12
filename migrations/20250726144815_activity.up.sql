@@ -1,6 +1,6 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS activities (
-  id VARCHAR(66) NOT NULL,
+  id UUID PRIMARY KEY NOT NULL,
   tx_type VARCHAR(30) NOT NULL,
   tx_index BIGINT NOT NULL,
   tx_id VARCHAR(66) NOT NULL,
@@ -14,8 +14,5 @@ CREATE TABLE IF NOT EXISTS activities (
   usd_price NUMERIC(20, 2) DEFAULT 0,
   block_time timestamp(6) WITH time zone DEFAULT NOW() NOT NULL,
   block_height BIGINT NOT NULL,
---     amount is not exists in tradeport
-  amount BIGINT DEFAULT NULL,
---     contract is exists in tradeport
-  PRIMARY KEY (id)
-)
+  amount BIGINT DEFAULT NULL
+);

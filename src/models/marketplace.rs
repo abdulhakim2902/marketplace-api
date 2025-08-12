@@ -50,7 +50,6 @@ pub struct NftMarketplaceActivity {
 
 impl From<NftMarketplaceActivity> for DbActivity {
     fn from(value: NftMarketplaceActivity) -> Self {
-        let _activity_id = generate_activity_id(value.get_tx_index());
         let _collection_id = value
             .collection_addr
             .as_ref()
@@ -58,7 +57,7 @@ impl From<NftMarketplaceActivity> for DbActivity {
         let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
 
         Self {
-            id: Some(value.get_activity_id()),
+            id: generate_activity_id(value.get_tx_index()),
             tx_index: value.get_tx_index(),
             price: Some(value.price),
             market_contract_id: value.contract_address,
@@ -132,10 +131,6 @@ impl From<NftMarketplaceActivity> for DbListing {
 }
 
 impl NftMarketplaceActivity {
-    pub fn get_activity_id(&self) -> String {
-        format!("0x{}", hash_str(&self.get_tx_index().to_string()))
-    }
-
     pub fn get_tx_index(&self) -> i64 {
         self.txn_version * 100_000 + self.index
     }

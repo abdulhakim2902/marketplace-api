@@ -24,7 +24,6 @@ pub mod listing;
 pub mod marketplace;
 pub mod nft;
 pub mod offer;
-pub mod profit_loss_activity;
 pub mod wallet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]

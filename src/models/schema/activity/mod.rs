@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use strum::{Display, EnumString};
-
+use uuid::Uuid;
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
@@ -14,6 +14,7 @@ use crate::models::{
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct ActivitySchema {
+    pub id: Uuid,
     pub tx_type: Option<String>,
     pub tx_index: i64,
     pub tx_id: String,
@@ -32,6 +33,10 @@ pub struct ActivitySchema {
 
 #[async_graphql::Object]
 impl ActivitySchema {
+    async fn id(&self) -> String {
+        self.id.to_string()
+    }
+
     #[graphql(name = "type")]
     async fn tx_type(&self) -> Option<&str> {
         self.tx_type.as_ref().map(|e| e.as_str())
@@ -121,6 +126,7 @@ pub struct FilterActivitySchema {
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
 pub struct WhereActivitySchema {
+    pub id: Option<String>,
     pub wallet_address: Option<String>,
     pub collection_id: Option<String>,
     pub nft_id: Option<String>,

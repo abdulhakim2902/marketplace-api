@@ -1,7 +1,7 @@
 use anyhow::Context;
 use aptos_indexer_processor_sdk::{
     aptos_protos::transaction::v1::Event,
-    utils::{convert::standardize_address, extract::hash_str},
+    utils::convert::standardize_address,
 };
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
@@ -100,9 +100,5 @@ impl EventModel {
 
     pub fn get_tx_index(&self) -> i64 {
         self.transaction_version * 100_000 + self.event_index
-    }
-
-    pub fn generate_id(&self) -> String {
-        format!("0x{}", hash_str(&self.get_tx_index().to_string()))
     }
 }

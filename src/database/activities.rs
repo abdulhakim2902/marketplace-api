@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, str::FromStr};
 
 use crate::models::schema::activity::FilterActivitySchema;
 use crate::models::schema::activity::profit_loss::FilterProfitLossSchema;
@@ -14,6 +14,7 @@ use sqlx::{
     PgPool, Postgres, QueryBuilder, Transaction,
     postgres::{PgQueryResult, types::PgInterval},
 };
+use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait IActivities: Send + Sync {
@@ -127,7 +128,8 @@ impl IActivities for Activities {
 
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
-            SELECT 
+            SELECT
+                a.id,
                 a.tx_type,
                 a.tx_index,
                 a.tx_id,
@@ -146,6 +148,12 @@ impl IActivities for Activities {
             WHERE TRUE
             "#,
         );
+
+        if let Some(id) = query.id.as_ref() {
+            let activity_id = Uuid::from_str(id).ok();
+            query_builder.push(" AND a.id = ");
+            query_builder.push_bind(activity_id);
+        }
 
         if let Some(addr) = query.wallet_address.as_ref() {
             query_builder.push(" AND (a.sender = ");

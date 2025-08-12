@@ -1,10 +1,4 @@
-use ahash::AHashMap;
-use aptos_indexer_processor_sdk::utils::convert::standardize_address;
-use bigdecimal::BigDecimal;
-use chrono::NaiveDateTime;
-use serde::{Deserialize, Serialize};
-
-use crate::utils::{generate_collection_id, generate_nft_id};
+use crate::utils::{generate_activity_id, generate_collection_id, generate_nft_id};
 use crate::{
     config::marketplace_config::MarketplaceEventType,
     models::{EventModel, db::nft::DbNft},
@@ -13,13 +7,19 @@ use crate::{
         token_utils::{TokenEvent, V2TokenEvent},
     },
 };
+use ahash::AHashMap;
+use aptos_indexer_processor_sdk::utils::convert::standardize_address;
+use bigdecimal::BigDecimal;
+use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct DbActivity {
-    pub id: Option<String>,
-    pub tx_type: Option<String>,
+    pub id: Uuid,
     pub tx_index: i64,
     pub tx_id: String,
+    pub tx_type: Option<String>,
     pub sender: Option<String>,
     pub receiver: Option<String>,
     pub price: Option<i64>,
@@ -49,7 +49,7 @@ impl DbActivity {
                     let _nft_id = generate_collection_id(inner.id.to_addr().as_str());
 
                     Some(DbActivity {
-                        id: Some(event.generate_id()),
+                        id: generate_activity_id(event.get_tx_index()),
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_time: Some(event.block_timestamp),
@@ -67,7 +67,7 @@ impl DbActivity {
                     let _nft_id = generate_collection_id(inner.id.to_addr().as_str());
 
                     Some(DbActivity {
-                        id: Some(event.generate_id()),
+                        id: generate_activity_id(event.get_tx_index()),
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_time: Some(event.block_timestamp),
@@ -86,7 +86,7 @@ impl DbActivity {
                     let _nft_id = generate_collection_id(inner.id.token_data_id.to_addr().as_str());
 
                     Some(DbActivity {
-                        id: Some(event.generate_id()),
+                        id: generate_activity_id(event.get_tx_index()),
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_time: Some(event.block_timestamp),
@@ -106,7 +106,7 @@ impl DbActivity {
                     let _nft_id = generate_collection_id(inner.id.token_data_id.to_addr().as_str());
 
                     Some(DbActivity {
-                        id: Some(event.generate_id()),
+                        id: generate_activity_id(event.get_tx_index()),
                         tx_id: txn_id.to_string(),
                         tx_index: event.get_tx_index(),
                         block_time: Some(event.block_timestamp),
@@ -157,7 +157,7 @@ impl DbActivity {
                         let _nft_id = generate_nft_id(mint.get_token_address().as_str());
 
                         Some(DbActivity {
-                            id: Some(event.generate_id()),
+                            id: generate_activity_id(event.get_tx_index()),
                             tx_id: txn_id.to_string(),
                             tx_index: event.get_tx_index(),
                             block_height: Some(event.transaction_block_height),
@@ -175,7 +175,7 @@ impl DbActivity {
                         let _nft_id = generate_nft_id(mint.get_token_address().as_str());
 
                         Some(DbActivity {
-                            id: Some(event.generate_id()),
+                            id: generate_activity_id(event.get_tx_index()),
                             tx_id: txn_id.to_string(),
                             tx_index: event.get_tx_index(),
                             block_height: Some(event.transaction_block_height),
@@ -194,7 +194,7 @@ impl DbActivity {
                         let _nft_id = generate_nft_id(burn.get_token_address().as_str());
 
                         Some(DbActivity {
-                            id: Some(event.generate_id()),
+                            id: generate_activity_id(event.get_tx_index()),
                             tx_id: txn_id.to_string(),
                             tx_index: event.get_tx_index(),
                             block_height: Some(event.transaction_block_height),
@@ -212,7 +212,7 @@ impl DbActivity {
                         let _nft_id = generate_nft_id(burn.get_token_address().as_str());
 
                         Some(DbActivity {
-                            id: Some(event.generate_id()),
+                            id: generate_activity_id(event.get_tx_index()),
                             tx_id: txn_id.to_string(),
                             tx_index: event.get_tx_index(),
                             block_height: Some(event.transaction_block_height),
@@ -232,7 +232,7 @@ impl DbActivity {
                             let _nft_id = generate_nft_id(transfer.get_object_address().as_str());
 
                             Some(DbActivity {
-                                id: Some(event.generate_id()),
+                                id: generate_activity_id(event.get_tx_index()),
                                 tx_id: txn_id.to_string(),
                                 tx_index: event.get_tx_index(),
                                 block_height: Some(event.transaction_block_height),
