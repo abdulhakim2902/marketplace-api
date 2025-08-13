@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::utils::generate_attribute_id;
 use crate::{
     database::{IDatabase, attributes::IAttributes, nft_metadata::INFTMetadata, nfts::INfts},
     models::{
@@ -95,10 +96,16 @@ where
                         for attribute in nft_attributes {
                             if let Some(collection_id) = nft_metadata.collection_id.as_ref() {
                                 let nft_attribute = DbAttribute {
+                                    id: generate_attribute_id(
+                                        &collection_id.to_string(),
+                                        &nft_id.to_string(),
+                                        attribute.trait_type.as_str(),
+                                        attribute.value.as_str(),
+                                    ),
                                     collection_id: collection_id.clone(),
                                     nft_id: nft_id.clone(),
-                                    attr_type: Some(attribute.trait_type.to_lowercase()),
-                                    value: Some(attribute.value.to_lowercase()),
+                                    attr_type: attribute.trait_type.to_lowercase(),
+                                    value: attribute.value.to_lowercase(),
                                 };
 
                                 all_attributes.push(nft_attribute);

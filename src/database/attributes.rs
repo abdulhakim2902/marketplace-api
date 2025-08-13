@@ -51,6 +51,7 @@ impl IAttributes for Attributes {
         let res = QueryBuilder::<Postgres>::new(
             r#"
             INSERT INTO attributes (
+                id,
                 collection_id,
                 nft_id,
                 type,
@@ -59,6 +60,7 @@ impl IAttributes for Attributes {
             "#,
         )
         .push_values(items, |mut b, item| {
+            b.push_bind(item.id.clone());
             b.push_bind(item.collection_id.clone());
             b.push_bind(item.nft_id.clone());
             b.push_bind(item.attr_type.clone());
@@ -66,7 +68,7 @@ impl IAttributes for Attributes {
         })
         .push(
             r#"
-            ON CONFLICT (collection_id, nft_id, type, value) DO NOTHING
+            ON CONFLICT (id) DO NOTHING
             "#,
         )
         .build()
@@ -85,6 +87,7 @@ impl IAttributes for Attributes {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
+        let attribute_id = query.id.map(|e| Uuid::from_str(&e).ok()).flatten();
         let collection_id = query
             .collection_id
             .map(|e| Uuid::from_str(&e).ok())
@@ -95,6 +98,7 @@ impl IAttributes for Attributes {
             AttributeSchema,
             r#"
             SELECT
+                na.id,
                 na.collection_id,
                 na.nft_id,
                 na.type                 AS attr_type,
@@ -102,10 +106,12 @@ impl IAttributes for Attributes {
                 na.rarity,
                 na.score
             FROM attributes na
-            WHERE ($1::UUID IS NULL OR na.collection_id = $1)
-                AND ($2::UUID IS NULL OR na.nft_id = $2)
-            LIMIT $3 OFFSET $4
+            WHERE ($1::UUID IS NULL OR na.id = $1) 
+                AND ($2::UUID IS NULL OR na.collection_id = $2)
+                AND ($3::UUID IS NULL OR na.nft_id = $3)
+            LIMIT $4 OFFSET $5
             "#,
+            attribute_id,
             collection_id,
             nft_id,
             limit,

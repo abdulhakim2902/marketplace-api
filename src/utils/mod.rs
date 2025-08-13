@@ -31,3 +31,18 @@ pub fn generate_bid_id(market_contract_address: &str, token_id: &str, bidder: &s
         format!("{}::{}::{}", market_contract_address, token_id, bidder).as_str(),
     )
 }
+
+pub fn generate_attribute_id(
+    collection_id: &str,
+    nft_id: &str,
+    attribute_type: &str,
+    attribute_value: &str,
+) -> Uuid {
+    generate_uuid_from_str(
+        format!(
+            "{}::{}::{}::{}",
+            collection_id, nft_id, attribute_type, attribute_value
+        )
+        .as_str(),
+    )
+}

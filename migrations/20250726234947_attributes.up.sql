@@ -1,12 +1,12 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS attributes (
-      nft_id UUID NOT NULL,
-      collection_id UUID NOT NULL,
-      type VARCHAR NOT NULL,
-      value VARCHAR NOT NULL,
-      rarity NUMERIC(11, 10) DEFAULT 1,
-      score NUMERIC (20, 10) DEFAULT 0,
-      PRIMARY KEY (collection_id, nft_id, type, value)
+    id UUID PRIMARY KEY NOT NULL,   
+    collection_id UUID NOT NULL,
+    nft_id UUID NOT NULL,
+    type VARCHAR NOT NULL,
+    value VARCHAR NOT NULL,
+    rarity NUMERIC(11, 10) DEFAULT 1,
+    score NUMERIC (20, 10) DEFAULT 0
 );
 
 CREATE FUNCTION update_rarity_and_score ()
