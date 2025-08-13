@@ -16,7 +16,7 @@ pub struct OfferSchema {
     pub accepted_tx_id: Option<String>,
     pub cancelled_tx_id: Option<String>,
     pub created_tx_id: Option<String>,
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub expired_at: Option<DateTime<Utc>>,
     pub market_contract_id: Option<String>,
     pub market_name: Option<String>,
@@ -37,8 +37,8 @@ impl OfferSchema {
     }
 
     #[graphql(name = "collection_id")]
-    async fn collection_id(&self) -> Option<&str> {
-        self.collection_id.as_ref().map(|e| e.as_str())
+    async fn collection_id(&self) -> Option<String> {
+        self.collection_id.as_ref().map(|e| e.to_string())
     }
 
     async fn bidder(&self) -> Option<&str> {
@@ -124,13 +124,13 @@ impl OfferSchema {
         fetch_nft(
             ctx,
             self.nft_id.as_ref().map(|e| e.to_string()),
-            self.collection_id.clone(),
+            self.collection_id.as_ref().map(|e| e.to_string()),
         )
         .await
     }
 
-    async fn collecton(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        fetch_collection(ctx, self.collection_id.clone()).await
+    async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
+        fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
 }
 

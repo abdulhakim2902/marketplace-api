@@ -2,10 +2,11 @@ use crate::models::marketplace::APT_DECIMAL;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct CollectionStatSchema {
-    pub id: Option<String>,
+    pub id: Uuid,
     pub slug: Option<String>,
     pub supply: Option<i64>,
     pub title: Option<String>,
@@ -32,8 +33,8 @@ pub struct CollectionStatSchema {
 
 #[async_graphql::Object]
 impl CollectionStatSchema {
-    async fn id(&self) -> Option<&str> {
-        self.id.as_ref().map(|e| e.as_str())
+    async fn id(&self) -> String {
+        self.id.to_string()
     }
 
     async fn slug(&self) -> Option<&str> {

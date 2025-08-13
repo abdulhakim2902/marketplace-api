@@ -1,7 +1,7 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS nft_metadata (
     uri VARCHAR,
-    collection_id VARCHAR(66),
+    collection_id UUID NOT NULL,
     name VARCHAR DEFAULT NULL,
     description VARCHAR DEFAULT NULL,
     image VARCHAR DEFAULT NULL,

@@ -1,4 +1,6 @@
+use crate::models::EventModel;
 use crate::utils::generate_collection_id;
+use crate::utils::token_utils::TokenEvent;
 use crate::{
     models::resources::{
         FromWriteResource,
@@ -9,16 +11,18 @@ use crate::{
 };
 use ahash::AHashMap;
 use anyhow::Result;
+use aptos_indexer_processor_sdk::utils::extract::hash_str;
 use aptos_indexer_processor_sdk::{
     aptos_protos::transaction::v1::{WriteResource, WriteTableItem},
     utils::convert::standardize_address,
 };
 use bigdecimal::{BigDecimal, ToPrimitive};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct DbCollection {
-    pub id: String,
+    pub id: Uuid,
     pub slug: Option<String>,
     pub supply: Option<i64>,
     pub title: Option<String>,
@@ -54,17 +58,19 @@ impl DbCollection {
                     .map(|metadata| metadata.get_owner_address());
 
                 if let Some(creator_address) = maybe_creator_address {
-                    let collection_id_struct =
-                        CollectionDataIdType::new(creator_address, collection_data.name.clone());
+                    let collection_id_struct = CollectionDataIdType::new(
+                        creator_address.clone(),
+                        collection_data.name.clone(),
+                    );
 
                     let collection_addr = collection_id_struct.to_addr();
 
-                    // TODO: collection slug
-                    let _collection_id = generate_collection_id(collection_addr.as_str());
-
                     let collection = DbCollection {
-                        id: collection_addr.clone(),
-                        slug: Some(collection_addr),
+                        id: generate_collection_id(collection_addr.as_str()),
+                        slug: Some(get_collection_slug(
+                            &creator_address,
+                            collection_data.name.as_str(),
+                        )),
                         title: Some(collection_data.name.clone()),
                         description: Some(collection_data.description.clone()),
                         supply: collection_data.supply.to_i64(),
@@ -85,12 +91,10 @@ impl DbCollection {
         object_metadata: &AHashMap<String, ObjectAggregatedData>,
     ) -> Result<Option<Self>> {
         if let Some(inner) = CollectionResourceData::from_write_resource(wr)? {
-            // TODO: collection slug
             let address = standardize_address(&wr.address);
-            let _collection_id = generate_collection_id(address.as_str());
 
             let mut collection = DbCollection {
-                id: address.clone(),
+                id: generate_collection_id(address.as_str()),
                 slug: Some(address.clone()),
                 title: Some(inner.name),
                 description: Some(inner.description),
@@ -121,4 +125,47 @@ impl DbCollection {
 
         Ok(None)
     }
+
+    pub fn get_from_create_token_event(
+        event: &EventModel,
+        txn_version: i64,
+    ) -> Result<Option<Self>> {
+        if let Some(token) =
+            TokenEvent::from_event(&event.type_str, &event.data.to_string(), txn_version)?
+        {
+            if let TokenEvent::CreateTokenDataEvent(inner) = token {
+                let creator_address = standardize_address(&inner.id.get_creator_address());
+                let collection = inner.id.collection;
+                let input = format!("{}::{}", &creator_address, &collection);
+                let hash_str = hash_str(&input);
+
+                let collection = DbCollection {
+                    id: generate_collection_id(&standardize_address(hash_str.as_str())),
+                    slug: Some(get_collection_slug(&creator_address, &collection)),
+                    title: Some(collection),
+                    ..Default::default()
+                };
+
+                return Ok(Some(collection));
+            }
+        }
+
+        Ok(None)
+    }
+}
+
+fn get_collection_slug(creator: &str, collection: &str) -> String {
+    let collection = collection
+        .chars()
+        .filter(|&c| c.is_alphanumeric() || c == ' ')
+        .collect::<String>();
+    let name = collection
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join("-");
+
+    let split_addr = creator.split("").collect::<Vec<&str>>();
+    let trunc_addr = &split_addr[3..11].join("");
+
+    format!("{}-{}", name, trunc_addr).to_lowercase()
 }

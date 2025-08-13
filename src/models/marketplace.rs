@@ -51,11 +51,6 @@ pub struct NftMarketplaceActivity {
 
 impl From<NftMarketplaceActivity> for DbActivity {
     fn from(value: NftMarketplaceActivity) -> Self {
-        let _collection_id = value
-            .collection_addr
-            .as_ref()
-            .map(|e| generate_collection_id(e));
-
         Self {
             id: generate_activity_id(value.get_tx_index()),
             tx_index: value.get_tx_index(),
@@ -64,7 +59,10 @@ impl From<NftMarketplaceActivity> for DbActivity {
             tx_id: value.txn_id,
             nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             tx_type: Some(value.standard_event_type.to_string()),
-            collection_id: value.collection_addr,
+            collection_id: value
+                .collection_addr
+                .as_ref()
+                .map(|e| generate_collection_id(e)),
             sender: value.seller,
             receiver: value.buyer,
             block_time: Some(value.block_timestamp),
@@ -80,14 +78,8 @@ impl TryFrom<NftMarketplaceActivity> for DbBid {
     type Error = anyhow::Error;
 
     fn try_from(value: NftMarketplaceActivity) -> anyhow::Result<Self> {
-        let bid_id = value.get_bid_id().context("Invalid bid")?;
-        let _collection_id = value
-            .collection_addr
-            .as_ref()
-            .map(|e| generate_collection_id(e));
-
         Ok(Self {
-            id: bid_id,
+            id: value.get_bid_id().context("Invalid bid")?,
             created_tx_id: value.get_created_txn_id(),
             accepted_tx_id: value.get_accepted_txn_id(),
             cancelled_tx_id: value.get_cancelled_txn_id(),
@@ -97,7 +89,10 @@ impl TryFrom<NftMarketplaceActivity> for DbBid {
             price: Some(value.price),
             market_contract_id: value.contract_address,
             market_name: value.marketplace,
-            collection_id: value.collection_addr,
+            collection_id: value
+                .collection_addr
+                .as_ref()
+                .map(|e| generate_collection_id(e)),
             nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             nonce: value.offer_id,
             bidder: value.buyer,
@@ -111,20 +106,16 @@ impl TryFrom<NftMarketplaceActivity> for DbListing {
     type Error = anyhow::Error;
 
     fn try_from(value: NftMarketplaceActivity) -> anyhow::Result<Self> {
-        let listing_id = value.get_listing_id().context("Invalid listing")?;
-        let _collection_id = value
-            .collection_addr
-            .as_ref()
-            .map(|e| generate_collection_id(e));
-        let _nft_id = value.token_addr.as_ref().map(|e| generate_nft_id(e));
-
         Ok(Self {
-            id: listing_id,
+            id: value.get_listing_id().context("Invalid listing")?,
             tx_index: Some(value.get_tx_index()),
             listed: value.get_listing_status(),
             price: Some(value.price),
             market_contract_id: value.contract_address,
-            collection_id: value.collection_addr,
+            collection_id: value
+                .collection_addr
+                .as_ref()
+                .map(|e| generate_collection_id(e)),
             nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             market_name: value.marketplace,
             seller: value.seller,

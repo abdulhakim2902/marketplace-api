@@ -10,7 +10,7 @@ use uuid::Uuid;
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct TrendingSchema {
     pub nft_id: Uuid,
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub tx_frequency: Option<i64>,
     pub last_price: Option<i64>,
 }
@@ -18,8 +18,8 @@ pub struct TrendingSchema {
 #[async_graphql::Object]
 impl TrendingSchema {
     #[graphql(name = "collection_id")]
-    async fn collection_id(&self) -> Option<&str> {
-        self.collection_id.as_ref().map(|e| e.as_str())
+    async fn collection_id(&self) -> Option<String> {
+        self.collection_id.as_ref().map(|e| e.to_string())
     }
 
     #[graphql(name = "nft_id")]
@@ -40,14 +40,14 @@ impl TrendingSchema {
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        fetch_collection(ctx, self.collection_id.clone()).await
+        fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
         fetch_nft(
             ctx,
             Some(self.nft_id.to_string()),
-            self.collection_id.clone(),
+            self.collection_id.as_ref().map(|e| e.to_string()),
         )
         .await
     }

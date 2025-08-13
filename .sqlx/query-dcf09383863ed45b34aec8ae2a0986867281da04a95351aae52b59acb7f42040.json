@@ -1,12 +1,12 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                na.collection_id,\n                na.nft_id,\n                na.type                 AS attr_type,\n                na.value,\n                na.rarity,\n                na.score\n            FROM attributes na\n            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR na.collection_id = $1)\n                AND ($2::UUID IS NULL OR na.nft_id = $2)\n            LIMIT $3 OFFSET $4\n            ",
+  "query": "\n            SELECT\n                na.collection_id,\n                na.nft_id,\n                na.type                 AS attr_type,\n                na.value,\n                na.rarity,\n                na.score\n            FROM attributes na\n            WHERE ($1::UUID IS NULL OR na.collection_id = $1)\n                AND ($2::UUID IS NULL OR na.nft_id = $2)\n            LIMIT $3 OFFSET $4\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "collection_id",
-        "type_info": "Varchar"
+        "type_info": "Uuid"
       },
       {
         "ordinal": 1,
@@ -36,7 +36,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
+        "Uuid",
         "Uuid",
         "Int8",
         "Int8"
@@ -51,5 +51,5 @@
       true
     ]
   },
-  "hash": "4d81a500cedef6f28e94ada80c6a79873457472fa78f343b0d3aede21f3e70da"
+  "hash": "dcf09383863ed45b34aec8ae2a0986867281da04a95351aae52b59acb7f42040"
 }

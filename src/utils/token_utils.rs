@@ -288,6 +288,7 @@ pub enum TokenEvent {
     TokenWithdraw(WithdrawTokenEventTypeV2),
     DepositTokenEvent(DepositTokenEventType),
     TokenDeposit(DepositTokenEventTypeV2),
+    CreateTokenDataEvent(CreateTokenDataEventType),
 }
 
 impl TokenEvent {
@@ -312,6 +313,9 @@ impl TokenEvent {
             }
             "0x3::token::TokenDeposit" => {
                 serde_json::from_str(data).map(|inner| Some(Self::TokenDeposit(inner)))
+            }
+            "0x3::token::CreateTokenDataEvent" => {
+                serde_json::from_str(data).map(|inner| Some(Self::CreateTokenDataEvent(inner)))
             }
             _ => Ok(None),
         }
@@ -402,6 +406,11 @@ impl BurnTokenEventTypeV2 {
     pub fn get_account(&self) -> String {
         standardize_address(&self.account)
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CreateTokenDataEventType {
+    pub id: TokenDataIdType,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

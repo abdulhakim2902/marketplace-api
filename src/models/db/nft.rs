@@ -22,7 +22,7 @@ pub struct DbNft {
     pub id: Uuid,
     pub name: Option<String>,
     pub owner: Option<String>,
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub burned: Option<bool>,
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
@@ -40,11 +40,12 @@ impl DbNft {
     ) -> Result<Option<Self>> {
         if let Some(inner) = TokenResourceData::from_write_resource(wr)? {
             let token_addr = standardize_address(&wr.address);
-            let _collection_id = generate_collection_id(inner.get_collection_address().as_str());
 
             let mut nft = DbNft {
                 id: generate_nft_id(token_addr.as_str()),
-                collection_id: Some(inner.get_collection_address()),
+                collection_id: Some(generate_collection_id(
+                    inner.get_collection_address().as_str(),
+                )),
                 name: Some(inner.name),
                 uri: Some(inner.uri.clone()),
                 description: Some(inner.description),
@@ -122,13 +123,12 @@ impl DbNft {
                         }
                     };
 
-                    let _collection_id =
-                        generate_collection_id(token_data_id_struct.get_collection_addr().as_str());
-
                     let nft = DbNft {
                         id: nft_id,
                         owner: owner_address,
-                        collection_id: Some(token_data_id_struct.get_collection_addr()),
+                        collection_id: Some(generate_collection_id(
+                            token_data_id_struct.get_collection_addr().as_str(),
+                        )),
                         name: Some(token_data.name.clone()),
                         uri: Some(token_data.uri.clone()),
                         token_id: Some(token_data.name.replace(" ", "%20")),
@@ -150,7 +150,7 @@ impl DbNft {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct DbNftUri {
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub uri: Option<String>,
     pub nft_ids: serde_json::Value,
     pub updated_at: Option<DateTime<Utc>>,

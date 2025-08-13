@@ -85,6 +85,10 @@ impl IAttributes for Attributes {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
+        let collection_id = query
+            .collection_id
+            .map(|e| Uuid::from_str(&e).ok())
+            .flatten();
         let nft_id = query.nft_id.map(|e| Uuid::from_str(&e).ok()).flatten();
 
         let res = sqlx::query_as!(
@@ -98,11 +102,11 @@ impl IAttributes for Attributes {
                 na.rarity,
                 na.score
             FROM attributes na
-            WHERE ($1::TEXT IS NULL OR $1::TEXT = '' OR na.collection_id = $1)
+            WHERE ($1::UUID IS NULL OR na.collection_id = $1)
                 AND ($2::UUID IS NULL OR na.nft_id = $2)
             LIMIT $3 OFFSET $4
             "#,
-            query.collection_id,
+            collection_id,
             nft_id,
             limit,
             offset,
@@ -115,6 +119,7 @@ impl IAttributes for Attributes {
     }
 
     async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {
+        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_scalar!(
             r#"
             WITH collection_score AS (
@@ -141,6 +146,7 @@ impl IAttributes for Attributes {
     }
 
     async fn total_collection_trait(&self, collection_id: &str) -> anyhow::Result<i64> {
+        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM (

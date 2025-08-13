@@ -130,6 +130,10 @@ impl IBids for Bids {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
+        let collection_id = query
+            .collection_id
+            .map(|e| Uuid::from_str(&e).ok())
+            .flatten();
         let nft_id = query.nft_id.map(|e| Uuid::from_str(&e).ok()).flatten();
 
         let res = sqlx::query_as!(
@@ -137,7 +141,7 @@ impl IBids for Bids {
             r#"
             SELECT * FROM bids b
             WHERE ($1::UUID IS NULL OR b.nft_id = $1)
-                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR b.collection_id = $2)
+                AND ($2::UUID IS NULL OR b.collection_id = $2)
                 AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)
                 AND ($4::TEXT IS NULL OR $4::TEXT = '' OR b.receiver = $4)
                 AND (
@@ -148,7 +152,7 @@ impl IBids for Bids {
             LIMIT $7 OFFSET $8
             "#,
             nft_id,
-            query.collection_id,
+            collection_id,
             query.bidder,
             query.receiver,
             query.status,
@@ -167,6 +171,7 @@ impl IBids for Bids {
         &self,
         collection_id: &str,
     ) -> anyhow::Result<Option<BigDecimal>> {
+        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_scalar!(
             r#"
             SELECT MAX(b.price)
@@ -211,6 +216,7 @@ impl IBids for Bids {
         &self,
         collection_id: &str,
     ) -> anyhow::Result<Option<BigDecimal>> {
+        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_scalar!(
             r#"
             SELECT SUM(b.price)

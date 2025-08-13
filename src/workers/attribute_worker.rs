@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::utils::generate_collection_id;
 use crate::{
     database::{IDatabase, attributes::IAttributes, nft_metadata::INFTMetadata, nfts::INfts},
     models::{
@@ -68,11 +67,6 @@ where
 
                 let mut nft_metadata: DbNFTMetadata = result.into();
 
-                let _collection_id = nft
-                    .collection_id
-                    .as_ref()
-                    .map(|e| generate_collection_id(e));
-
                 nft_metadata.uri = Some(uri.to_string());
                 nft_metadata.collection_id = nft.collection_id.clone();
 
@@ -99,19 +93,16 @@ where
                 for nft_id in nft_ids {
                     if let Some(nft_attributes) = nft_attributes.as_ref() {
                         for attribute in nft_attributes {
-                            let _collection_id = nft_metadata
-                                .collection_id
-                                .as_ref()
-                                .map(|e| generate_collection_id(e));
+                            if let Some(collection_id) = nft_metadata.collection_id.as_ref() {
+                                let nft_attribute = DbAttribute {
+                                    collection_id: collection_id.clone(),
+                                    nft_id: nft_id.clone(),
+                                    attr_type: Some(attribute.trait_type.to_lowercase()),
+                                    value: Some(attribute.value.to_lowercase()),
+                                };
 
-                            let nft_attribute = DbAttribute {
-                                collection_id: nft_metadata.collection_id.clone(),
-                                nft_id: nft_id.clone(),
-                                attr_type: Some(attribute.trait_type.to_lowercase()),
-                                value: Some(attribute.value.to_lowercase()),
-                            };
-
-                            all_attributes.push(nft_attribute);
+                                all_attributes.push(nft_attribute);
+                            }
                         }
                     }
                 }

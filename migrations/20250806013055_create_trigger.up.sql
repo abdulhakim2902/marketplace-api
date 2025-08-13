@@ -43,9 +43,8 @@ BEGIN
                     NEW.usd_price,
                     1
             )
-        INSERT INTO collections (id, slug, volume, volume_usd, sales)
+        INSERT INTO collections (id, volume, volume_usd, sales)
         SELECT
-            sales.collection_id,
             sales.collection_id,
             SUM(sales.volume),
             SUM(sales.volume_usd),
@@ -83,9 +82,8 @@ BEGIN
                 NULL,
                 0
         )
-    INSERT INTO collections (id, slug, floor, listed)
+    INSERT INTO collections (id, floor, listed)
     SELECT
-        listings.collection_id,
         listings.collection_id,
         listings.floor,
         listings.total
@@ -112,9 +110,8 @@ BEGIN
               AND nfts.collection_id = NEW.collection_id
             GROUP BY nfts.collection_id
         )
-    INSERT INTO collections (id, slug, owners)
+    INSERT INTO collections (id, owners)
     SELECT
-        NEW.collection_id,
         NEW.collection_id,
         (
             SELECT COUNT(DISTINCT nfts.owner) FROM nfts

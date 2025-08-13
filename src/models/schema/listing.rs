@@ -17,7 +17,7 @@ pub struct ListingSchema {
     pub market_contract_id: Option<String>,
     pub listed: Option<bool>,
     pub market_name: Option<String>,
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub nft_id: Option<Uuid>,
     pub nonce: Option<String>,
     pub price: Option<i64>,
@@ -74,8 +74,8 @@ impl ListingSchema {
     }
 
     #[graphql(name = "collection_id")]
-    async fn collection_id(&self) -> Option<&str> {
-        self.collection_id.as_ref().map(|e| e.as_str())
+    async fn collection_id(&self) -> Option<String> {
+        self.collection_id.as_ref().map(|e| e.to_string())
     }
 
     #[graphql(name = "nft_id")]
@@ -92,14 +92,14 @@ impl ListingSchema {
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        fetch_collection(ctx, self.collection_id.clone()).await
+        fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
         fetch_nft(
             ctx,
             self.nft_id.as_ref().map(|e| e.to_string()),
-            self.collection_id.clone(),
+            self.collection_id.as_ref().map(|e| e.to_string()),
         )
         .await
     }

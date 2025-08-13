@@ -1,6 +1,6 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS collections (
-    id VARCHAR(66) NOT NULL,
+    id UUID PRIMARY KEY NOT NULL,
     slug VARCHAR(66) UNIQUE,
     supply BIGINT DEFAULT 0,
     title VARCHAR(128),
@@ -16,6 +16,5 @@ CREATE TABLE IF NOT EXISTS collections (
     volume BIGINT DEFAULT 0,
     volume_usd NUMERIC(20, 2) DEFAULT 0,
     sales BIGINT DEFAULT 0,
-    owners BIGINT DEFAULT 0,
-    PRIMARY KEY (id)
+    owners BIGINT DEFAULT 0
 );

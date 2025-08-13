@@ -253,6 +253,8 @@ impl INfts for Nfts {
         }
 
         if let Some(collection_id) = query.collection_id.as_ref() {
+            let collection_id = Uuid::from_str(collection_id).ok();
+
             query_builder.push(" AND n.collection_id = ");
             query_builder.push_bind(collection_id);
         }
@@ -400,6 +402,7 @@ impl INfts for Nfts {
         wallet_address: &str,
         collection_id: &str,
     ) -> anyhow::Result<i64> {
+        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM nfts n

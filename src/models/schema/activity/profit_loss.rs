@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ProfitLossSchema {
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub nft_id: Option<Uuid>,
     pub bought: Option<i64>,
     pub sold: Option<i64>,
@@ -20,8 +20,8 @@ pub struct ProfitLossSchema {
 #[async_graphql::Object]
 impl ProfitLossSchema {
     #[graphql(name = "collection_id")]
-    async fn collection_id(&self) -> Option<&str> {
-        self.collection_id.as_ref().map(|e| e.as_str())
+    async fn collection_id(&self) -> Option<String> {
+        self.collection_id.as_ref().map(|e| e.to_string())
     }
 
     #[graphql(name = "nft_id")]
@@ -55,13 +55,13 @@ impl ProfitLossSchema {
         fetch_nft(
             ctx,
             self.nft_id.as_ref().map(|e| e.to_string()),
-            self.collection_id.clone(),
+            self.collection_id.as_ref().map(|e| e.to_string()),
         )
         .await
     }
 
     async fn collecton(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        fetch_collection(ctx, self.collection_id.clone()).await
+        fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
 }
 

@@ -25,7 +25,7 @@ pub struct ActivitySchema {
     pub market_name: Option<String>,
     pub market_contract_id: Option<String>,
     pub nft_id: Option<Uuid>,
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub block_time: Option<DateTime<Utc>>,
     pub block_height: Option<i64>,
     pub amount: Option<i64>,
@@ -110,13 +110,13 @@ impl ActivitySchema {
         fetch_nft(
             ctx,
             self.nft_id.as_ref().map(|e| e.to_string()),
-            self.collection_id.clone(),
+            self.collection_id.as_ref().map(|e| e.to_string()),
         )
         .await
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        fetch_collection(ctx, self.collection_id.clone()).await
+        fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
 }
 

@@ -8,7 +8,7 @@ pub struct DbBid {
     pub bidder: Option<String>,
     pub accepted_tx_id: Option<String>,
     pub cancelled_tx_id: Option<String>,
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub created_tx_id: Option<String>,
     pub expired_at: Option<NaiveDateTime>,
     pub market_contract_id: Option<String>,

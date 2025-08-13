@@ -28,7 +28,7 @@ where
     Self: Sized + Send + 'static,
 {
     current_wallets: AHashSet<String>,
-    current_collections: AHashMap<String, DbCollection>,
+    current_collections: AHashMap<Uuid, DbCollection>,
     current_nfts: AHashMap<Uuid, DbNft>,
     current_burn_nfts: AHashMap<Uuid, DbNft>,
     current_activities: AHashMap<i64, DbActivity>,
@@ -211,6 +211,13 @@ impl Processable for TokenExtractor {
                                         .or_insert(withdraw.amount);
                                 }
                             }
+                        }
+
+                        let collection =
+                            DbCollection::get_from_create_token_event(&event, txn_version);
+                        if let Some(collection) = collection.unwrap() {
+                            self.current_collections
+                                .insert(collection.id.clone(), collection);
                         }
 
                         let activity_token_v1 = DbActivity::get_action_from_token_event_v1(

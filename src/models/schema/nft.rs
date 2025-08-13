@@ -14,7 +14,7 @@ pub struct NftSchema {
     pub id: Uuid,
     pub name: Option<String>,
     pub owner: Option<String>,
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub burned: Option<bool>,
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
@@ -52,8 +52,8 @@ impl NftSchema {
     }
 
     #[graphql(name = "collection_id")]
-    async fn collection_id(&self) -> Option<&str> {
-        self.collection_id.as_ref().map(|e| e.as_str())
+    async fn collection_id(&self) -> Option<String> {
+        self.collection_id.as_ref().map(|e| e.to_string())
     }
 
     async fn burned(&self) -> Option<bool> {
@@ -160,7 +160,7 @@ impl NftSchema {
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        fetch_collection(ctx, self.collection_id.clone()).await
+        fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
 }
 

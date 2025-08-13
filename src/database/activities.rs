@@ -164,6 +164,7 @@ impl IActivities for Activities {
         }
 
         if let Some(collection_id) = query.collection_id.as_ref() {
+            let collection_id = Uuid::from_str(collection_id).ok();
             query_builder.push(" AND a.collection_id = ");
             query_builder.push_bind(collection_id);
         }
@@ -229,6 +230,7 @@ impl IActivities for Activities {
         collection_id: &str,
         interval: Option<PgInterval>,
     ) -> anyhow::Result<i64> {
+        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_scalar!(
             r#"
             SELECT MIN(a.price) FROM activities a

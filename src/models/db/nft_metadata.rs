@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
-
 use crate::models::nft_metadata::NFTMetadata;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct DbNFTMetadata {
     pub uri: Option<String>,
-    pub collection_id: Option<String>,
+    pub collection_id: Option<Uuid>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub image: Option<String>,

@@ -1,8 +1,4 @@
-use std::sync::Arc;
-
-use anyhow::Context;
-use chrono::DateTime;
-use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+use std::{str::FromStr, sync::Arc};
 
 use crate::models::schema::collection::PeriodType;
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
@@ -31,6 +27,10 @@ use crate::{
     },
     utils::string_utils,
 };
+use anyhow::Context;
+use chrono::DateTime;
+use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait ICollections: Send + Sync {
@@ -228,7 +228,7 @@ impl ICollections for Collections {
                 r#"
                 WITH sale_activities AS (
                     SELECT
-                        NULL::TEXT                      AS collection_id,
+                        NULL::UUID                      AS collection_id,
                         NULL::BIGINT                    AS volume,
                         NULL::NUMERIC                   AS volume_usd,
                         NULL::BIGINT                    AS sales
@@ -264,6 +264,7 @@ impl ICollections for Collections {
         );
 
         if let Some(collection_id) = query.collection_id.as_ref() {
+            let collection_id = Uuid::from_str(collection_id).ok();
             query_builder.push(" AND c.id = ");
             query_builder.push_bind(collection_id);
         }
@@ -341,6 +342,7 @@ impl ICollections for Collections {
     }
 
     async fn fetch_stat(&self, collection_id: &str) -> anyhow::Result<CollectionStatSchema> {
+        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_as!(
             CollectionStatSchema,
             r#"
@@ -415,6 +417,8 @@ impl ICollections for Collections {
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
+        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
+
         let res = sqlx::query_as!(
             TrendingSchema,
             r#"
@@ -442,7 +446,7 @@ impl ICollections for Collections {
             ORDER BY na.count DESC
             LIMIT $2 OFFSET $3
             "#,
-            query.collection_id,
+            collection_id,
             limit,
             offset,
         )
@@ -461,6 +465,8 @@ impl ICollections for Collections {
 
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
+
+        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
 
         let interval =
             string_utils::str_to_pginterval(&query.interval.clone().unwrap_or_default())?;
@@ -498,7 +504,7 @@ impl ICollections for Collections {
             ORDER BY change DESC
             LIMIT $3 OFFSET $4
             "#,
-            query.collection_id,
+            collection_id,
             interval,
             limit,
             offset,
@@ -517,6 +523,8 @@ impl ICollections for Collections {
         let query = filter.where_;
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
+
+        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
 
         let res = sqlx::query_as!(
             ProfitLeaderboardSchema,
@@ -543,7 +551,7 @@ impl ICollections for Collections {
                 JOIN sold_activities sa ON sa.address = w.address
             LIMIT $2 OFFSET $3
             "#,
-            query.collection_id,
+            collection_id,
             limit,
             offset,
         ).fetch_all(&*self.pool)
@@ -557,6 +565,8 @@ impl ICollections for Collections {
         &self,
         collection_id: &str,
     ) -> anyhow::Result<Vec<CollectionAttributeSchema>> {
+        let collection_id = Uuid::from_str(collection_id).ok();
+
         let res = sqlx::query_as!(
             CollectionAttributeSchema,
             r#"
@@ -583,7 +593,7 @@ impl ICollections for Collections {
         let query = filter.where_;
 
         let type_ = query.type_;
-        let collection_id = query.collection_id.as_str();
+        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
         let interval = string_utils::str_to_pginterval(&query.interval.unwrap_or_default())
             .expect("Invalid interval");
 
@@ -645,7 +655,7 @@ impl ICollections for Collections {
     ) -> anyhow::Result<Vec<NftHolderSchema>> {
         let query = filter.where_;
 
-        let collection_id = query.collection_id.as_str();
+        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
         let limit = filter.limit.unwrap_or(10);
         let offset = filter.offset.unwrap_or(0);
 
@@ -713,6 +723,7 @@ impl ICollections for Collections {
         &self,
         collection_id: &str,
     ) -> anyhow::Result<NftAmountDistributionSchema> {
+        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_as!(
             NftAmountDistributionSchema,
             r#"
@@ -774,6 +785,7 @@ impl ICollections for Collections {
         &self,
         id: &str,
     ) -> anyhow::Result<NftPeriodDistributionSchema> {
+        let collection_id = Uuid::from_str(id).ok();
         let res = sqlx::query_as!(
             NftPeriodDistributionSchema,
             r#"
@@ -827,7 +839,7 @@ impl ICollections for Collections {
             FROM nft_periods np
             GROUP BY np.collection_id
             "#,
-            id
+            collection_id
         )
         .fetch_one(&*self.pool)
         .await
@@ -842,7 +854,7 @@ impl ICollections for Collections {
     ) -> anyhow::Result<Vec<DataPointSchema>> {
         let query = filter.where_;
 
-        let collection_id = query.collection_id.as_str();
+        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
 
         let interval = string_utils::str_to_pginterval(query.interval.as_str())
             .expect("Invalid interval")

@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS nfts (
     id UUID PRIMARY KEY NOT NULL,
     name VARCHAR(128),
     owner VARCHAR(66),
-    collection_id VARCHAR(66) DEFAULT NULL,
+    collection_id UUID DEFAULT NULL,
     token_id VARCHAR(66) NOT NULL,
     properties JSONB DEFAULT NULL,
     uri VARCHAR DEFAULT NULL,

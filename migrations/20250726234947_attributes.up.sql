@@ -1,7 +1,7 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS attributes (
       nft_id UUID NOT NULL,
-      collection_id VARCHAR(66) NOT NULL,
+      collection_id UUID NOT NULL,
       type VARCHAR NOT NULL,
       value VARCHAR NOT NULL,
       rarity NUMERIC(11, 10) DEFAULT 1,

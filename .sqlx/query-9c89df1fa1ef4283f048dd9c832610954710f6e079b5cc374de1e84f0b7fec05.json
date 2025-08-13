@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT * FROM bids b\n            WHERE ($1::UUID IS NULL OR b.nft_id = $1)\n                AND ($2::TEXT IS NULL OR $2::TEXT = '' OR b.collection_id = $2)\n                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)\n                AND ($4::TEXT IS NULL OR $4::TEXT = '' OR b.receiver = $4)\n                AND (\n                    ($5 = 'active' AND (b.expired_at IS NULL OR b.expired_at > NOW())) OR\n                    ($5::TEXT IS NULL OR $5::TEXT = '' OR b.status = $5)\n                )\n                AND ($6::TEXT IS NULL OR $6::TEXT = '' OR b.bid_type = $6)\n            LIMIT $7 OFFSET $8\n            ",
+  "query": "\n            SELECT * FROM bids b\n            WHERE ($1::UUID IS NULL OR b.nft_id = $1)\n                AND ($2::UUID IS NULL OR b.collection_id = $2)\n                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)\n                AND ($4::TEXT IS NULL OR $4::TEXT = '' OR b.receiver = $4)\n                AND (\n                    ($5 = 'active' AND (b.expired_at IS NULL OR b.expired_at > NOW())) OR\n                    ($5::TEXT IS NULL OR $5::TEXT = '' OR b.status = $5)\n                )\n                AND ($6::TEXT IS NULL OR $6::TEXT = '' OR b.bid_type = $6)\n            LIMIT $7 OFFSET $8\n            ",
   "describe": {
     "columns": [
       {
@@ -26,7 +26,7 @@
       {
         "ordinal": 4,
         "name": "collection_id",
-        "type_info": "Varchar"
+        "type_info": "Uuid"
       },
       {
         "ordinal": 5,
@@ -92,7 +92,7 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Text",
+        "Uuid",
         "Text",
         "Text",
         "Text",
@@ -121,5 +121,5 @@
       false
     ]
   },
-  "hash": "b861ca18eef85974cd6def340736fe7ef86eebadf178134211dcf38f9b3711f2"
+  "hash": "9c89df1fa1ef4283f048dd9c832610954710f6e079b5cc374de1e84f0b7fec05"
 }

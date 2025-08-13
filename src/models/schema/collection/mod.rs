@@ -7,21 +7,21 @@ pub mod stat;
 pub mod top_wallet;
 pub mod trending;
 
-use async_graphql::{Context, Enum, InputObject};
-use bigdecimal::BigDecimal;
-use serde::{Deserialize, Serialize};
-use sqlx::prelude::FromRow;
-
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{
         OrderingType, fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
     },
 };
+use async_graphql::{Context, Enum, InputObject};
+use bigdecimal::BigDecimal;
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct CollectionSchema {
-    pub id: Option<String>,
+    pub id: Uuid,
     pub slug: Option<String>,
     pub supply: Option<i64>,
     pub title: Option<String>,
@@ -42,8 +42,8 @@ pub struct CollectionSchema {
 
 #[async_graphql::Object]
 impl CollectionSchema {
-    async fn id(&self) -> Option<&str> {
-        self.id.as_ref().map(|e| e.as_str())
+    async fn id(&self) -> String {
+        self.id.to_string()
     }
 
     async fn slug(&self) -> Option<&str> {
@@ -128,7 +128,7 @@ impl CollectionSchema {
     async fn total_nft(&self, ctx: &Context<'_>, wallet_address: Option<String>) -> Option<i64> {
         fetch_total_nft(
             ctx,
-            self.id.clone(),
+            Some(self.id.to_string()),
             wallet_address,
             self.supply.unwrap_or_default(),
         )
@@ -137,12 +137,12 @@ impl CollectionSchema {
 
     #[graphql(name = "total_trait")]
     async fn total_trait(&self, ctx: &Context<'_>) -> Option<i64> {
-        fetch_total_collection_trait(ctx, self.id.clone()).await
+        fetch_total_collection_trait(ctx, Some(self.id.to_string())).await
     }
 
     #[graphql(name = "total_offer")]
     async fn total_offer(&self, ctx: &Context<'_>) -> Option<String> {
-        fetch_total_collection_offer(ctx, self.id.clone()).await
+        fetch_total_collection_offer(ctx, Some(self.id.to_string())).await
     }
 }
 

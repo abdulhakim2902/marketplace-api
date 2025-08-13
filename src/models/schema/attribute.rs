@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct AttributeSchema {
-    pub collection_id: String,
+    pub collection_id: Uuid,
     pub nft_id: Uuid,
     pub attr_type: String,
     pub value: String,
@@ -17,8 +17,8 @@ pub struct AttributeSchema {
 #[async_graphql::Object]
 impl AttributeSchema {
     #[graphql(name = "collection_id")]
-    async fn collection_id(&self) -> &str {
-        &self.collection_id
+    async fn collection_id(&self) -> String {
+        self.collection_id.to_string()
     }
 
     #[graphql(name = "nft_id")]
