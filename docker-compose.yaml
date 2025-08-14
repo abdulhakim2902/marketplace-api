@@ -1,0 +1,46 @@
+services:
+  nft_aggregator:
+    container_name: nft_aggregator
+    depends_on:
+      db:
+        condition: service_healthy
+    build:
+      context: .
+    ports:
+      - 8080:8080
+    environment:
+      DB_URL: postgresql://tapp:tapp@db:5432/tapp
+    volumes:
+      - ./config.yaml:/app/config.yaml
+
+  db:
+    container_name: db
+    image: postgres:17.0-bookworm
+    environment:
+      POSTGRES_DB: tapp
+      POSTGRES_USER: tapp
+      POSTGRES_PASSWORD: tapp
+      PGDATA: /data/postgres
+    healthcheck:
+      test: pg_isready -U tapp -d tapp
+      interval: 1s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - ./data/db:/data/postgres
+    ports:
+      - 5432:5432
+
+  pgadmin:
+    depends_on:
+      db:
+        condition: service_healthy
+    container_name: pgadmin
+    image: dpage/pgadmin4:9.3.0
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin@example.com
+    volumes:
+      - ./data/pgadmin:/var/lib/pgadmin
+    ports:
+      - 5050:80
