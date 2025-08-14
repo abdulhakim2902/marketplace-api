@@ -7,6 +7,7 @@ use crate::{
     config::marketplace_config::NFTMarketplaceConfig,
     models::schema::marketplace::MarketplaceSchema,
 };
+use crate::utils::generate_marketplace_id;
 
 #[async_trait::async_trait]
 pub trait IMarketplaces: Send + Sync {
@@ -40,16 +41,17 @@ impl IMarketplaces for Marketplaces {
 
         let res = QueryBuilder::<Postgres>::new(
             r#"
-            INSERT INTO marketplaces (name, contract_address)
+            INSERT INTO marketplaces (id, name, contract_address)
             "#,
         )
         .push_values(items, |mut b, item| {
+            b.push_bind(generate_marketplace_id(item.name.as_str(), item.contract_address.as_str()));
             b.push_bind(item.name.clone());
             b.push_bind(item.contract_address.clone());
         })
         .push(
             r#"
-            ON CONFLICT (name, contract_address) DO NOTHING
+            ON CONFLICT (id) DO NOTHING
             "#,
         )
         .build()
