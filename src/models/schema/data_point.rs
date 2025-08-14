@@ -1,22 +1,11 @@
-use async_graphql::InputObject;
+use async_graphql::{InputObject, SimpleObject};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, SimpleObject)]
 pub struct DataPointSchema {
     pub x: Option<DateTime<Utc>>,
     pub y: Option<i64>,
-}
-
-#[async_graphql::Object]
-impl DataPointSchema {
-    async fn x(&self) -> Option<String> {
-        self.x.as_ref().map(|e| e.to_string())
-    }
-
-    async fn y(&self) -> Option<i64> {
-        self.y
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]

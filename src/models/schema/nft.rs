@@ -1,15 +1,15 @@
-use crate::models::{
-    marketplace::APT_DECIMAL,
-    schema::{OrderingType, collection::CollectionSchema, fetch_collection, fetch_nft_top_offer},
+use crate::models::schema::{
+    OrderingType, collection::CollectionSchema, fetch_collection, fetch_nft_top_offer,
 };
-use async_graphql::{Context, Enum, InputObject};
+use async_graphql::{ComplexObject, Context, Enum, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Serialize, FromRow)]
+#[derive(Clone, Debug, Deserialize, Serialize, FromRow, SimpleObject)]
+#[graphql(complex, rename_fields = "snake_case")]
 pub struct NftSchema {
     pub id: Uuid,
     pub name: Option<String>,
@@ -18,6 +18,7 @@ pub struct NftSchema {
     pub burned: Option<bool>,
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
+    #[graphql(name = "media_url")]
     pub image_url: Option<String>,
     pub token_id: Option<String>,
     pub animation_url: Option<String>,
@@ -28,6 +29,7 @@ pub struct NftSchema {
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
     pub rank: Option<i64>,
+    #[graphql(name = "rarity_score")]
     pub score: Option<BigDecimal>,
     pub updated_at: Option<DateTime<Utc>>,
     pub last_sale: Option<i64>,
@@ -37,123 +39,8 @@ pub struct NftSchema {
     pub attributes: Option<serde_json::Value>,
 }
 
-#[async_graphql::Object]
+#[ComplexObject]
 impl NftSchema {
-    async fn id(&self) -> String {
-        self.id.to_string()
-    }
-
-    async fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(|e| e.as_str())
-    }
-
-    async fn owner(&self) -> Option<&str> {
-        self.owner.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "collection_id")]
-    async fn collection_id(&self) -> Option<String> {
-        self.collection_id.as_ref().map(|e| e.to_string())
-    }
-
-    async fn burned(&self) -> Option<bool> {
-        self.burned
-    }
-
-    async fn description(&self) -> Option<&str> {
-        self.description.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "media_url")]
-    async fn image_url(&self) -> Option<&str> {
-        self.image_url.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "token_id")]
-    async fn token_id(&self) -> Option<&str> {
-        self.token_id.as_ref().map(|e| e.as_str())
-    }
-
-    async fn royalty(&self) -> Option<String> {
-        self.royalty.as_ref().map(|e| e.to_string())
-    }
-
-    async fn version(&self) -> Option<&str> {
-        self.version.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "updated_at")]
-    async fn updated_at(&self) -> Option<String> {
-        self.updated_at.as_ref().map(|e| e.to_string())
-    }
-
-    #[graphql(name = "last_sale")]
-    async fn last_sale(&self) -> Option<String> {
-        self.last_sale
-            .as_ref()
-            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
-    }
-
-    #[graphql(name = "listed_at")]
-    async fn listed_at(&self) -> Option<String> {
-        self.listed_at.as_ref().map(|e| e.to_string())
-    }
-
-    #[graphql(name = "list_price")]
-    async fn list_price(&self) -> Option<String> {
-        self.list_price
-            .as_ref()
-            .map(|e| (BigDecimal::from(*e) / APT_DECIMAL).to_plain_string())
-    }
-
-    #[graphql(name = "list_usd_price")]
-    async fn list_usd_price(&self) -> Option<String> {
-        self.list_usd_price.as_ref().map(|e| e.to_plain_string())
-    }
-
-    #[graphql(name = "rarity_score")]
-    async fn score(&self) -> Option<String> {
-        self.score.as_ref().map(|e| e.to_plain_string())
-    }
-
-    #[graphql(name = "rank")]
-    async fn rank(&self) -> Option<i64> {
-        self.rank
-    }
-
-    #[graphql(name = "animation_url")]
-    async fn animation_url(&self) -> Option<&str> {
-        self.animation_url.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "avatar_url")]
-    async fn avatar_url(&self) -> Option<&str> {
-        self.avatar_url.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "youtube_url")]
-    async fn youtube_url(&self) -> Option<&str> {
-        self.youtube_url.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "external_url")]
-    async fn external_url(&self) -> Option<&str> {
-        self.external_url.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "background_color")]
-    async fn background_color(&self) -> Option<&str> {
-        self.background_color.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "attributes")]
-    async fn attributes(&self) -> Vec<NftAttributeSchema> {
-        self.attributes
-            .clone()
-            .map(|e| serde_json::from_value::<Vec<NftAttributeSchema>>(e).unwrap_or_default())
-            .unwrap_or_default()
-    }
-
     #[graphql(name = "top_offer")]
     async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
         fetch_nft_top_offer(ctx, &self.id.to_string()).await

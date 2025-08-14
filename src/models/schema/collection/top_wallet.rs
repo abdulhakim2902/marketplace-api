@@ -1,30 +1,13 @@
-use crate::models::marketplace::APT_DECIMAL;
-use async_graphql::{Enum, InputObject};
+use async_graphql::{Enum, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct TopWalletSchema {
     pub address: Option<String>,
     pub total: Option<i64>,
     pub volume: Option<BigDecimal>,
-}
-
-#[async_graphql::Object]
-impl TopWalletSchema {
-    async fn total(&self) -> Option<i64> {
-        self.total
-    }
-
-    async fn address(&self) -> Option<&str> {
-        self.address.as_ref().map(|e| e.as_str())
-    }
-
-    async fn volume(&self) -> Option<String> {
-        self.volume
-            .as_ref()
-            .map(|e| (e / APT_DECIMAL).to_plain_string())
-    }
 }
 
 #[derive(Clone, Debug, Default, InputObject, Deserialize)]

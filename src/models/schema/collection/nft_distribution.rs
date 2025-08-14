@@ -1,6 +1,8 @@
+use async_graphql::SimpleObject;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct NftAmountDistributionSchema {
     pub range_1: Option<i64>,
     pub range_2_to_3: Option<i64>,
@@ -8,39 +10,6 @@ pub struct NftAmountDistributionSchema {
     pub range_11_to_50: Option<i64>,
     pub range_51_to_100: Option<i64>,
     pub range_gt_100: Option<i64>,
-}
-
-#[async_graphql::Object]
-impl NftAmountDistributionSchema {
-    #[graphql(name = "range_1")]
-    async fn range_1(&self) -> Option<i64> {
-        self.range_1
-    }
-
-    #[graphql(name = "range_2_to_3")]
-    async fn range_2_to_3(&self) -> Option<i64> {
-        self.range_2_to_3
-    }
-
-    #[graphql(name = "range_4_to_10")]
-    async fn range_4_to_10(&self) -> Option<i64> {
-        self.range_4_to_10
-    }
-
-    #[graphql(name = "range_11_to_50")]
-    async fn range_11_to_50(&self) -> Option<i64> {
-        self.range_11_to_50
-    }
-
-    #[graphql(name = "range_51_to_100")]
-    async fn range_51_to_100(&self) -> Option<i64> {
-        self.range_51_to_100
-    }
-
-    #[graphql(name = "range_gt_100")]
-    async fn range_gt_100(&self) -> Option<i64> {
-        self.range_gt_100
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

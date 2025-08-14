@@ -3,13 +3,14 @@ use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
 };
-use async_graphql::{Context, InputObject};
+use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject)]
+#[graphql(complex, rename_fields = "snake_case")]
 pub struct ListingSchema {
     pub id: Uuid,
     pub block_height: Option<i64>,
@@ -25,64 +26,8 @@ pub struct ListingSchema {
     pub tx_index: Option<i64>,
 }
 
-#[async_graphql::Object]
+#[ComplexObject]
 impl ListingSchema {
-    async fn id(&self) -> String {
-        self.id.to_string()
-    }
-
-    #[graphql(name = "block_height")]
-    async fn block_height(&self) -> Option<i64> {
-        self.block_height
-    }
-
-    #[graphql(name = "block_time")]
-    async fn block_time(&self) -> Option<String> {
-        self.block_time.as_ref().map(|e| e.to_string())
-    }
-
-    #[graphql(name = "market_contract_id")]
-    async fn market_contract_id(&self) -> Option<&str> {
-        self.market_contract_id.as_ref().map(|e| e.as_str())
-    }
-
-    async fn listed(&self) -> Option<bool> {
-        self.listed
-    }
-
-    #[graphql(name = "market_name")]
-    async fn market_name(&self) -> Option<&str> {
-        self.market_name.as_ref().map(|e| e.as_str())
-    }
-
-    async fn nonce(&self) -> Option<&str> {
-        self.nonce.as_ref().map(|e| e.as_str())
-    }
-
-    async fn price(&self) -> Option<String> {
-        self.price
-            .map(|e| (BigDecimal::from(e) / APT_DECIMAL).to_plain_string())
-    }
-
-    async fn seller(&self) -> Option<&str> {
-        self.seller.as_ref().map(|e| e.as_str())
-    }
-
-    #[graphql(name = "tx_index")]
-    async fn tx_index(&self) -> Option<i64> {
-        self.tx_index
-    }
-
-    #[graphql(name = "collection_id")]
-    async fn collection_id(&self) -> Option<String> {
-        self.collection_id.as_ref().map(|e| e.to_string())
-    }
-
-    #[graphql(name = "nft_id")]
-    async fn nft_id(&self) -> Option<String> {
-        self.nft_id.as_ref().map(|e| e.to_string())
-    }
-
     #[graphql(name = "usd_price")]
     async fn usd_price(&self, ctx: &Context<'_>) -> Option<String> {
         let token_price = fetch_token_price(ctx).await.unwrap_or_default();
