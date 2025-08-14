@@ -12,7 +12,6 @@ use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{EnvFilter, prelude::*};
 
-use crate::database::users::Users;
 use crate::{
     cache::Cache,
     config::Config,
@@ -56,7 +55,6 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
         Arc::new(ProcessorStatus::new(Arc::clone(&pool))),
         Arc::new(Marketplaces::new(Arc::clone(&pool))),
         Arc::new(NFTMetadata::new(Arc::clone(&pool))),
-        Arc::new(Users::new(Arc::clone(&pool))),
     ));
 
     init_price(&config.tapp_url, Arc::clone(&db), Arc::clone(&cache))
