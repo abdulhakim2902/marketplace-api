@@ -138,7 +138,9 @@ where
                     }
                 }
             } => {},
-            _ = cancel_token.cancelled() => {}
+            _ = cancel_token.cancelled() => {
+                tracing::info!("Token processor finished");
+            }
         }
 
         Ok(())

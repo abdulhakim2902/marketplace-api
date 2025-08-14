@@ -3,9 +3,12 @@ use axum::{
     http::{Response, StatusCode},
 };
 
+use crate::cache::ICache;
 use crate::{database::IDatabase, http_server::controllers::InternalState};
 
-pub async fn check<TDb: IDatabase>(State(state): InternalState<TDb>) -> Response<String> {
+pub async fn check<TDb: IDatabase, TCache: ICache>(
+    State(state): InternalState<TDb, TCache>,
+) -> Response<String> {
     match state.db.is_healthy().await {
         true => Response::builder()
             .status(StatusCode::OK)

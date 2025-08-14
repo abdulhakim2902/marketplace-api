@@ -34,3 +34,4 @@ moka = { version = "0.12.10", features = ["future"] }
 async-graphql = { version = "7.0.17", features = ["chrono", "bigdecimal"]}
 async-graphql-axum = "7.0.17"
 uuid = { version = "1.18.0", features = ["serde", "v5"] }
+tower = "0.5.2"

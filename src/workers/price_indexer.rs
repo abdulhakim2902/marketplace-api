@@ -70,7 +70,9 @@ where
                     sleep(Duration::from_secs(5 * 60)).await;
                 }
             } => {},
-            _ = cancel_token.cancelled() => {}
+            _ = cancel_token.cancelled() => {
+                tracing::info!("Price indexer worker finished");
+            }
         }
 
         Ok(())

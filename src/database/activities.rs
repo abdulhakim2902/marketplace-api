@@ -1,11 +1,12 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::models::schema::activity::FilterActivitySchema;
-use crate::models::schema::activity::profit_loss::FilterProfitLossSchema;
 use crate::models::{
     db::activity::DbActivity,
     schema::{
-        activity::{ActivitySchema, TxType, profit_loss::ProfitLossSchema},
+        activity::{
+            ActivitySchema, FilterActivitySchema, TxType, profit_loss::FilterProfitLossSchema,
+            profit_loss::ProfitLossSchema,
+        },
         data_point::DataPointSchema,
     },
 };

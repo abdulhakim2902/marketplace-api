@@ -1,34 +1,45 @@
 pub mod controllers;
 pub mod graphql;
 
-use std::sync::Arc;
-
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
-use async_graphql_axum::GraphQL;
 use axum::{Router, extract::DefaultBodyLimit, routing::get};
+use std::sync::Arc;
 use tokio::net::TcpListener;
 
 use crate::{
+    cache::ICache,
     config::Config,
     database::IDatabase,
     http_server::{
-        controllers::health,
+        controllers::{graphql_handler, health},
         graphql::{Query, graphql},
     },
     utils::shutdown_utils,
 };
 
-pub struct HttpServer<TDb: IDatabase> {
+pub struct HttpServer<TDb: IDatabase, TCache: ICache> {
     db: Arc<TDb>,
+    _cache: Arc<TCache>,
     config: Arc<Config>,
+    schema: Arc<Schema<Query, EmptyMutation, EmptySubscription>>,
 }
 
-impl<TDb> HttpServer<TDb>
+impl<TDb, TCache> HttpServer<TDb, TCache>
 where
     TDb: IDatabase + Send + Sync + 'static,
+    TCache: ICache + 'static,
 {
-    pub fn new(db: Arc<TDb>, config: Arc<Config>) -> Self {
-        Self { db, config }
+    pub fn new(db: Arc<TDb>, _cache: Arc<TCache>, config: Arc<Config>) -> Self {
+        let schema = Schema::build(Query, EmptyMutation, EmptySubscription)
+            .data(Arc::clone(&db))
+            .finish();
+
+        Self {
+            db,
+            _cache,
+            config,
+            schema: Arc::new(schema),
+        }
     }
 
     pub async fn start(self) -> anyhow::Result<()> {
@@ -50,13 +61,9 @@ where
     }
 
     fn router(self: &Arc<Self>) -> Router {
-        let schema = Schema::build(Query, EmptyMutation, EmptySubscription)
-            .data(Arc::clone(&self.db))
-            .finish();
-
         Router::new()
             .route("/health", get(health::check))
-            .route("/gql", get(graphql).post_service(GraphQL::new(schema)))
+            .route("/gql", get(graphql).post(graphql_handler))
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
             .with_state(Arc::clone(self))
     }

@@ -1,6 +1,9 @@
+pub mod guard;
+
 use std::sync::Arc;
 
 use crate::database::attributes::IAttributes;
+use crate::http_server::graphql::guard::UserGuard;
 use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
 use crate::models::schema::collection::stat::CollectionStatSchema;
@@ -82,9 +85,10 @@ impl Query {
         db.activities()
             .fetch_activities(filter.unwrap_or_default())
             .await
-            .expect("Failed to fetch activites")
+            .expect("Failed to fetch activities")
     }
 
+    #[graphql(guard = "UserGuard")]
     async fn collections(
         &self,
         ctx: &Context<'_>,

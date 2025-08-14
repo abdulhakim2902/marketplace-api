@@ -12,6 +12,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
 use tracing_subscriber::{EnvFilter, prelude::*};
 
+use crate::database::users::Users;
 use crate::{
     cache::Cache,
     config::Config,
@@ -26,7 +27,7 @@ use crate::{
     workers::{Worker, price_indexer::PriceIndexer},
 };
 
-pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<Database>)> {
+pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<Database, Cache>)> {
     let config = Arc::new(init_config().context("Failed to initialize configuration")?);
     let pool = Arc::new(
         PgPoolOptions::new()
@@ -55,6 +56,7 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
         Arc::new(ProcessorStatus::new(Arc::clone(&pool))),
         Arc::new(Marketplaces::new(Arc::clone(&pool))),
         Arc::new(NFTMetadata::new(Arc::clone(&pool))),
+        Arc::new(Users::new(Arc::clone(&pool))),
     ));
 
     init_price(&config.tapp_url, Arc::clone(&db), Arc::clone(&cache))
@@ -69,7 +71,7 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
             Arc::clone(&db),
             Arc::clone(&cache),
         )),
-        HttpServer::new(Arc::clone(&db), Arc::clone(&config)),
+        HttpServer::new(Arc::clone(&db), Arc::clone(&cache), Arc::clone(&config)),
     ))
 }
 

@@ -43,7 +43,9 @@ where
                     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                 }
             } => {},
-            _ = cancel_token.cancelled() => {}
+            _ = cancel_token.cancelled() => {
+                tracing::info!("Attribute worker finished");
+            }
         }
 
         Ok(())

@@ -155,7 +155,9 @@ where
                     }
                 }
             } => {},
-            _ = cancel_token.cancelled() => {}
+            _ = cancel_token.cancelled() => {
+                tracing::info!("Marketplace worker finished");
+            }
         }
 
         Ok(())

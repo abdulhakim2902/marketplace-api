@@ -34,4 +34,6 @@ pub async fn poll_for_shutdown_signal() {
             SHUTDOWN_TOKEN.cancel();
         },
     }
+
+    tracing::info!("Signal received, starting graceful shutdown");
 }

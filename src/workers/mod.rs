@@ -66,6 +66,7 @@ where
         let cancel_token = shutdown_utils::get_shutdown_token();
         tokio::select! {
             _ = cancel_token.cancelled() => {
+                tracker.close();
                 tracing::info!("Waiting for worker tasks to finish...");
                 tracker.wait().await;
                 sleep(Duration::from_secs(5)).await;
