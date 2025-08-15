@@ -12,6 +12,7 @@ use tower_http::{
     limit::RequestBodyLimitLayer,
 };
 
+use crate::http_server::controllers::api_key;
 use crate::{
     cache::ICache,
     config::Config,
@@ -100,6 +101,12 @@ where
 
         Router::new()
             .route("/health", get(health::check))
+            .route(
+                "/api-keys",
+                get(api_key::fetch_api_keys)
+                    .post(api_key::create_api_key)
+                    .delete(api_key::remove_api_key),
+            )
             .route("/gql", get(graphql).post(graphql_handler))
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
             .layer(RequestBodyLimitLayer::new(8 * 1024 * 1024))
