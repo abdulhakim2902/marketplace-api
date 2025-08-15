@@ -8,13 +8,13 @@ stream_config:
   # Go to https://developers.aptoslabs.com/ to create a project and get an API token
   auth_token: "auth_token_you_can_get_from_aptos_build"
   # Default tx version to start indexing
-  starting_version: 980503730
+  starting_version: 0
 nft_marketplace_configs:
   - name: topaz
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
-    starting_version: 0
-    # Optional: At which tx version to stop indexing the marketplace
-    ending_version: 1
+    starting_version: 1088549
+#    # Optional: At which tx version to stop indexing the marketplace
+#    ending_version: 1
     contract_address: 0x2c7bccf7b31baf770fdbcc768d9e9cb3d87805e255355df5db32ac9a669010a2
     event_model_mapping:
       events::ListEvent: list
@@ -74,7 +74,7 @@ nft_marketplace_configs:
           "$.amount":
             - table: nft_marketplace_activities
               column: token_amount
-      
+
       events::BuyEvent:
         event_fields:
           "$.listing_id":
@@ -101,7 +101,7 @@ nft_marketplace_configs:
           "$.amount":
             - table: nft_marketplace_activities
               column: token_amount
-      
+
       events::BidEvent:
         event_fields:
           "$.bid_id":
@@ -185,7 +185,7 @@ nft_marketplace_configs:
           "$.deadline":
             - table: nft_marketplace_activities
               column: expiration_time
-      
+
       events::CollectionBidEvent:
         event_fields:
           "$.bid_id":
@@ -266,9 +266,9 @@ nft_marketplace_configs:
 
   - name: blumove
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
-    starting_version: 0
-    # Optional: At which tx version to stop indexing the marketplace
-    ending_version: 1
+    starting_version: 2756487
+#    # Optional: At which tx version to stop indexing the marketplace
+#    ending_version: 1
     contract_address: 0xd1fd99c1944b84d1670a2536417e997864ad12303d19eac725891691b04d614e
     event_model_mapping:
       marketplaceV2::ListEvent: list
@@ -488,9 +488,9 @@ nft_marketplace_configs:
 
   - name: wapal
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
-    starting_version: 0
-    # Optional: At which tx version to stop indexing the marketplace
-    ending_version: 1
+    starting_version: 147546570
+#    # Optional: At which tx version to stop indexing the marketplace
+#    ending_version:   1
     contract_address: 0x584b50b999c78ade62f8359c91b5165ff390338d45f8e55969a04e65d76258c9
     event_model_mapping:
       events::ListingPlacedEvent: list
@@ -751,9 +751,9 @@ nft_marketplace_configs:
 
   - name: rarible
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
-    starting_version: 0
-    # Optional: At which tx version to stop indexing the marketplace
-    ending_version: 1
+    starting_version: 1011760686
+#    # Optional: At which tx version to stop indexing the marketplace
+#    ending_version: 1
     contract_address: 0x465a0051e8535859d4794f0af24dbf35c5349bedadab26404b20b825035ee790
     event_model_mapping:
       events::ListingPlaced: list
@@ -965,13 +965,14 @@ nft_marketplace_configs:
             - table: nft_marketplace_activities
               column: collection_name
 
-  - name: tradeport_v1
+  - name: tradeport
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
-    starting_version: 	0
-    # Optional: At which tx version to stop indexing the marketplace
-    ending_version: 	1
+    starting_version: 94187912
+#    # Optional: At which tx version to stop indexing the marketplace
+#    ending_version: 	1
     contract_address: 0xe11c12ec495f3989c35e1c6a0af414451223305b579291fc8f3d9d0575a23c26
     event_model_mapping:
+      # V1 TOKEN EVENT
       listings::InsertListingEvent: list
       listings::DeleteListingEvent: unlist
       listings::BuyEvent: buy
@@ -981,7 +982,18 @@ nft_marketplace_configs:
       biddings::InsertCollectionBidEvent: collection-bid
       biddings::AcceptCollectionBidEvent: accept-collection-bid
       biddings::DeleteCollectionBidEvent: cancel-collection-bid
+      # V2 TOKEN EVENT
+      listings_v2::InsertListingEvent: list
+      listings_v2::DeleteListingEvent: unlist
+      listings_v2::BuyEvent: buy
+      biddings_v2::InsertTokenBidEvent: solo-bid
+      biddings_v2::DeleteTokenBidEvent: unlist-bid
+      biddings_v2::AcceptTokenBidEvent: accept-bid
+      biddings_v2::InsertCollectionBidEvent: collection-bid
+      biddings_v2::AcceptCollectionBidEvent: accept-collection-bid
+      biddings_v2::DeleteCollectionBidEvent: cancel-collection-bid
     events:
+      # V1 TOKEN EVENT
       listings::InsertListingEvent:
         event_fields:
           "$.owner":
@@ -1170,24 +1182,7 @@ nft_marketplace_configs:
           "$.amount":
             - table: nft_marketplace_activities
               column: token_amount
-         
-  - name: tradeport_v2
-    # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
-    starting_version: 0
-    # Optional: At which tx version to stop indexing the marketplace
-    ending_version: 1
-    contract_address: 0xe11c12ec495f3989c35e1c6a0af414451223305b579291fc8f3d9d0575a23c26
-    event_model_mapping:
-      listings_v2::InsertListingEvent: list
-      listings_v2::DeleteListingEvent: unlist
-      listings_v2::BuyEvent: buy
-      biddings_v2::InsertTokenBidEvent: solo-bid
-      biddings_v2::DeleteTokenBidEvent: unlist-bid
-      biddings_v2::AcceptTokenBidEvent: accept-bid
-      biddings_v2::InsertCollectionBidEvent: collection-bid
-      biddings_v2::AcceptCollectionBidEvent: accept-collection-bid
-      biddings_v2::DeleteCollectionBidEvent: cancel-collection-bid
-    events:
+      # V2 TOKEN EVENT
       listings_v2::InsertListingEvent:
         event_fields:
           "$.listing.inner":
@@ -1217,7 +1212,7 @@ nft_marketplace_configs:
           "$.token.inner":
             - table: nft_marketplace_activities
               column: token_addr
-      
+
       listings_v2::BuyEvent:
         event_fields:
           "$.listing.inner":
@@ -1235,7 +1230,7 @@ nft_marketplace_configs:
           "$.token.inner":
             - table: nft_marketplace_activities
               column: token_addr
-      
+
       biddings_v2::InsertTokenBidEvent:
         event_fields:
           "$.bid.inner":
@@ -1283,7 +1278,7 @@ nft_marketplace_configs:
           "$.token.inner":
             - table: nft_marketplace_activities
               column: token_addr
-      
+
       biddings_v2::InsertCollectionBidEvent:
         event_fields:
           "$.bid.inner":
@@ -1331,6 +1326,7 @@ nft_marketplace_configs:
           "$.collection.inner":
             - table: nft_marketplace_activities
               column: collection_addr
+    # For V2 TOKEN EVENT
     resources:
       "0x4::token::Token":
         resource_fields:
