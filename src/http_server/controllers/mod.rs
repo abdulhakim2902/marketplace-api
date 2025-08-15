@@ -7,6 +7,7 @@ use axum::http::HeaderMap;
 use prefixed_api_key::PrefixedApiKey;
 use std::sync::Arc;
 
+pub mod api_key;
 pub mod health;
 
 type InternalState<TDb, TCache> = State<Arc<HttpServer<TDb, TCache>>>;
