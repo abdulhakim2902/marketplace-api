@@ -1,4 +1,5 @@
 pub mod activities;
+pub mod api_keys;
 pub mod attributes;
 pub mod bids;
 pub mod collections;
@@ -18,6 +19,7 @@ use sqlx::{Pool, Postgres, migrate::Migrator};
 
 use crate::database::{
     activities::{Activities, IActivities},
+    api_keys::{ApiKeys, IApiKeys},
     attributes::{Attributes, IAttributes},
     bids::{Bids, IBids},
     collections::{Collections, ICollections},
@@ -47,6 +49,7 @@ pub trait IDatabase: Send + Sync + 'static {
     type TNFTMetadata: INFTMetadata;
     type TUsers: IUsers;
     type TRequestLogs: IRequestLogs;
+    type TApiKeys: IApiKeys;
 
     async fn is_healthy(&self) -> bool;
 
@@ -64,6 +67,7 @@ pub trait IDatabase: Send + Sync + 'static {
     fn processor_status(&self) -> Arc<Self::TProcessorStatus>;
     fn users(&self) -> Arc<Self::TUsers>;
     fn request_logs(&self) -> Arc<Self::TRequestLogs>;
+    fn api_keys(&self) -> Arc<Self::TApiKeys>;
 }
 
 pub struct Database {
@@ -81,6 +85,7 @@ pub struct Database {
     nft_metadata: Arc<NFTMetadata>,
     users: Arc<Users>,
     request_logs: Arc<RequestLogs>,
+    api_keys: Arc<ApiKeys>,
 }
 
 impl Database {
@@ -99,6 +104,7 @@ impl Database {
         nft_metadata: Arc<NFTMetadata>,
         users: Arc<Users>,
         request_logs: Arc<RequestLogs>,
+        api_keys: Arc<ApiKeys>,
     ) -> Self {
         Self {
             pool,
@@ -115,6 +121,7 @@ impl Database {
             nft_metadata,
             users,
             request_logs,
+            api_keys,
         }
     }
 
@@ -147,6 +154,7 @@ impl IDatabase for Database {
     type TNFTMetadata = NFTMetadata;
     type TUsers = Users;
     type TRequestLogs = RequestLogs;
+    type TApiKeys = ApiKeys;
 
     async fn is_healthy(&self) -> bool {
         sqlx::query("SELECT 1").fetch_one(&*self.pool).await.is_ok()
@@ -206,5 +214,9 @@ impl IDatabase for Database {
 
     fn request_logs(&self) -> Arc<Self::TRequestLogs> {
         Arc::clone(&self.request_logs)
+    }
+
+    fn api_keys(&self) -> Arc<Self::TApiKeys> {
+        Arc::clone(&self.api_keys)
     }
 }

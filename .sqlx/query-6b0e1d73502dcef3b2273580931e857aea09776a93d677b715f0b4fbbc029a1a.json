@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT ak.id, ak.long_token_hash FROM users u\n              JOIN api_keys ak ON ak.user_id = u.id\n            WHERE u.username = $1 AND ak.short_token = $2\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "long_token_hash",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6b0e1d73502dcef3b2273580931e857aea09776a93d677b715f0b4fbbc029a1a"
+}
