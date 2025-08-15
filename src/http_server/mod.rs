@@ -3,9 +3,10 @@ pub mod graphql;
 
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
 use axum::{Router, extract::DefaultBodyLimit, routing::get};
-use std::sync::Arc;
 use std::time::Duration;
+use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
+use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use tower_http::{
     cors::{self, CorsLayer},
     limit::RequestBodyLimitLayer,
@@ -55,10 +56,15 @@ where
         let listener_address = format!("0.0.0.0:{}", state.config.server_port);
         let listener = TcpListener::bind(listener_address).await?;
 
-        axum::serve(listener, state.router())
-            .with_graceful_shutdown(Self::shutdown_signal())
-            .await
-            .expect("HTTP server crashed");
+        axum::serve(
+            listener,
+            state
+                .router()
+                .into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .with_graceful_shutdown(Self::shutdown_signal())
+        .await
+        .expect("HTTP server crashed");
 
         tracing::info!("HTTP server completed");
 
@@ -66,11 +72,31 @@ where
     }
 
     fn router(self: &Arc<Self>) -> Router {
+        let governor_config = GovernorConfigBuilder::default()
+            .per_second(2)
+            .burst_size(5)
+            .finish()
+            .unwrap();
+
+        let governor_limiter = governor_config.limiter().clone();
+        let interval = Duration::from_secs(60);
+
         let cors = CorsLayer::new()
             .allow_headers(cors::Any)
             .allow_methods(cors::Any)
             .expose_headers(cors::Any)
             .max_age(Duration::from_secs(24 * 3600));
+
+        let governor = GovernorLayer::new(governor_config);
+
+        // a separate background task to clean up
+        std::thread::spawn(move || {
+            loop {
+                std::thread::sleep(interval);
+                tracing::info!("rate limiting storage size: {}", governor_limiter.len());
+                governor_limiter.retain_recent();
+            }
+        });
 
         Router::new()
             .route("/health", get(health::check))
@@ -78,6 +104,7 @@ where
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
             .layer(RequestBodyLimitLayer::new(8 * 1024 * 1024))
             .layer(cors)
+            .layer(governor)
             .with_state(Arc::clone(self))
     }
 

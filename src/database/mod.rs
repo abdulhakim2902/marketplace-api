@@ -7,7 +7,9 @@ pub mod marketplaces;
 pub mod nft_metadata;
 pub mod nfts;
 pub mod processor_status;
+pub mod request_logs;
 pub mod token_prices;
+pub mod users;
 pub mod wallets;
 
 use std::sync::Arc;
@@ -26,7 +28,9 @@ use crate::database::{
     nft_metadata::{INFTMetadata, NFTMetadata},
     nfts::{INfts, Nfts},
     processor_status::{IProcessorStatus, ProcessorStatus},
+    request_logs::{IRequestLogs, RequestLogs},
     token_prices::{ITokenPrices, TokenPrices},
+    users::{IUsers, Users},
     wallets::{IWallets, Wallets},
 };
 
@@ -43,6 +47,8 @@ pub trait IDatabase: Send + Sync + 'static {
     type TWallets: IWallets;
     type TMarketplaces: IMarketplaces;
     type TNFTMetadata: INFTMetadata;
+    type TUsers: IUsers;
+    type TRequestLogs: IRequestLogs;
 
     async fn is_healthy(&self) -> bool;
 
@@ -58,6 +64,8 @@ pub trait IDatabase: Send + Sync + 'static {
     fn marketplaces(&self) -> Arc<Self::TMarketplaces>;
     fn nft_metadata(&self) -> Arc<Self::TNFTMetadata>;
     fn processor_status(&self) -> Arc<Self::TProcessorStatus>;
+    fn users(&self) -> Arc<Self::TUsers>;
+    fn request_logs(&self) -> Arc<Self::TRequestLogs>;
 }
 
 pub struct Database {
@@ -73,6 +81,8 @@ pub struct Database {
     processor_status: Arc<ProcessorStatus>,
     marketplaces: Arc<Marketplaces>,
     nft_metadata: Arc<NFTMetadata>,
+    users: Arc<Users>,
+    request_logs: Arc<RequestLogs>,
 }
 
 impl Database {
@@ -89,6 +99,8 @@ impl Database {
         processor_status: Arc<ProcessorStatus>,
         marketplaces: Arc<Marketplaces>,
         nft_metadata: Arc<NFTMetadata>,
+        users: Arc<Users>,
+        request_logs: Arc<RequestLogs>,
     ) -> Self {
         Self {
             pool,
@@ -103,6 +115,8 @@ impl Database {
             processor_status,
             marketplaces,
             nft_metadata,
+            users,
+            request_logs,
         }
     }
 
@@ -133,6 +147,8 @@ impl IDatabase for Database {
     type TWallets = Wallets;
     type TMarketplaces = Marketplaces;
     type TNFTMetadata = NFTMetadata;
+    type TUsers = Users;
+    type TRequestLogs = RequestLogs;
 
     async fn is_healthy(&self) -> bool {
         sqlx::query("SELECT 1").fetch_one(&*self.pool).await.is_ok()
@@ -184,6 +200,14 @@ impl IDatabase for Database {
 
     fn nft_metadata(&self) -> Arc<Self::TNFTMetadata> {
         Arc::clone(&self.nft_metadata)
+    }
+
+    fn users(&self) -> Arc<Self::TUsers> {
+        Arc::clone(&self.users)
+    }
+
+    fn request_logs(&self) -> Arc<Self::TRequestLogs> {
+        Arc::clone(&self.request_logs)
     }
 }
 

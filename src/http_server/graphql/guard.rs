@@ -6,12 +6,9 @@ pub struct UserGuard;
 impl Guard for UserGuard {
     async fn check(&self, ctx: &Context<'_>) -> Result<()> {
         if let Some(_) = ctx.data_opt::<ApiKey>() {
-            // TODO: api key check
-            // TODO: counting api request
-
             Ok(())
         } else {
-            Err("Api key not found".into())
+            Err("Api key not found or invalid".into())
         }
     }
 }

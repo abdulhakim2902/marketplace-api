@@ -8,6 +8,7 @@ use crate::{
         collections::ICollections, listings::IListings, marketplaces::IMarketplaces, nfts::INfts,
         wallets::IWallets,
     },
+    http_server::graphql::guard::UserGuard,
     models::schema::{
         activity::{
             ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
@@ -49,6 +50,7 @@ pub struct Query;
 
 #[Object]
 impl Query {
+    #[graphql(guard = "UserGuard")]
     async fn marketplaces(&self, ctx: &Context<'_>) -> Vec<MarketplaceSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -60,6 +62,7 @@ impl Query {
             .expect("Failed to fetch marketplaces")
     }
 
+    #[graphql(guard = "UserGuard")]
     async fn attributes(
         &self,
         ctx: &Context<'_>,
@@ -85,6 +88,7 @@ impl Query {
             .expect("Failed to fetch attributes")
     }
 
+    #[graphql(guard = "UserGuard")]
     async fn activities(
         &self,
         ctx: &Context<'_>,
@@ -135,6 +139,7 @@ impl Query {
             .expect("Failed to fetch collections")
     }
 
+    #[graphql(guard = "UserGuard")]
     async fn nfts(
         &self,
         ctx: &Context<'_>,
@@ -160,6 +165,7 @@ impl Query {
             .expect("Failed to fetch nfts")
     }
 
+    #[graphql(guard = "UserGuard")]
     async fn listings(
         &self,
         ctx: &Context<'_>,
@@ -185,6 +191,7 @@ impl Query {
             .expect("Failed to fetch nfts")
     }
 
+    #[graphql(guard = "UserGuard")]
     async fn bids(
         &self,
         ctx: &Context<'_>,
@@ -235,7 +242,7 @@ impl Query {
     }
 
     // ==================== WALLET ====================
-    #[graphql(name = "wallet_stats")]
+    #[graphql(name = "wallet_stats", guard = "UserGuard")]
     async fn wallet_stats(&self, ctx: &Context<'_>, address: String) -> Option<StatsSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -244,7 +251,7 @@ impl Query {
         db.wallets().fetch_stats(&address).await.ok()
     }
 
-    #[graphql(name = "wallet_nft_holding_period")]
+    #[graphql(name = "wallet_nft_holding_period", guard = "UserGuard")]
     async fn wallet_nft_holding_period(
         &self,
         ctx: &Context<'_>,
@@ -262,7 +269,7 @@ impl Query {
     // ================================================
 
     // ============= COLLECTION ANALYTICS =============
-    #[graphql(name = "collection_stats")]
+    #[graphql(name = "collection_stats", guard = "UserGuard")]
     async fn collection_stats(
         &self,
         ctx: &Context<'_>,
@@ -278,7 +285,7 @@ impl Query {
             .expect("Failed to fetch collection stats")
     }
 
-    #[graphql(name = "collection_trending_nfts")]
+    #[graphql(name = "collection_trending_nfts", guard = "UserGuard")]
     async fn collection_trending_nfts(
         &self,
         ctx: &Context<'_>,
@@ -299,7 +306,7 @@ impl Query {
             .expect("Failed to fetch collection trending")
     }
 
-    #[graphql(name = "collection_nft_changes")]
+    #[graphql(name = "collection_nft_changes", guard = "UserGuard")]
     async fn collection_nft_changes(
         &self,
         ctx: &Context<'_>,
@@ -321,7 +328,7 @@ impl Query {
             .expect("Failed to fetch collection nft period distribution")
     }
 
-    #[graphql(name = "collection_profit_leaderboards")]
+    #[graphql(name = "collection_profit_leaderboards", guard = "UserGuard")]
     async fn collection_profit_leaderboards(
         &self,
         ctx: &Context<'_>,
@@ -342,7 +349,7 @@ impl Query {
             .expect("Failed to fetch collection nft period distribution")
     }
 
-    #[graphql(name = "collection_top_wallets")]
+    #[graphql(name = "collection_top_wallets", guard = "UserGuard")]
     async fn collection_top_wallets(
         &self,
         ctx: &Context<'_>,
@@ -363,7 +370,7 @@ impl Query {
             .expect("Failed to fetch collection top buyers")
     }
 
-    #[graphql(name = "collection_floor_charts")]
+    #[graphql(name = "collection_floor_charts", guard = "UserGuard")]
     async fn collection_floor_charts(
         &self,
         ctx: &Context<'_>,
@@ -382,7 +389,7 @@ impl Query {
             .expect("Failed to fetch floor chart")
     }
 
-    #[graphql(name = "collection_nft_holders")]
+    #[graphql(name = "collection_nft_holders", guard = "UserGuard")]
     async fn collection_nft_holders(
         &self,
         ctx: &Context<'_>,
@@ -403,7 +410,7 @@ impl Query {
             .expect("Failed to fetch nft holders")
     }
 
-    #[graphql(name = "collection_attributes")]
+    #[graphql(name = "collection_attributes", guard = "UserGuard")]
     async fn collection_attributes(
         &self,
         ctx: &Context<'_>,
@@ -419,7 +426,7 @@ impl Query {
             .expect("Failed to fetch collection attributes")
     }
 
-    #[graphql(name = "collection_nft_amount_distribution")]
+    #[graphql(name = "collection_nft_amount_distribution", guard = "UserGuard")]
     async fn collection_nft_amount_distribution(
         &self,
         ctx: &Context<'_>,
@@ -435,7 +442,7 @@ impl Query {
             .ok()
     }
 
-    #[graphql(name = "collection_nft_period_distribution")]
+    #[graphql(name = "collection_nft_period_distribution", guard = "UserGuard")]
     async fn collection_nft_period_distribution(
         &self,
         ctx: &Context<'_>,
@@ -454,7 +461,7 @@ impl Query {
     // ================================================
 
     // ================== Activities ==================
-    #[graphql(name = "activity_profit_losses")]
+    #[graphql(name = "activity_profit_losses", guard = "UserGuard")]
     async fn activity_profit_losses(
         &self,
         ctx: &Context<'_>,
@@ -475,7 +482,7 @@ impl Query {
             .expect("Failed to fetch wallet profit loss")
     }
 
-    #[graphql(name = "activity_contribution_charts")]
+    #[graphql(name = "activity_contribution_charts", guard = "UserGuard")]
     async fn activity_contribution_charts(
         &self,
         ctx: &Context<'_>,
