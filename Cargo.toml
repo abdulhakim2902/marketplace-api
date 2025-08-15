@@ -37,3 +37,4 @@ uuid = { version = "1.18.0", features = ["serde", "v5"] }
 tower = "0.5.2"
 tower-http = { version = "0.6.6", features = ["cors", "limit"] }
 tower_governor = "0.8.0"
+prefixed-api-key = { version = "0.3.0", features = ["sha2"] }

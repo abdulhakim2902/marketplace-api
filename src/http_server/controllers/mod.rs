@@ -1,11 +1,11 @@
+use crate::database::api_keys::IApiKeys;
 use crate::database::request_logs::IRequestLogs;
-use crate::database::users::IUsers;
 use crate::{cache::ICache, database::IDatabase, http_server::HttpServer};
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::extract::State;
 use axum::http::HeaderMap;
+use prefixed_api_key::PrefixedApiKey;
 use std::sync::Arc;
-use uuid::Uuid;
 
 pub mod health;
 
@@ -13,9 +13,9 @@ type InternalState<TDb, TCache> = State<Arc<HttpServer<TDb, TCache>>>;
 
 #[derive(Clone, Debug)]
 pub struct ApiKey {
-    pub id: Uuid,
     pub user: String,
     pub key: String,
+    pub token_hash: String,
 }
 
 pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
@@ -32,14 +32,18 @@ pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
         .flatten();
 
     if let Some((api_user, api_key)) = result {
+        let token = PrefixedApiKey::from_string(api_key)
+            .ok()
+            .map(|e| e.short_token().to_string());
+
         let is_valid_api_key = state
             .db
-            .users()
-            .is_valid_api_key(api_user, api_key)
+            .api_keys()
+            .is_valid_api_key(api_user, token)
             .await
             .ok();
 
-        if let Some(id) = is_valid_api_key {
+        if let Some((id, hash)) = is_valid_api_key {
             let db = state.db.clone();
 
             tokio::spawn(async move {
@@ -49,9 +53,9 @@ pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
             });
 
             req = req.data(ApiKey {
-                id,
                 user: api_user.to_owned(),
                 key: api_key.to_owned(),
+                token_hash: hash,
             });
         }
     }

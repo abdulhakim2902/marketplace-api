@@ -16,7 +16,7 @@ use crate::{
     cache::Cache,
     config::Config,
     database::{
-        Database, activities::Activities, attributes::Attributes, bids::Bids,
+        Database, activities::Activities, api_keys::ApiKeys, attributes::Attributes, bids::Bids,
         collections::Collections, listings::Listings, marketplaces::Marketplaces,
         nft_metadata::NFTMetadata, nfts::Nfts, processor_status::ProcessorStatus,
         request_logs::RequestLogs, token_prices::TokenPrices, users::Users, wallets::Wallets,
@@ -57,6 +57,7 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
         Arc::new(NFTMetadata::new(Arc::clone(&pool))),
         Arc::new(Users::new(Arc::clone(&pool))),
         Arc::new(RequestLogs::new(Arc::clone(&pool))),
+        Arc::new(ApiKeys::new(Arc::clone(&pool))),
     ));
 
     init_price(&config.tapp_url, Arc::clone(&db), Arc::clone(&cache))

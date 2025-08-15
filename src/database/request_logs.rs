@@ -43,7 +43,7 @@ impl IRequestLogs for RequestLogs {
         )
         .execute(&*self.pool)
         .await
-        .context("Failed to fetch")?;
+        .context("Failed to add logs")?;
 
         Ok(res)
     }

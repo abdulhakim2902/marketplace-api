@@ -1,4 +1,5 @@
 pub mod activity;
+pub mod api_key;
 pub mod attribute;
 pub mod bid;
 pub mod collection;
