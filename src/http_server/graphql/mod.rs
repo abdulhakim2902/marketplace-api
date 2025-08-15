@@ -130,7 +130,7 @@ impl Query {
             .expect("Failed to fetch nfts")
     }
 
-    async fn offers(
+    async fn bids(
         &self,
         ctx: &Context<'_>,
         filter: Option<FilterOfferSchema>,
