@@ -31,7 +31,8 @@ serde_with = "3.14.0"
 validator = { version = "0.20.0", features = ["derive"] }
 serde_qs = "0.15.0"
 moka = { version = "0.12.10", features = ["future"] }
-async-graphql = { version = "7.0.17", features = ["chrono", "bigdecimal", "uuid"]}
+async-graphql = { version = "7.0.17", features = ["chrono", "bigdecimal", "uuid", "dataloader"] }
 async-graphql-axum = "7.0.17"
 uuid = { version = "1.18.0", features = ["serde", "v5"] }
 tower = "0.5.2"
+tower-http = { version = "0.6.6", features = ["cors", "limit"] }

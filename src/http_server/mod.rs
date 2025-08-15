@@ -4,7 +4,12 @@ pub mod graphql;
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
 use axum::{Router, extract::DefaultBodyLimit, routing::get};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
+use tower_http::{
+    cors::{self, CorsLayer},
+    limit::RequestBodyLimitLayer,
+};
 
 use crate::{
     cache::ICache,
@@ -32,6 +37,8 @@ where
     pub fn new(db: Arc<TDb>, _cache: Arc<TCache>, config: Arc<Config>) -> Self {
         let schema = Schema::build(Query, EmptyMutation, EmptySubscription)
             .data(Arc::clone(&db))
+            .limit_depth(3)
+            .limit_complexity(3)
             .finish();
 
         Self {
@@ -61,10 +68,18 @@ where
     }
 
     fn router(self: &Arc<Self>) -> Router {
+        let cors = CorsLayer::new()
+            .allow_headers(cors::Any)
+            .allow_methods(cors::Any)
+            .expose_headers(cors::Any)
+            .max_age(Duration::from_secs(24 * 3600));
+
         Router::new()
             .route("/health", get(health::check))
             .route("/gql", get(graphql).post(graphql_handler))
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
+            .layer(RequestBodyLimitLayer::new(8 * 1024 * 1024))
+            .layer(cors)
             .with_state(Arc::clone(self))
     }
 
