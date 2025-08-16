@@ -25,7 +25,7 @@ pub async fn create_user<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
     Json(req): Json<CreateUser>,
 ) -> Response {
-    match state.db.users().create_user(&req).await {
+    match state.db.users().create_user(&req, "user").await {
         Ok((id, created_at)) => Json(UserResponse {
             id,
             username: req.username,

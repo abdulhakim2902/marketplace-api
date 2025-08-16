@@ -8,6 +8,7 @@ use prefixed_api_key::PrefixedApiKey;
 use std::sync::Arc;
 
 pub mod api_key;
+pub mod auth;
 pub mod health;
 pub mod user;
 

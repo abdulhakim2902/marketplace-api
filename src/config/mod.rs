@@ -10,6 +10,7 @@ pub mod marketplace_config;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
     pub tapp_url: String,
+    pub admin_config: AdminConfig,
     pub server_config: ServerConfig,
     pub jwt_config: JWTConfig,
     pub db_config: DbConfig,
@@ -20,6 +21,12 @@ pub struct Config {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ServerConfig {
     pub port: u16,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct AdminConfig {
+    pub user: String,
+    pub password: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

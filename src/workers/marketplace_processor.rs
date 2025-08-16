@@ -156,7 +156,7 @@ where
                 }
             } => {},
             _ = cancel_token.cancelled() => {
-                tracing::info!("Marketplace worker finished");
+                tracing::info!("{} marketplace worker finished", config.name.as_str());
             }
         }
 

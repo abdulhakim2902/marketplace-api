@@ -7,6 +7,10 @@ use jsonwebtoken::errors::Error;
 
 use crate::models::api::responses::{HttpResponseErr, UNAUTHORIZED_ERR};
 
+pub fn response_400_with_const() -> Response {
+    (StatusCode::BAD_REQUEST, Json(UNAUTHORIZED_ERR)).into_response()
+}
+
 pub fn response_401_with_const() -> Response {
     (StatusCode::UNAUTHORIZED, Json(UNAUTHORIZED_ERR)).into_response()
 }

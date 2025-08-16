@@ -1,4 +1,6 @@
+pub mod access_token;
 pub mod api_key;
+pub mod auth_user;
 pub mod user;
 
 use serde::Serialize;
@@ -12,6 +14,11 @@ pub struct HttpResponseConstErr {
 pub const UNAUTHORIZED_ERR: HttpResponseConstErr = HttpResponseConstErr {
     code: "ERR_401",
     msg: "Unauthorized",
+};
+
+pub const BAD_REQUEST_ERR: HttpResponseConstErr = HttpResponseConstErr {
+    code: "ERR_400",
+    msg: "Bad Request",
 };
 
 #[derive(Serialize)]
