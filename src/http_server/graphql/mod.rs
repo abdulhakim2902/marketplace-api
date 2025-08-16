@@ -3,7 +3,6 @@ pub mod guard;
 use std::sync::Arc;
 
 use crate::database::attributes::IAttributes;
-use crate::http_server::graphql::guard::UserGuard;
 use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
 use crate::models::schema::collection::stat::CollectionStatSchema;
@@ -88,7 +87,6 @@ impl Query {
             .expect("Failed to fetch activities")
     }
 
-    #[graphql(guard = "UserGuard")]
     async fn collections(
         &self,
         ctx: &Context<'_>,
@@ -130,11 +128,7 @@ impl Query {
             .expect("Failed to fetch nfts")
     }
 
-    async fn bids(
-        &self,
-        ctx: &Context<'_>,
-        filter: Option<FilterOfferSchema>,
-    ) -> Vec<OfferSchema> {
+    async fn bids(&self, ctx: &Context<'_>, filter: Option<FilterOfferSchema>) -> Vec<OfferSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");

@@ -2,8 +2,10 @@ use uuid::Uuid;
 
 pub mod date_utils;
 pub mod object_utils;
+pub mod schema;
 pub mod shutdown_utils;
 pub mod string_utils;
+pub mod structs;
 pub mod token_utils;
 
 pub fn generate_uuid_from_str(value: &str) -> Uuid {

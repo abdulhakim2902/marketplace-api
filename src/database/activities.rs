@@ -1,14 +1,17 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::models::{
-    db::activity::DbActivity,
-    schema::{
-        activity::{
-            ActivitySchema, FilterActivitySchema, TxType, profit_loss::FilterProfitLossSchema,
-            profit_loss::ProfitLossSchema,
+use crate::{
+    models::{
+        db::activity::DbActivity,
+        schema::{
+            activity::{
+                ActivitySchema, FilterActivitySchema,
+                profit_loss::{FilterProfitLossSchema, ProfitLossSchema},
+            },
+            data_point::DataPointSchema,
         },
-        data_point::DataPointSchema,
     },
+    utils::{schema::handle_operators, structs},
 };
 use anyhow::Context;
 use sqlx::{
@@ -146,69 +149,16 @@ impl IActivities for Activities {
                 a.block_height,
                 a.amount
             FROM activities a
-            WHERE TRUE
+            WHERE
             "#,
         );
 
-        if let Some(id) = query.id.as_ref() {
-            let activity_id = Uuid::from_str(id).ok();
-            query_builder.push(" AND a.id = ");
-            query_builder.push_bind(activity_id);
+        if let Some(object) = structs::to_map(&query).ok().flatten() {
+            handle_operators(&mut query_builder, &object, None);
         }
 
-        if let Some(addr) = query.wallet_address.as_ref() {
-            query_builder.push(" AND (a.sender = ");
-            query_builder.push_bind(addr);
-            query_builder.push(" OR a.receiver = ");
-            query_builder.push_bind(addr);
-            query_builder.push(")");
-        }
-
-        if let Some(collection_id) = query.collection_id.as_ref() {
-            let collection_id = Uuid::from_str(collection_id).ok();
-            query_builder.push(" AND a.collection_id = ");
-            query_builder.push_bind(collection_id);
-        }
-
-        if let Some(nft_id) = query.nft_id.as_ref() {
-            let nft_id = Uuid::from_str(nft_id).ok();
-
-            query_builder.push(" AND a.nft_id = ");
-            query_builder.push_bind(nft_id);
-        }
-
-        if let Some(tx_types) = query.tx_types.as_ref() {
-            let mut types = Vec::new();
-
-            for tx_type in tx_types {
-                match tx_type {
-                    TxType::Mints => {
-                        types.push("mint".to_string());
-                    }
-                    TxType::Transfers => {
-                        types.push("transfer".to_string());
-                    }
-                    TxType::Sales => {
-                        types.push("buy".to_string());
-                    }
-                    TxType::Offers => {
-                        types.push("solo-bid".to_string());
-                        types.push("unlist-bid".to_string());
-                        types.push("accept-bid".to_string());
-                        types.push("collection-bid".to_string());
-                        types.push("cancel-collection-bid".to_string());
-                        types.push("accept-collection-bid".to_string());
-                    }
-                    TxType::Listings => {
-                        types.push("list".to_string());
-                        types.push("unlist".to_string());
-                    }
-                }
-            }
-
-            query_builder.push(" AND a.tx_type = ANY(");
-            query_builder.push_bind(types);
-            query_builder.push(")");
+        if query_builder.sql().trim().ends_with("WHERE") {
+            query_builder.push(" TRUE");
         }
 
         query_builder.push(" ORDER BY a.block_time, a.tx_index ASC");
