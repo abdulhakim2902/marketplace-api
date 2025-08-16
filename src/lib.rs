@@ -16,12 +16,24 @@ use crate::{
     cache::Cache,
     config::Config,
     database::{
-        Database, activities::Activities, api_keys::ApiKeys, attributes::Attributes, bids::Bids,
-        collections::Collections, listings::Listings, marketplaces::Marketplaces,
-        nft_metadata::NFTMetadata, nfts::Nfts, processor_status::ProcessorStatus,
-        request_logs::RequestLogs, token_prices::TokenPrices, users::Users, wallets::Wallets,
+        Database, IDatabase,
+        activities::Activities,
+        api_keys::ApiKeys,
+        attributes::Attributes,
+        bids::Bids,
+        collections::Collections,
+        listings::Listings,
+        marketplaces::Marketplaces,
+        nft_metadata::NFTMetadata,
+        nfts::Nfts,
+        processor_status::ProcessorStatus,
+        request_logs::RequestLogs,
+        token_prices::TokenPrices,
+        users::{IUsers, Users},
+        wallets::Wallets,
     },
     http_server::HttpServer,
+    models::api::requests::create_user::CreateUser,
     utils::shutdown_utils,
     workers::{Worker, price_indexer::PriceIndexer},
 };
@@ -60,6 +72,14 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
         Arc::new(ApiKeys::new(Arc::clone(&pool))),
     ));
 
+    init_admin(
+        Arc::clone(&db),
+        &config.admin_config.user,
+        &config.admin_config.password,
+    )
+    .await
+    .context("Failed to initialize admin")?;
+
     init_price(&config.tapp_url, Arc::clone(&db), Arc::clone(&cache))
         .await
         .context("Failed to initialize price")?;
@@ -94,6 +114,14 @@ async fn init_price(tapp_url: &str, db: Arc<Database>, cache: Arc<Cache>) -> any
     let price_indexer = PriceIndexer::new(tapp_url.to_string(), db, cache);
 
     price_indexer.fetch_and_store_token_prices(&client).await?;
+
+    Ok(())
+}
+
+async fn init_admin(db: Arc<Database>, user: &str, password: &str) -> anyhow::Result<()> {
+    let create_user = CreateUser::new(user, password, "");
+
+    db.users().create_user(&create_user, "admin").await?;
 
     Ok(())
 }

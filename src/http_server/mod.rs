@@ -8,7 +8,7 @@ use axum::{
     Router,
     extract::DefaultBodyLimit,
     middleware,
-    routing::{delete, get},
+    routing::{delete, get, post},
 };
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
@@ -23,7 +23,7 @@ use crate::{
     config::Config,
     database::IDatabase,
     http_server::{
-        controllers::{api_key, graphql_handler, health, user},
+        controllers::{api_key, auth, graphql_handler, health, user},
         graphql::{Query, graphql},
         middlewares::{authentication, authorize},
     },
@@ -135,7 +135,8 @@ where
                             Arc::clone(&db),
                             jwt_secret.clone(),
                         )
-                    })),
+                    }))
+                    .nest("/auth", Router::new().route("/login", post(auth::login))),
             )
             .route("/gql", get(graphql).post(graphql_handler))
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))

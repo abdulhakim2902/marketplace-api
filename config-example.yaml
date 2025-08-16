@@ -1,4 +1,7 @@
 tapp_url: "https://display-engine-mirror.tapp-dex.devucc.name/api/v1"
+admin_config:
+  user: admin
+  password: admin
 server_config:
   port: 8080
 jwt_config:
