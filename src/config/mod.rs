@@ -25,6 +25,7 @@ pub struct ServerConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct JWTConfig {
     pub secret: String,
+    pub expires_in: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

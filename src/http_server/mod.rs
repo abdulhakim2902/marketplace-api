@@ -23,9 +23,9 @@ use crate::{
     config::Config,
     database::IDatabase,
     http_server::{
-        controllers::{api_key, graphql_handler, health},
+        controllers::{api_key, graphql_handler, health, user},
         graphql::{Query, graphql},
-        middlewares::authorize,
+        middlewares::{authentication, authorize},
     },
     utils::shutdown_utils,
 };
@@ -105,20 +105,36 @@ where
             }
         });
 
+        let db = Arc::clone(&self.db);
         let jwt_secret = self.config.jwt_config.secret.to_string();
 
         Router::new()
             .route("/health", get(health::check))
             .nest(
-                "/api-keys",
+                "/api/v1",
                 Router::new()
-                    .route(
-                        "/",
-                        get(api_key::fetch_api_keys).post(api_key::create_api_key),
+                    .nest(
+                        "/users",
+                        Router::new()
+                            .route("/", get(user::fetch_user).post(user::create_user))
+                            .layer(middleware::from_fn(authorize::authorize)),
                     )
-                    .route("/{id}", delete(api_key::remove_api_key))
+                    .nest(
+                        "/api-keys",
+                        Router::new()
+                            .route(
+                                "/",
+                                get(api_key::fetch_api_keys).post(api_key::create_api_key),
+                            )
+                            .route("/{id}", delete(api_key::remove_api_key)),
+                    )
                     .layer(middleware::from_fn(move |req, next| {
-                        authorize::authorize(req, next, jwt_secret.clone())
+                        authentication::authentication(
+                            req,
+                            next,
+                            Arc::clone(&db),
+                            jwt_secret.clone(),
+                        )
                     })),
             )
             .route("/gql", get(graphql).post(graphql_handler))

@@ -11,6 +11,12 @@ pub fn response_401_with_const() -> Response {
     (StatusCode::UNAUTHORIZED, Json(UNAUTHORIZED_ERR)).into_response()
 }
 
+pub fn response_401_with_message(msg: &str) -> Response {
+    let error = HttpResponseErr::new("ERR_401", msg);
+
+    (StatusCode::UNAUTHORIZED, Json(error)).into_response()
+}
+
 pub fn response_404_with_message(msg: &str) -> Response {
     let error = HttpResponseErr::new("ERR_404", msg);
 

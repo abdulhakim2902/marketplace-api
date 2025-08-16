@@ -1,4 +1,5 @@
 pub mod api_key;
+pub mod user;
 
 use serde::Serialize;
 
