@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::marketplace_config::EventType;
 
+pub mod api;
 pub mod db;
 pub mod marketplace;
 pub mod nft_metadata;

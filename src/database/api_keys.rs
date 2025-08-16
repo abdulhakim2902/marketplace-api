@@ -1,4 +1,5 @@
 use anyhow::Context;
+use chrono::{DateTime, Utc};
 use prefixed_api_key::PrefixedApiKeyController;
 use sqlx::PgPool;
 use sqlx::postgres::PgQueryResult;
@@ -15,11 +16,11 @@ pub trait IApiKeys: Send + Sync {
         user_id: &str,
         name: &str,
         description: Option<&str>,
-    ) -> anyhow::Result<String>;
+    ) -> anyhow::Result<(Uuid, String, DateTime<Utc>)>;
 
     async fn fetch_api_keys(&self, user_id: &str) -> anyhow::Result<Vec<DbApiKey>>;
 
-    async fn remove_api_key(&self, id: &str) -> anyhow::Result<PgQueryResult>;
+    async fn remove_api_key(&self, id: &str, user_id: &str) -> anyhow::Result<PgQueryResult>;
 
     async fn is_valid_api_key(
         &self,
@@ -45,7 +46,7 @@ impl IApiKeys for ApiKeys {
         user_id: &str,
         name: &str,
         description: Option<&str>,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<(Uuid, String, DateTime<Utc>)> {
         let controller = PrefixedApiKeyController::configure()
             .prefix("ucc".to_owned())
             .seam_defaults()
@@ -56,7 +57,7 @@ impl IApiKeys for ApiKeys {
 
         let short_token = key.short_token();
 
-        let _res = sqlx::query!(
+        let res = sqlx::query!(
             r#"
             INSERT INTO api_keys (user_id, name, description, short_token, long_token_hash)
             VALUES ($1, $2, $3, $4, $5)
@@ -64,7 +65,8 @@ impl IApiKeys for ApiKeys {
               DO UPDATE SET
                 name = EXCLUDED.name,
                 description = EXCLUDED.description,
-                updated_at = NOW();
+                updated_at = NOW()
+            RETURNING id, created_at;
             "#,
             Uuid::from_str(user_id).ok(),
             name,
@@ -72,11 +74,11 @@ impl IApiKeys for ApiKeys {
             short_token,
             hash,
         )
-        .execute(&*self.pool)
+        .fetch_one(&*self.pool)
         .await
         .context("Failed to create api key")?;
 
-        Ok(key.to_string())
+        Ok((res.id, key.to_string(), res.created_at))
     }
 
     async fn fetch_api_keys(&self, user_id: &str) -> anyhow::Result<Vec<DbApiKey>> {
@@ -102,13 +104,14 @@ impl IApiKeys for ApiKeys {
         Ok(res)
     }
 
-    async fn remove_api_key(&self, id: &str) -> anyhow::Result<PgQueryResult> {
+    async fn remove_api_key(&self, id: &str, user_id: &str) -> anyhow::Result<PgQueryResult> {
         let res = sqlx::query!(
             r#"
             DELETE FROM api_keys ak
-            WHERE ak.id = $1
+            WHERE ak.id = $1 AND ak.user_id = $2
             "#,
             Uuid::from_str(id).ok(),
+            Uuid::from_str(user_id).ok(),
         )
         .execute(&*self.pool)
         .await
