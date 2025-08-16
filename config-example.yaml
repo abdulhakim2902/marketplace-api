@@ -1,5 +1,8 @@
-server_port: 8080
 tapp_url: "https://display-engine-mirror.tapp-dex.devucc.name/api/v1"
+server_config:
+  port: 8080
+jwt_config:
+  secret: secret
 db_config:
   url: "postgresql://username:password@neon_host/db_name"
   pool_size: 25

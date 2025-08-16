@@ -1,10 +1,16 @@
 pub mod controllers;
 pub mod graphql;
+pub mod middlewares;
+pub mod utils;
 
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
-use axum::{Router, extract::DefaultBodyLimit, routing::get};
-use std::time::Duration;
-use std::{net::SocketAddr, sync::Arc};
+use axum::{
+    Router,
+    extract::DefaultBodyLimit,
+    middleware,
+    routing::{delete, get},
+};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use tower_http::{
@@ -12,14 +18,14 @@ use tower_http::{
     limit::RequestBodyLimitLayer,
 };
 
-use crate::http_server::controllers::api_key;
 use crate::{
     cache::ICache,
     config::Config,
     database::IDatabase,
     http_server::{
-        controllers::{graphql_handler, health},
+        controllers::{api_key, graphql_handler, health},
         graphql::{Query, graphql},
+        middlewares::authorize,
     },
     utils::shutdown_utils,
 };
@@ -54,7 +60,7 @@ where
 
         let state = Arc::new(self);
 
-        let listener_address = format!("0.0.0.0:{}", state.config.server_port);
+        let listener_address = format!("0.0.0.0:{}", state.config.server_config.port);
         let listener = TcpListener::bind(listener_address).await?;
 
         axum::serve(
@@ -99,13 +105,21 @@ where
             }
         });
 
+        let jwt_secret = self.config.jwt_config.secret.to_string();
+
         Router::new()
             .route("/health", get(health::check))
-            .route(
+            .nest(
                 "/api-keys",
-                get(api_key::fetch_api_keys)
-                    .post(api_key::create_api_key)
-                    .delete(api_key::remove_api_key),
+                Router::new()
+                    .route(
+                        "/",
+                        get(api_key::fetch_api_keys).post(api_key::create_api_key),
+                    )
+                    .route("/{id}", delete(api_key::remove_api_key))
+                    .layer(middleware::from_fn(move |req, next| {
+                        authorize::authorize(req, next, jwt_secret.clone())
+                    })),
             )
             .route("/gql", get(graphql).post(graphql_handler))
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
