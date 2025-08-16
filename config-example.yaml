@@ -3,6 +3,7 @@ server_config:
   port: 8080
 jwt_config:
   secret: secret
+  expires_in: 1d
 db_config:
   url: "postgresql://username:password@neon_host/db_name"
   pool_size: 25

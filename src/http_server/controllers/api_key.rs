@@ -17,7 +17,7 @@ use axum::{
 
 pub async fn fetch_api_keys<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
-    Extension(user_id): Extension<String>,
+    Extension((user_id, _)): Extension<(String, String)>,
 ) -> Response {
     match state.db.api_keys().fetch_api_keys(&user_id).await {
         Ok(data) => Json(data).into_response(),
@@ -27,7 +27,7 @@ pub async fn fetch_api_keys<TDb: IDatabase, TCache: ICache>(
 
 pub async fn create_api_key<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
-    Extension(user_id): Extension<String>,
+    Extension((user_id, _)): Extension<(String, String)>,
     Json(req): Json<CreateApiKey>,
 ) -> Response {
     match state
@@ -56,7 +56,7 @@ pub async fn create_api_key<TDb: IDatabase, TCache: ICache>(
 pub async fn remove_api_key<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
     Path(id): Path<String>,
-    Extension(user_id): Extension<String>,
+    Extension((user_id, _)): Extension<(String, String)>,
 ) -> Response {
     match state.db.api_keys().remove_api_key(&id, &user_id).await {
         Ok(res) => {
