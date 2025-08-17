@@ -5,13 +5,16 @@ use crate::{
         db::activity::DbActivity,
         schema::{
             activity::{
-                ActivitySchema, FilterActivitySchema,
+                ActivitySchema, OrderByActivitySchema, WhereActivitySchema,
                 profit_loss::{FilterProfitLossSchema, ProfitLossSchema},
             },
             data_point::DataPointSchema,
         },
     },
-    utils::{schema::handle_operators, structs},
+    utils::{
+        schema::{handle_order, handle_query},
+        structs,
+    },
 };
 use anyhow::Context;
 use sqlx::{
@@ -30,7 +33,10 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_activities(
         &self,
-        filter: FilterActivitySchema,
+        limit: i64,
+        offset: i64,
+        query: WhereActivitySchema,
+        order: OrderByActivitySchema,
     ) -> anyhow::Result<Vec<ActivitySchema>>;
 
     async fn fetch_past_floor(
@@ -124,12 +130,11 @@ impl IActivities for Activities {
 
     async fn fetch_activities(
         &self,
-        filter: FilterActivitySchema,
+        limit: i64,
+        offset: i64,
+        query: WhereActivitySchema,
+        order: OrderByActivitySchema,
     ) -> anyhow::Result<Vec<ActivitySchema>> {
-        let query = filter.where_.unwrap_or_default();
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             SELECT
@@ -154,14 +159,24 @@ impl IActivities for Activities {
         );
 
         if let Some(object) = structs::to_map(&query).ok().flatten() {
-            handle_operators(&mut query_builder, &object, None);
+            handle_query(&mut query_builder, &object, "AND");
         }
 
         if query_builder.sql().trim().ends_with("WHERE") {
-            query_builder.push(" TRUE");
+            query_builder.push(" ");
+            query_builder.push_bind(true);
         }
 
-        query_builder.push(" ORDER BY a.block_time, a.tx_index ASC");
+        query_builder.push(" ORDER BY ");
+
+        if let Some(object) = structs::to_map(&order).ok().flatten() {
+            handle_order(&mut query_builder, &object);
+        }
+
+        if query_builder.sql().trim().ends_with("ORDER BY") {
+            query_builder.push("a.block_time, a.tx_index ASC");
+        }
+
         query_builder.push(" LIMIT ");
         query_builder.push_bind(limit);
         query_builder.push(" OFFSET ");

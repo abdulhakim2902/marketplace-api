@@ -1,13 +1,11 @@
 use serde_json::{Map, Value};
 use sqlx::{Postgres, QueryBuilder, query_builder::Separated};
 
-pub fn handle_operators(
+pub fn handle_query(
     builder: &mut QueryBuilder<'_, Postgres>,
     object: &Map<String, Value>,
-    conn: Option<&str>,
+    conn: &str,
 ) {
-    let conn = format!(" {} ", conn.unwrap_or("AND"));
-
     let mut seperated = builder.separated(" AND ");
 
     let mut and_operator_builder = QueryBuilder::<Postgres>::new("");
@@ -15,13 +13,13 @@ pub fn handle_operators(
     let mut not_operator_builder = QueryBuilder::<Postgres>::new("");
 
     let mut field_operator_builder = QueryBuilder::<Postgres>::new("(");
-    let mut field_seperated = field_operator_builder.separated(conn.as_str());
+    let mut field_seperated = field_operator_builder.separated(conn);
 
     for (key, value) in object {
         match key.as_str() {
             "_and" => {
                 if let Value::Object(o) = value {
-                    handle_operators(&mut and_operator_builder, o, Some("AND"));
+                    handle_query(&mut and_operator_builder, o, "AND");
                     if and_operator_builder.sql() != "()" {
                         seperated.push(and_operator_builder.sql());
                     }
@@ -29,7 +27,7 @@ pub fn handle_operators(
             }
             "_not" => {
                 if let Value::Object(o) = value {
-                    handle_operators(&mut not_operator_builder, o, Some("AND NOT"));
+                    handle_query(&mut not_operator_builder, o, "AND NOT");
                     if not_operator_builder.sql() != "()" {
                         seperated.push(not_operator_builder.sql());
                     }
@@ -37,7 +35,7 @@ pub fn handle_operators(
             }
             "_or" => {
                 if let Value::Object(o) = value {
-                    handle_operators(&mut or_operator_builder, o, Some("OR"));
+                    handle_query(&mut or_operator_builder, o, "OR");
                     if or_operator_builder.sql() != "()" {
                         seperated.push(or_operator_builder.sql());
                     }
@@ -56,6 +54,19 @@ pub fn handle_operators(
     if field_operator_builder.sql() != "()" {
         seperated.push(field_operator_builder.sql());
     }
+}
+
+pub fn handle_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<String, Value>) {
+    let mut order_builder = QueryBuilder::<Postgres>::new(" ");
+    let mut order_seperated_builder = order_builder.separated(",");
+
+    for (key, value) in object {
+        if let Value::String(s) = value {
+            order_seperated_builder.push(format!("{} {}", key, s.replace("_", "")));
+        }
+    }
+
+    builder.push(order_builder.sql());
 }
 
 pub fn handle_field_operators(

@@ -11,11 +11,13 @@ use crate::{
         nft::{NftSchema, WhereNftSchema},
     },
 };
-use async_graphql::{Context, Enum};
+use async_graphql::{Context, Enum, InputObject, InputType, OutputType};
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum::{Display, EnumString};
+use uuid::Uuid;
 
 pub mod activity;
 pub mod attribute;
@@ -26,6 +28,8 @@ pub mod marketplace;
 pub mod nft;
 pub mod offer;
 pub mod wallet;
+
+pub type Date = DateTime<Utc>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
 #[serde(rename_all = "snake_case")]
@@ -40,6 +44,55 @@ impl Default for OrderingType {
     fn default() -> Self {
         Self::DESC
     }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug, InputObject)]
+#[graphql(
+    concrete(
+        name = "OperatorSchemaTypeOutString",
+        input_name = "OperatorSchemaTypeInString",
+        params(String)
+    ),
+    concrete(
+        name = "OperatorSchemaTypeOutInt64",
+        input_name = "OperatorSchemaTypeInInt64",
+        params(i64)
+    ),
+    concrete(
+        name = "OperatorSchemaTypeOutBigDecimal",
+        input_name = "OperatorSchemaTypeInBigDecimal",
+        params(BigDecimal)
+    ),
+    concrete(
+        name = "OperatorSchemaTypeOutUuid",
+        input_name = "OperatorSchemaTypeInUuid",
+        params(Uuid)
+    ),
+    concrete(
+        name = "OperatorSchemaTypeOutDateTime",
+        input_name = "OperatorSchemaTypeInDateTime",
+        params(Date)
+    )
+)]
+pub struct OperatorSchema<T: InputType + OutputType> {
+    #[graphql(name = "_eq")]
+    _eq: Option<T>,
+    #[graphql(name = "_in")]
+    _in: Option<Vec<T>>,
+    #[graphql(name = "_gt")]
+    _gt: Option<T>,
+    #[graphql(name = "_gte")]
+    _gte: Option<T>,
+    #[graphql(name = "_lt")]
+    _lt: Option<T>,
+    #[graphql(name = "_lte")]
+    _lte: Option<T>,
+    #[graphql(name = "_nin")]
+    _nin: Option<Vec<T>>,
+    #[graphql(name = "_neq")]
+    _neq: Option<T>,
+    #[graphql(name = "_is_null")]
+    _is_null: Option<bool>,
 }
 
 async fn fetch_collection(
