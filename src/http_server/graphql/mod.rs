@@ -114,6 +114,7 @@ impl Query {
             .expect("Failed to fetch activities")
     }
 
+    #[graphql(guard = "UserGuard")]
     async fn collections(
         &self,
         ctx: &Context<'_>,
