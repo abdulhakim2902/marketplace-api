@@ -6,6 +6,7 @@ pub mod profit_leaderboard;
 pub mod stat;
 pub mod top_wallet;
 pub mod trending;
+pub mod trending_nft;
 
 use std::sync::Arc;
 
@@ -14,7 +15,7 @@ use crate::{
         Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
     },
     models::schema::{
-        OrderingType,
+        OperatorSchema, OrderingType,
         activity::{ActivitySchema, OrderActivitySchema, QueryActivitySchema},
         attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
         bid::{BidSchema, OrderBidSchema, QueryBidSchema},
@@ -147,6 +148,34 @@ impl CollectionSchema {
             .await
             .expect("Failed to fetch bids")
     }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct QueryCollectionSchema {
+    #[graphql(name = "_or")]
+    pub _or: Option<Arc<QueryCollectionSchema>>,
+    #[graphql(name = "_and")]
+    pub _and: Option<Arc<QueryCollectionSchema>>,
+    #[graphql(name = "_not")]
+    pub _not: Option<Arc<QueryCollectionSchema>>,
+    pub id: Option<OperatorSchema<Uuid>>,
+    pub slug: Option<OperatorSchema<String>>,
+    pub supply: Option<OperatorSchema<i64>>,
+    pub title: Option<OperatorSchema<String>>,
+    pub description: Option<OperatorSchema<String>>,
+    pub cover_url: Option<OperatorSchema<String>>,
+    pub verified: Option<OperatorSchema<bool>>,
+    pub website: Option<OperatorSchema<String>>,
+    pub discord: Option<OperatorSchema<String>>,
+    pub twitter: Option<OperatorSchema<String>>,
+    pub royalty: Option<OperatorSchema<BigDecimal>>,
+    pub floor: Option<OperatorSchema<i64>>,
+    pub volume: Option<OperatorSchema<i64>>,
+    pub volume_usd: Option<OperatorSchema<BigDecimal>>,
+    pub activities: Option<QueryActivitySchema>,
+    pub attributes: Option<QueryAttributeSchema>,
+    pub bids: Option<QueryBidSchema>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]

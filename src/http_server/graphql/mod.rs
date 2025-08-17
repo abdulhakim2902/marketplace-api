@@ -23,12 +23,11 @@ use crate::{
             profit_leaderboard::ProfitLeaderboardSchema,
             stat::CollectionStatSchema,
             top_wallet::{FilterTopWalletSchema, TopWalletSchema},
-            trending::TrendingSchema,
+            trending::{CollectionTrendingSchema, OrderTrendingType},
+            trending_nft::TrendingNftSchema,
         },
-        data_point::DataPointSchema,
-        data_point::FilterFloorChartSchema,
-        listing::ListingSchema,
-        listing::{OrderListingSchema, QueryListingSchema},
+        data_point::{DataPointSchema, FilterFloorChartSchema},
+        listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
         marketplace::MarketplaceSchema,
         nft::{FilterNftSchema, NftSchema},
         wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema},
@@ -175,6 +174,29 @@ impl Query {
             .expect("Failed to fetch bids")
     }
 
+    async fn collection_trendings(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        interval: Option<String>,
+        #[graphql(name = "order_by")] order: Option<OrderTrendingType>,
+    ) -> Vec<CollectionTrendingSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let interval = interval.unwrap_or_default();
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let order = order.unwrap_or_default();
+
+        db.collections()
+            .fetch_trendings(&interval, limit, offset, order)
+            .await
+            .expect("Failed to fetch collection trendings")
+    }
+
     // ==================== WALLET ====================
     async fn wallet_stats(&self, ctx: &Context<'_>, address: String) -> Option<StatsSchema> {
         let db = ctx
@@ -216,13 +238,13 @@ impl Query {
             .expect("Failed to fetch collection stats")
     }
 
-    async fn collection_trending(
+    async fn collection_trending_nfts(
         &self,
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
         collection_id: Uuid,
-    ) -> Vec<TrendingSchema> {
+    ) -> Vec<TrendingNftSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -231,7 +253,7 @@ impl Query {
         let offset = offset.unwrap_or(0);
 
         db.collections()
-            .fetch_trending(collection_id, limit, offset)
+            .fetch_trending_nfts(collection_id, limit, offset)
             .await
             .expect("Failed to fetch collection trending")
     }

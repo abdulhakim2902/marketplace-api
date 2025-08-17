@@ -7,15 +7,14 @@ use crate::{
             collection::{
                 CollectionSchema, FilterCollectionSchema, PeriodType,
                 attribute::CollectionAttributeSchema,
-                nft_change::FilterNftChangeSchema,
-                nft_change::NftChangeSchema,
+                nft_change::{FilterNftChangeSchema, NftChangeSchema},
                 nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
                 nft_holder::NftHolderSchema,
                 profit_leaderboard::ProfitLeaderboardSchema,
                 stat::CollectionStatSchema,
-                top_wallet::TopWalletSchema,
-                top_wallet::{FilterTopWalletSchema, TopWalletType},
-                trending::TrendingSchema,
+                top_wallet::{FilterTopWalletSchema, TopWalletSchema, TopWalletType},
+                trending::{CollectionTrendingSchema, OrderTrendingType},
+                trending_nft::TrendingNftSchema,
             },
             data_point::{DataPointSchema, FilterFloorChartSchema},
         },
@@ -40,14 +39,22 @@ pub trait ICollections: Send + Sync {
         filter: FilterCollectionSchema,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
 
+    async fn fetch_trendings(
+        &self,
+        interval: &str,
+        limit: i64,
+        offset: i64,
+        order: OrderTrendingType,
+    ) -> anyhow::Result<Vec<CollectionTrendingSchema>>;
+
     async fn fetch_stats(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema>;
 
-    async fn fetch_trending(
+    async fn fetch_trending_nfts(
         &self,
         collection_id: Uuid,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<TrendingSchema>>;
+    ) -> anyhow::Result<Vec<TrendingNftSchema>>;
 
     async fn fetch_nft_changes(
         &self,
@@ -342,6 +349,90 @@ impl ICollections for Collections {
         Ok(res)
     }
 
+    async fn fetch_trendings(
+        &self,
+        interval: &str,
+        limit: i64,
+        offset: i64,
+        order: OrderTrendingType,
+    ) -> anyhow::Result<Vec<CollectionTrendingSchema>> {
+        let interval = string_utils::str_to_pginterval(interval).ok().flatten();
+        let mut query_builder = QueryBuilder::<Postgres>::new(
+            r#"
+            WITH 
+                sale_activities AS (
+                    SELECT
+                        collection_id,
+                        SUM(price)::BIGINT              AS volume,
+                        SUM(usd_price)                  AS volume_usd,
+                        COUNT(*)                        AS sales
+                    FROM activities
+                    WHERE tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
+                        AND (
+            "#,
+        );
+
+        query_builder.push_bind(interval);
+        query_builder.push("::INTERVAL IS NULL OR block_time >= NOW() - ");
+        query_builder.push_bind(interval);
+        query_builder.push("::INTERVAL)");
+        query_builder.push(" GROUP BY collection_id),");
+
+        query_builder.push(
+            r#"
+                collection_trendings AS (
+                    SELECT 
+                        c.id,
+                        c.floor,
+                        c.owners,
+                        c.listed,
+                        c.supply,
+                        sa.volume,
+                        sa.volume_usd,
+                        sa.sales,
+                        c.floor * c.supply      AS market_cap
+                    FROM collections c
+                        LEFT JOIN sale_activities sa ON sa.collection_id = c.id
+                )
+            SELECT * FROM collection_trendings
+            "#,
+        );
+
+        match order {
+            OrderTrendingType::Volume => {
+                query_builder.push("ORDER BY volume DESC NULLS LAST");
+            }
+            OrderTrendingType::Floor => {
+                query_builder.push("ORDER BY floor DESC NULLS LAST");
+            }
+            OrderTrendingType::Listed => {
+                query_builder.push("ORDER BY listed DESC NULLS LAST");
+            }
+            OrderTrendingType::MarketCap => {
+                query_builder.push("ORDER BY market_cap DESC NULLS LAST");
+            }
+            OrderTrendingType::Owners => {
+                query_builder.push("ORDER BY owners DESC NULLS LAST");
+            }
+            OrderTrendingType::Sales => {
+                query_builder.push("ORDER BY sales DESC NULLS LAST");
+            }
+        }
+
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset);
+
+        let res = query_builder
+            .build_query_as::<CollectionTrendingSchema>()
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch collection trendings")?;
+
+        Ok(res)
+    }
+
     async fn fetch_stats(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema> {
         let res = sqlx::query_as!(
             CollectionStatSchema,
@@ -404,14 +495,14 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn fetch_trending(
+    async fn fetch_trending_nfts(
         &self,
         collection_id: Uuid,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<TrendingSchema>> {
+    ) -> anyhow::Result<Vec<TrendingNftSchema>> {
         let res = sqlx::query_as!(
-            TrendingSchema,
+            TrendingNftSchema,
             r#"
             WITH 
                 nft_activities AS (
