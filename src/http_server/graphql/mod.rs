@@ -201,7 +201,7 @@ impl Query {
     // ================================================
 
     // ============= COLLECTION ANALYTICS =============
-    async fn collection_stat(
+    async fn collection_stats(
         &self,
         ctx: &Context<'_>,
         collection_id: Uuid,
@@ -211,9 +211,9 @@ impl Query {
             .expect("Missing database in the context");
 
         db.collections()
-            .fetch_stat(collection_id)
+            .fetch_stats(collection_id)
             .await
-            .expect("Failed to fetch collection stat")
+            .expect("Failed to fetch collection stats")
     }
 
     async fn collection_trending(

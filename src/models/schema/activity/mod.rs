@@ -1,5 +1,7 @@
 pub mod profit_loss;
 
+use std::sync::Arc;
+
 use crate::models::schema::{
     Date, OperatorSchema, OrderingType,
     collection::CollectionSchema,
@@ -54,11 +56,11 @@ impl ActivitySchema {
 #[graphql(rename_fields = "snake_case")]
 pub struct QueryActivitySchema {
     #[graphql(name = "_or")]
-    pub _or: Option<Box<QueryActivitySchema>>,
+    pub _or: Option<Arc<QueryActivitySchema>>,
     #[graphql(name = "_and")]
-    pub _and: Option<Box<QueryActivitySchema>>,
+    pub _and: Option<Arc<QueryActivitySchema>>,
     #[graphql(name = "_not")]
-    pub _not: Option<Box<QueryActivitySchema>>,
+    pub _not: Option<Arc<QueryActivitySchema>>,
     pub id: Option<OperatorSchema<Uuid>>,
     #[graphql(name = "type")]
     pub tx_type: Option<OperatorSchema<String>>,

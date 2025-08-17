@@ -1,8 +1,13 @@
-use crate::models::schema::nft::QueryNftSchema;
-use crate::models::schema::{Date, OperatorSchema, OrderingType, fetch_token_price};
+use std::sync::Arc;
+
 use crate::models::{
     marketplace::APT_DECIMAL,
-    schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
+    schema::{
+        Date, OperatorSchema, OrderingType,
+        collection::CollectionSchema,
+        fetch_collection, fetch_nft, fetch_token_price,
+        nft::{NftSchema, QueryNftSchema},
+    },
 };
 use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
@@ -56,11 +61,11 @@ impl ListingSchema {
 #[graphql(rename_fields = "snake_case")]
 pub struct QueryListingSchema {
     #[graphql(name = "_or")]
-    pub _or: Option<Box<QueryListingSchema>>,
+    pub _or: Option<Arc<QueryListingSchema>>,
     #[graphql(name = "_and")]
-    pub _and: Option<Box<QueryListingSchema>>,
+    pub _and: Option<Arc<QueryListingSchema>>,
     #[graphql(name = "_not")]
-    pub _not: Option<Box<QueryListingSchema>>,
+    pub _not: Option<Arc<QueryListingSchema>>,
     pub id: Option<OperatorSchema<Uuid>>,
     pub block_height: Option<OperatorSchema<i64>>,
     pub block_time: Option<OperatorSchema<Date>>,

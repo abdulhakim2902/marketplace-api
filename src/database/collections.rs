@@ -40,7 +40,7 @@ pub trait ICollections: Send + Sync {
         filter: FilterCollectionSchema,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
 
-    async fn fetch_stat(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema>;
+    async fn fetch_stats(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema>;
 
     async fn fetch_trending(
         &self,
@@ -342,7 +342,7 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn fetch_stat(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema> {
+    async fn fetch_stats(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema> {
         let res = sqlx::query_as!(
             CollectionStatSchema,
             r#"
@@ -350,8 +350,7 @@ impl ICollections for Collections {
                 top_bids AS (
                     SELECT
                         b.collection_id,
-                        MAX(b.price)                AS price,
-                        SUM(b.price)::BIGINT        AS total_offer
+                        MAX(b.price)                AS price
                     FROM bids b
                     WHERE b.collection_id = $1
                         AND b.status = 'active'
@@ -370,13 +369,6 @@ impl ICollections for Collections {
                         AND activities.collection_id = $1
                     GROUP BY activities.collection_id
                 ),
-                list_activities AS (
-                    SELECT a.collection_id, MIN(a.price) AS price FROM activities a
-                    WHERE a.tx_type = 'list'
-                        AND a.collection_id = $1
-                        AND a.block_time >= NOW() - '24h'::INTERVAL
-                    GROUP BY a.collection_id
-                ),
                 collection_scores AS (
                     SELECT DISTINCT ON (ca.collection_id, ca.type, ca.value)
                         ca.collection_id,
@@ -386,18 +378,21 @@ impl ICollections for Collections {
                     GROUP BY ca.collection_id, ca.type, ca.value
                 )
             SELECT
-                c.*,
-                tb.price                    AS top_offers,
-                sa.volume                   AS volume_24h,
-                sa.sales                    AS sales_24h,
-                (1 / cs.score)::NUMERIC     AS rarity,
-                la.price                    AS previous_floor,
-                tb.total_offer
+                c.floor,
+                c.owners,
+                c.listed,
+                c.supply,
+                c.volume                    AS total_volume,
+                c.volume_usd                AS total_usd_volume,
+                c.sales                     AS total_sales,
+                sa.sales                    AS day_sales,
+                sa.volume                   AS day_volume,
+                tb.price                    AS top_offer,
+                (1 / cs.score)::NUMERIC     AS rarity
             FROM collections c
                 LEFT JOIN top_bids tb ON tb.collection_id = c.id
                 LEFT JOIN sale_activities sa ON sa.collection_id = c.id
                 LEFT JOIN collection_scores cs ON cs.collection_id = c.id
-                LEFT JOIN list_activities la ON la.collection_id = c.id
             WHERE c.id = $1
             "#,
             collection_id,

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::models::schema::nft::QueryNftSchema;
 use crate::models::schema::{Date, OperatorSchema, OrderingType, fetch_token_price};
 use crate::models::{
@@ -62,11 +64,11 @@ impl BidSchema {
 #[graphql(rename_fields = "snake_case")]
 pub struct QueryBidSchema {
     #[graphql(name = "_or")]
-    pub _or: Option<Box<QueryBidSchema>>,
+    pub _or: Option<Arc<QueryBidSchema>>,
     #[graphql(name = "_and")]
-    pub _and: Option<Box<QueryBidSchema>>,
+    pub _and: Option<Arc<QueryBidSchema>>,
     #[graphql(name = "_not")]
-    pub _not: Option<Box<QueryBidSchema>>,
+    pub _not: Option<Arc<QueryBidSchema>>,
     pub id: Option<OperatorSchema<Uuid>>,
     pub bidder: Option<OperatorSchema<String>>,
     pub accepted_tx_id: Option<OperatorSchema<String>>,

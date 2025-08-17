@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_graphql::{InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
@@ -23,11 +25,11 @@ pub struct AttributeSchema {
 #[graphql(rename_fields = "snake_case")]
 pub struct QueryAttributeSchema {
     #[graphql(name = "_or")]
-    pub _or: Option<Box<QueryAttributeSchema>>,
+    pub _or: Option<Arc<QueryAttributeSchema>>,
     #[graphql(name = "_and")]
-    pub _and: Option<Box<QueryAttributeSchema>>,
+    pub _and: Option<Arc<QueryAttributeSchema>>,
     #[graphql(name = "_not")]
-    pub _not: Option<Box<QueryAttributeSchema>>,
+    pub _not: Option<Arc<QueryAttributeSchema>>,
     pub id: Option<OperatorSchema<Uuid>>,
     pub collection_id: Option<OperatorSchema<Uuid>>,
     pub nft_id: Option<OperatorSchema<Uuid>>,
