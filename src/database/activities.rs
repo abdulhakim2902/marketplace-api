@@ -5,7 +5,7 @@ use crate::{
         db::activity::DbActivity,
         schema::{
             activity::{
-                ActivitySchema, OrderByActivitySchema, WhereActivitySchema,
+                ActivitySchema, OrderActivitySchema, QueryActivitySchema,
                 profit_loss::{FilterProfitLossSchema, ProfitLossSchema},
             },
             data_point::DataPointSchema,
@@ -35,8 +35,8 @@ pub trait IActivities: Send + Sync {
         &self,
         limit: i64,
         offset: i64,
-        query: WhereActivitySchema,
-        order: OrderByActivitySchema,
+        query: QueryActivitySchema,
+        order: OrderActivitySchema,
     ) -> anyhow::Result<Vec<ActivitySchema>>;
 
     async fn fetch_past_floor(
@@ -132,28 +132,12 @@ impl IActivities for Activities {
         &self,
         limit: i64,
         offset: i64,
-        query: WhereActivitySchema,
-        order: OrderByActivitySchema,
+        query: QueryActivitySchema,
+        order: OrderActivitySchema,
     ) -> anyhow::Result<Vec<ActivitySchema>> {
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
-            SELECT
-                a.id,
-                a.tx_type,
-                a.tx_index,
-                a.tx_id,
-                a.sender,
-                a.receiver,
-                a.price,
-                a.usd_price,
-                a.market_name,
-                a.market_contract_id,
-                a.nft_id,
-                a.collection_id,
-                a.block_time,
-                a.block_height,
-                a.amount
-            FROM activities a
+            SELECT * FROM activities
             WHERE
             "#,
         );
@@ -174,7 +158,7 @@ impl IActivities for Activities {
         }
 
         if query_builder.sql().trim().ends_with("ORDER BY") {
-            query_builder.push("a.block_time, a.tx_index ASC");
+            query_builder.push("block_time, tx_index ASC");
         }
 
         query_builder.push(" LIMIT ");

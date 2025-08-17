@@ -1,7 +1,11 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::models::schema::offer::FilterOfferSchema;
-use crate::models::{db::bid::DbBid, schema::offer::OfferSchema};
+use crate::models::{
+    db::bid::DbBid,
+    schema::bid::{BidSchema, OrderBidSchema, QueryBidSchema},
+};
+use crate::utils::schema::{handle_order, handle_query};
+use crate::utils::structs;
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
@@ -18,8 +22,11 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
-        filter: Option<FilterOfferSchema>,
-    ) -> anyhow::Result<Vec<OfferSchema>>;
+        limit: i64,
+        offset: i64,
+        query: QueryBidSchema,
+        order: OrderBidSchema,
+    ) -> anyhow::Result<Vec<BidSchema>>;
 
     async fn fetch_collection_top_offer(
         &self,
@@ -122,47 +129,47 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
-        filter: Option<FilterOfferSchema>,
-    ) -> anyhow::Result<Vec<OfferSchema>> {
-        let filter = filter.unwrap_or_default();
-
-        let query = filter.where_.unwrap_or_default();
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
-        let collection_id = query
-            .collection_id
-            .map(|e| Uuid::from_str(&e).ok())
-            .flatten();
-        let nft_id = query.nft_id.map(|e| Uuid::from_str(&e).ok()).flatten();
-
-        let res = sqlx::query_as!(
-            OfferSchema,
+        limit: i64,
+        offset: i64,
+        query: QueryBidSchema,
+        order: OrderBidSchema,
+    ) -> anyhow::Result<Vec<BidSchema>> {
+        let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
-            SELECT * FROM bids b
-            WHERE ($1::UUID IS NULL OR b.nft_id = $1)
-                AND ($2::UUID IS NULL OR b.collection_id = $2)
-                AND ($3::TEXT IS NULL OR $3::TEXT = '' OR b.bidder = $3)
-                AND ($4::TEXT IS NULL OR $4::TEXT = '' OR b.receiver = $4)
-                AND (
-                    ($5 = 'active' AND (b.expired_at IS NULL OR b.expired_at > NOW())) OR
-                    ($5::TEXT IS NULL OR $5::TEXT = '' OR b.status = $5)
-                )
-                AND ($6::TEXT IS NULL OR $6::TEXT = '' OR b.bid_type = $6)
-            LIMIT $7 OFFSET $8
+            SELECT * FROM bids
+            WHERE
             "#,
-            nft_id,
-            collection_id,
-            query.bidder,
-            query.receiver,
-            query.status,
-            query.bid_type,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fecth bids")?;
+        );
+
+        if let Some(object) = structs::to_map(&query).ok().flatten() {
+            handle_query(&mut query_builder, &object, "AND");
+        }
+
+        if query_builder.sql().trim().ends_with("WHERE") {
+            query_builder.push(" ");
+            query_builder.push_bind(true);
+        }
+
+        query_builder.push(" ORDER BY ");
+
+        if let Some(object) = structs::to_map(&order).ok().flatten() {
+            handle_order(&mut query_builder, &object);
+        }
+
+        if query_builder.sql().trim().ends_with("ORDER BY") {
+            query_builder.push("updated_at");
+        }
+
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset);
+
+        let res = query_builder
+            .build_query_as::<BidSchema>()
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch activities")?;
 
         Ok(res)
     }

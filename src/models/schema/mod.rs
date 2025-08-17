@@ -21,12 +21,12 @@ use uuid::Uuid;
 
 pub mod activity;
 pub mod attribute;
+pub mod bid;
 pub mod collection;
 pub mod data_point;
 pub mod listing;
 pub mod marketplace;
 pub mod nft;
-pub mod offer;
 pub mod wallet;
 
 pub type Date = DateTime<Utc>;

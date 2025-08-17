@@ -50,13 +50,13 @@ impl ActivitySchema {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct WhereActivitySchema {
+pub struct QueryActivitySchema {
     #[graphql(name = "_or")]
-    pub _or: Option<Box<WhereActivitySchema>>,
+    pub _or: Option<Box<QueryActivitySchema>>,
     #[graphql(name = "_and")]
-    pub _and: Option<Box<WhereActivitySchema>>,
+    pub _and: Option<Box<QueryActivitySchema>>,
     #[graphql(name = "_not")]
-    pub _not: Option<Box<WhereActivitySchema>>,
+    pub _not: Option<Box<QueryActivitySchema>>,
     pub id: Option<OperatorSchema<Uuid>>,
     #[graphql(name = "type")]
     pub tx_type: Option<OperatorSchema<String>>,
@@ -77,7 +77,7 @@ pub struct WhereActivitySchema {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct OrderByActivitySchema {
+pub struct OrderActivitySchema {
     pub id: Option<OrderingType>,
     #[graphql(name = "type")]
     pub tx_type: Option<OrderingType>,

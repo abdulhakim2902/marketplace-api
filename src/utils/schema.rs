@@ -99,13 +99,13 @@ pub fn handle_eq_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("a.{} = '{}'", field, s));
+            seperated.push(format!("{} = '{}'", field, s));
         }
         Value::Number(n) => {
-            seperated.push(format!("a.{} = {}", field, n));
+            seperated.push(format!("{} = {}", field, n));
         }
         Value::Bool(b) => {
-            seperated.push(format!("a.{} = {}", field, b));
+            seperated.push(format!("{} = {}", field, b));
         }
         _ => {
             // Not implemented
@@ -120,13 +120,13 @@ pub fn handle_neq_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("a.{} != '{}'", field, s));
+            seperated.push(format!("{} != '{}'", field, s));
         }
         Value::Number(n) => {
-            seperated.push(format!("a.{} != {}", field, n));
+            seperated.push(format!("{} != {}", field, n));
         }
         Value::Bool(b) => {
-            seperated.push(format!("a.{} != {}", field, b));
+            seperated.push(format!("{} != {}", field, b));
         }
         _ => {
             // Not implemented
@@ -147,13 +147,13 @@ pub fn handle_in_operator(
             for value in a {
                 match value {
                     Value::String(st) => {
-                        s.push(format!("a.{} = '{}'", field, st));
+                        s.push(format!("{} = '{}'", field, st));
                     }
                     Value::Number(n) => {
-                        s.push(format!("a.{} = {}", field, n));
+                        s.push(format!("{} = {}", field, n));
                     }
                     Value::Bool(b) => {
-                        s.push(format!("a.{} = {}", field, b));
+                        s.push(format!("{} = {}", field, b));
                     }
                     _ => {
                         // Not implemented
@@ -182,13 +182,13 @@ pub fn handle_nin_operator(
             for value in a {
                 match value {
                     Value::String(st) => {
-                        s.push(format!("a.{} != '{}'", field, st));
+                        s.push(format!("{} != '{}'", field, st));
                     }
                     Value::Number(n) => {
-                        s.push(format!("a.{} != {}", field, n));
+                        s.push(format!("{} != {}", field, n));
                     }
                     Value::Bool(b) => {
-                        s.push(format!("a.{} != {}", field, b));
+                        s.push(format!("{} != {}", field, b));
                     }
                     _ => {
                         // Not implemented
@@ -212,13 +212,13 @@ pub fn handle_gt_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("a.{} > '{}'", field, s));
+            seperated.push(format!("{} > '{}'", field, s));
         }
         Value::Number(n) => {
-            seperated.push(format!("a.{} > {}", field, n));
+            seperated.push(format!("{} > {}", field, n));
         }
         Value::Bool(b) => {
-            seperated.push(format!("a.{} > {}", field, b));
+            seperated.push(format!("{} > {}", field, b));
         }
         _ => {
             // Not implemented
@@ -233,13 +233,13 @@ pub fn handle_gte_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("a.{} >= '{}'", field, s));
+            seperated.push(format!("{} >= '{}'", field, s));
         }
         Value::Number(n) => {
-            seperated.push(format!("a.{} >= {}", field, n));
+            seperated.push(format!("{} >= {}", field, n));
         }
         Value::Bool(b) => {
-            seperated.push(format!("a.{} >= {}", field, b));
+            seperated.push(format!("{} >= {}", field, b));
         }
         _ => {
             // Not implemented
@@ -254,13 +254,13 @@ pub fn handle_lt_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("a.{} < '{}'", field, s));
+            seperated.push(format!("{} < '{}'", field, s));
         }
         Value::Number(n) => {
-            seperated.push(format!("a.{} < {}", field, n));
+            seperated.push(format!("{} < {}", field, n));
         }
         Value::Bool(b) => {
-            seperated.push(format!("a.{} < {}", field, b));
+            seperated.push(format!("{} < {}", field, b));
         }
         _ => {
             // Not implemented
@@ -275,13 +275,13 @@ pub fn handle_lte_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("a.{} <= '{}'", field, s));
+            seperated.push(format!("{} <= '{}'", field, s));
         }
         Value::Number(n) => {
-            seperated.push(format!("a.{} <= {}", field, n));
+            seperated.push(format!("{} <= {}", field, n));
         }
         Value::Bool(b) => {
-            seperated.push(format!("a.{} <= {}", field, b));
+            seperated.push(format!("{} <= {}", field, b));
         }
         _ => {
             // Not implemented
@@ -296,9 +296,9 @@ pub fn handle_is_null_operator(
 ) {
     if let Value::Bool(b) = value {
         if *b {
-            seperated.push(format!("a.{} IS NULL", field));
+            seperated.push(format!("{} IS NULL", field));
         } else {
-            seperated.push(format!("a.{} IS NOT NULL", field));
+            seperated.push(format!("{} IS NOT NULL", field));
         }
     }
 }

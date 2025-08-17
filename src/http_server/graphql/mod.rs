@@ -3,8 +3,9 @@ pub mod guard;
 use std::sync::Arc;
 
 use crate::database::attributes::IAttributes;
-use crate::models::schema::activity::{OrderByActivitySchema, WhereActivitySchema};
+use crate::models::schema::activity::{OrderActivitySchema, QueryActivitySchema};
 use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
+use crate::models::schema::bid::{OrderBidSchema, QueryBidSchema};
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
 use crate::models::schema::collection::stat::CollectionStatSchema;
 use crate::models::schema::data_point::FilterFloorChartSchema;
@@ -18,6 +19,7 @@ use crate::{
             ActivitySchema,
             profit_loss::{FilterProfitLossSchema, ProfitLossSchema},
         },
+        bid::BidSchema,
         collection::{
             CollectionSchema, FilterCollectionSchema,
             attribute::CollectionAttributeSchema,
@@ -32,7 +34,6 @@ use crate::{
         listing::{FilterListingSchema, ListingSchema},
         marketplace::MarketplaceSchema,
         nft::{FilterNftSchema, NftSchema},
-        offer::{FilterOfferSchema, OfferSchema},
         wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema},
     },
 };
@@ -78,8 +79,8 @@ impl Query {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<WhereActivitySchema>,
-        #[graphql(name = "order_by")] order: Option<OrderByActivitySchema>,
+        #[graphql(name = "where")] query: Option<QueryActivitySchema>,
+        #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
     ) -> Vec<ActivitySchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -137,13 +138,25 @@ impl Query {
             .expect("Failed to fetch nfts")
     }
 
-    async fn bids(&self, ctx: &Context<'_>, filter: Option<FilterOfferSchema>) -> Vec<OfferSchema> {
+    async fn bids(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryBidSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
+    ) -> Vec<BidSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
         db.bids()
-            .fetch_bids(filter)
+            .fetch_bids(limit, offset, query, order)
             .await
             .expect("Failed to fetch bids")
     }
