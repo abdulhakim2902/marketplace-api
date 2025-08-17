@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::models::schema::{OperatorSchema, OrderingType};
+use crate::models::schema::{OperatorSchema, OrderingType, nft::QueryNftSchema};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
 #[graphql(rename_fields = "snake_case")]
@@ -36,6 +36,7 @@ pub struct QueryAttributeSchema {
     pub value: Option<OperatorSchema<String>>,
     pub rarity: Option<OperatorSchema<BigDecimal>>,
     pub score: Option<OperatorSchema<BigDecimal>>,
+    pub nft: Option<QueryNftSchema>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]

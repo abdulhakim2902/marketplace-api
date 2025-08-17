@@ -1,3 +1,4 @@
+use crate::models::schema::nft::QueryNftSchema;
 use crate::models::schema::{Date, OperatorSchema, OrderingType, fetch_token_price};
 use crate::models::{
     marketplace::APT_DECIMAL,
@@ -83,6 +84,7 @@ pub struct QueryBidSchema {
     pub status: Option<OperatorSchema<String>>,
     #[graphql(name = "type")]
     pub bid_type: Option<OperatorSchema<String>>,
+    pub nft: Option<QueryNftSchema>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]

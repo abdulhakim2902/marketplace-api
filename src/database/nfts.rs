@@ -1,10 +1,12 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::models::schema::nft::FilterNftSchema;
+use crate::models::schema::nft::{FilterNftSchema, OrderNftSchemas, QueryNftSchema};
 use crate::models::{
     db::nft::{DbNft, DbNftUri},
     schema::nft::{CoinType, FilterType, NftSchema},
 };
+use crate::utils::schema::{handle_order, handle_query};
+use crate::utils::structs;
 use anyhow::Context;
 use chrono::Utc;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
@@ -17,6 +19,14 @@ pub trait INfts: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         items: Vec<DbNft>,
     ) -> anyhow::Result<PgQueryResult>;
+
+    async fn fetch_nfts_v2(
+        &self,
+        limit: i64,
+        offset: i64,
+        query: QueryNftSchema,
+        order: OrderNftSchemas,
+    ) -> anyhow::Result<Vec<NftSchema>>;
 
     async fn fetch_nfts(&self, filter: FilterNftSchema) -> anyhow::Result<Vec<NftSchema>>;
 
@@ -100,6 +110,92 @@ impl INfts for Nfts {
         .execute(&mut **tx)
         .await
         .context("Failed to insert nfts")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_nfts_v2(
+        &self,
+        limit: i64,
+        offset: i64,
+        query: QueryNftSchema,
+        order: OrderNftSchemas,
+    ) -> anyhow::Result<Vec<NftSchema>> {
+        let mut query_builder = QueryBuilder::<Postgres>::new(
+            r#"
+            WITH
+                nft_rarities AS (
+                    SELECT
+                        na.collection_id,
+                        na.nft_id,
+                        SUM(-LOG(2, na.rarity))             AS rarity
+                    FROM attributes na
+                    GROUP BY na.collection_id, na.nft_id
+                ),
+                nfts AS (
+                    SELECT 
+                        n.id,
+                        COALESCE(n.name, nm.name)                   AS name,
+                        owner,
+                        n.collection_id,
+                        burned,
+                        n.properties,
+                        n.token_id,
+                        COALESCE(n.description, nm.description)     AS description,
+                        COALESCE(nm.image, n.uri)                   AS image_url,
+                        nm.animation_url,
+                        nm.avatar_url,
+                        nm.youtube_url,
+                        nm.external_url,
+                        nm.background_color,
+                        royalty,
+                        version,
+                        na.rarity,
+                        CASE
+                            WHEN nr.rarity IS NOT NULL
+                            THEN RANK () OVER (
+                                PARTITION BY n.collection_id
+                                ORDER BY nr.rarity DESC
+                            )
+                            END                                     AS ranking
+                    FROM nfts n
+                        LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
+                        LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
+                )
+            SELECT * FROM nfts
+            WHERE
+            "#,
+        );
+
+        if let Some(object) = structs::to_map(&query).ok().flatten() {
+            handle_query(&mut query_builder, &object, "AND");
+        }
+
+        if query_builder.sql().trim().ends_with("WHERE") {
+            query_builder.push(" ");
+            query_builder.push_bind(true);
+        }
+
+        query_builder.push(" ORDER BY ");
+
+        if let Some(object) = structs::to_map(&order).ok().flatten() {
+            handle_order(&mut query_builder, &object);
+        }
+
+        if query_builder.sql().trim().ends_with("ORDER BY") {
+            query_builder.push("token_id");
+        }
+
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset);
+
+        let res = query_builder
+            .build_query_as::<NftSchema>()
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch nfts")?;
 
         Ok(res)
     }

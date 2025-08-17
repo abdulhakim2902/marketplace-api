@@ -1,8 +1,10 @@
 pub mod profit_loss;
 
 use crate::models::schema::{
-    Date, OperatorSchema, OrderingType, collection::CollectionSchema, fetch_collection, fetch_nft,
-    nft::NftSchema,
+    Date, OperatorSchema, OrderingType,
+    collection::CollectionSchema,
+    fetch_collection, fetch_nft,
+    nft::{NftSchema, QueryNftSchema},
 };
 use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
@@ -73,6 +75,7 @@ pub struct QueryActivitySchema {
     pub block_time: Option<OperatorSchema<Date>>,
     pub block_height: Option<OperatorSchema<i64>>,
     pub amount: Option<OperatorSchema<i64>>,
+    pub nft: Option<QueryNftSchema>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]

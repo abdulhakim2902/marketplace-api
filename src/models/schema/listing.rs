@@ -1,3 +1,4 @@
+use crate::models::schema::nft::QueryNftSchema;
 use crate::models::schema::{Date, OperatorSchema, OrderingType, fetch_token_price};
 use crate::models::{
     marketplace::APT_DECIMAL,
@@ -72,6 +73,7 @@ pub struct QueryListingSchema {
     pub price: Option<OperatorSchema<i64>>,
     pub seller: Option<OperatorSchema<String>>,
     pub tx_index: Option<OperatorSchema<i64>>,
+    pub nft: Option<QueryNftSchema>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]

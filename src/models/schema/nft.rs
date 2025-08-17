@@ -1,9 +1,9 @@
 use crate::models::schema::{
-    OrderingType, collection::CollectionSchema, fetch_collection, fetch_nft_top_offer,
+    OperatorSchema, OrderingType, collection::CollectionSchema, fetch_collection,
+    fetch_nft_top_offer,
 };
 use async_graphql::{ComplexObject, Context, Enum, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
@@ -28,15 +28,8 @@ pub struct NftSchema {
     pub background_color: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
-    pub rank: Option<i64>,
-    #[graphql(name = "rarity_score")]
-    pub score: Option<BigDecimal>,
-    pub updated_at: Option<DateTime<Utc>>,
-    pub last_sale: Option<i64>,
-    pub listed_at: Option<DateTime<Utc>>,
-    pub list_price: Option<i64>,
-    pub list_usd_price: Option<BigDecimal>,
-    pub attributes: Option<serde_json::Value>,
+    pub ranking: Option<i64>,
+    pub rarity: Option<BigDecimal>,
 }
 
 #[ComplexObject]
@@ -49,34 +42,65 @@ impl NftSchema {
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
+
+    // TODO: FETCH ATTRIBUTES
+    // TODO: FETCH LISTINGS
+    // TODO: FETCH BIDS
+    // TODO: FETCH ACTIONS
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, InputObject)]
-pub struct NftAttributeSchema {
-    pub attr_type: Option<String>,
-    pub value: Option<String>,
-    pub rarity: Option<BigDecimal>,
-    pub score: Option<BigDecimal>,
+#[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct QueryNftSchema {
+    #[graphql(name = "_or")]
+    pub _or: Option<Box<QueryNftSchema>>,
+    #[graphql(name = "_and")]
+    pub _and: Option<Box<QueryNftSchema>>,
+    #[graphql(name = "_not")]
+    pub _not: Option<Box<QueryNftSchema>>,
+    pub id: Option<OperatorSchema<Uuid>>,
+    pub name: Option<OperatorSchema<String>>,
+    pub owner: Option<OperatorSchema<String>>,
+    pub collection_id: Option<OperatorSchema<Uuid>>,
+    pub burned: Option<OperatorSchema<bool>>,
+    // pub properties: Option<serde_json::Value>,
+    pub description: Option<OperatorSchema<String>>,
+    #[graphql(name = "media_url")]
+    pub image_url: Option<OperatorSchema<String>>,
+    pub token_id: Option<OperatorSchema<String>>,
+    pub animation_url: Option<OperatorSchema<String>>,
+    pub avatar_url: Option<OperatorSchema<String>>,
+    pub external_url: Option<OperatorSchema<String>>,
+    pub youtube_url: Option<OperatorSchema<String>>,
+    pub background_color: Option<OperatorSchema<String>>,
+    pub royalty: Option<OperatorSchema<BigDecimal>>,
+    pub version: Option<OperatorSchema<String>>,
+    pub ranking: Option<OperatorSchema<i64>>,
+    pub rarity: Option<OperatorSchema<BigDecimal>>,
 }
 
-#[async_graphql::Object()]
-impl NftAttributeSchema {
-    #[graphql(name = "type")]
-    async fn attr_type(&self) -> Option<&str> {
-        self.attr_type.as_ref().map(|e| e.as_str())
-    }
-
-    async fn value(&self) -> Option<&str> {
-        self.value.as_ref().map(|e| e.as_str())
-    }
-
-    async fn rarity(&self) -> Option<String> {
-        self.rarity.as_ref().map(|e| e.to_string())
-    }
-
-    async fn score(&self) -> Option<String> {
-        self.score.as_ref().map(|e| e.to_string())
-    }
+#[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct OrderNftSchemas {
+    pub id: Option<OrderingType>,
+    pub name: Option<OrderingType>,
+    pub owner: Option<OrderingType>,
+    pub collection_id: Option<OrderingType>,
+    pub burned: Option<OrderingType>,
+    // pub properties: Option<serde_json::Value>,
+    pub description: Option<OrderingType>,
+    #[graphql(name = "media_url")]
+    pub image_url: Option<OrderingType>,
+    pub token_id: Option<OrderingType>,
+    pub animation_url: Option<OrderingType>,
+    pub avatar_url: Option<OrderingType>,
+    pub external_url: Option<OrderingType>,
+    pub youtube_url: Option<OrderingType>,
+    pub background_color: Option<OrderingType>,
+    pub royalty: Option<OrderingType>,
+    pub version: Option<OrderingType>,
+    pub ranking: Option<OrderingType>,
+    pub rarity: Option<OrderingType>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, InputObject)]

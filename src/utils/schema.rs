@@ -12,6 +12,14 @@ pub fn handle_query(
     let mut or_operator_builder = QueryBuilder::<Postgres>::new("");
     let mut not_operator_builder = QueryBuilder::<Postgres>::new("");
 
+    let mut nft_builder = QueryBuilder::<Postgres>::new(
+        r#"
+        nft_id IN (
+            SELECT id FROM nfts
+            WHERE
+    "#,
+    );
+
     let mut field_operator_builder = QueryBuilder::<Postgres>::new("(");
     let mut field_seperated = field_operator_builder.separated(conn);
 
@@ -38,6 +46,15 @@ pub fn handle_query(
                     handle_query(&mut or_operator_builder, o, "OR");
                     if or_operator_builder.sql() != "()" {
                         seperated.push(or_operator_builder.sql());
+                    }
+                }
+            }
+            "nft" => {
+                if let Value::Object(o) = value {
+                    handle_query(&mut nft_builder, o, "AND");
+                    if !nft_builder.sql().trim().ends_with("WHERE") {
+                        nft_builder.push(")");
+                        seperated.push(nft_builder.sql());
                     }
                 }
             }
