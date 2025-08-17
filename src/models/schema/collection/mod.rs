@@ -22,7 +22,7 @@ use crate::{
         fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
     },
 };
-use async_graphql::{ComplexObject, Context, Enum, InputObject, SimpleObject};
+use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
@@ -43,22 +43,12 @@ pub struct CollectionSchema {
     pub twitter: Option<String>,
     pub royalty: Option<BigDecimal>,
     pub floor: Option<i64>,
-    pub owners: Option<i64>,
     pub volume: Option<i64>,
     pub volume_usd: Option<BigDecimal>,
-    pub sales: Option<i64>,
-    pub listed: Option<i64>,
 }
 
 #[ComplexObject]
 impl CollectionSchema {
-    #[graphql(name = "market_cap")]
-    async fn market_cap(&self) -> Option<i64> {
-        self.supply
-            .zip(self.floor)
-            .map(|(supply, floor)| supply * floor)
-    }
-
     #[graphql(name = "total_nft")]
     async fn total_nft(&self, ctx: &Context<'_>, wallet_address: Option<String>) -> Option<i64> {
         fetch_total_nft(
@@ -173,46 +163,26 @@ pub struct QueryCollectionSchema {
     pub floor: Option<OperatorSchema<i64>>,
     pub volume: Option<OperatorSchema<i64>>,
     pub volume_usd: Option<OperatorSchema<BigDecimal>>,
-    pub activities: Option<QueryActivitySchema>,
-    pub attributes: Option<QueryAttributeSchema>,
-    pub bids: Option<QueryBidSchema>,
+    pub activities: Option<Arc<QueryActivitySchema>>,
+    pub attributes: Option<Arc<QueryAttributeSchema>>,
+    pub bids: Option<Arc<QueryBidSchema>>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterCollectionSchema {
-    #[graphql(name = "where")]
-    pub where_: Option<WhereCollectionSchema>,
-    #[graphql(name = "order_by")]
-    pub order_by: Option<OrderCollectionSchema>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereCollectionSchema {
-    pub search: Option<String>,
-    pub wallet_address: Option<String>,
-    pub collection_id: Option<String>,
-    pub periods: Option<PeriodType>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
 pub struct OrderCollectionSchema {
-    pub volume: Option<OrderingType>,
+    pub id: Option<OrderingType>,
+    pub slug: Option<OrderingType>,
+    pub supply: Option<OrderingType>,
+    pub title: Option<OrderingType>,
+    pub description: Option<OrderingType>,
+    pub cover_url: Option<OrderingType>,
+    pub verified: Option<OrderingType>,
+    pub website: Option<OrderingType>,
+    pub discord: Option<OrderingType>,
+    pub twitter: Option<OrderingType>,
+    pub royalty: Option<OrderingType>,
     pub floor: Option<OrderingType>,
-    pub owners: Option<OrderingType>,
-    pub market_cap: Option<OrderingType>,
-    pub sales: Option<OrderingType>,
-    pub listed: Option<OrderingType>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
-#[graphql(rename_items = "snake_case")]
-pub enum PeriodType {
-    Hours1,
-    Hours6,
-    Days1,
-    Days7,
+    pub volume: Option<OrderingType>,
+    pub volume_usd: Option<OrderingType>,
 }

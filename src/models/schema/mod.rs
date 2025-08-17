@@ -1,15 +1,9 @@
-use crate::database::token_prices::ITokenPrices;
-use crate::models::schema::collection::FilterCollectionSchema;
-use crate::models::schema::nft::FilterNftSchema;
 use crate::{
     database::{
-        Database, IDatabase, attributes::IAttributes, bids::IBids, collections::ICollections,
-        nfts::INfts,
+        Database, IDatabase, attributes::IAttributes, bids::IBids, nfts::INfts,
+        token_prices::ITokenPrices,
     },
-    models::schema::{
-        collection::{CollectionSchema, WhereCollectionSchema},
-        nft::{NftSchema, WhereNftSchema},
-    },
+    models::schema::nft::{FilterNftSchema, NftSchema, WhereNftSchema},
 };
 use async_graphql::{Context, Enum, InputObject, InputType, OutputType};
 use bigdecimal::BigDecimal;
@@ -98,36 +92,6 @@ pub struct OperatorSchema<T: InputType + OutputType> {
     _neq: Option<T>,
     #[graphql(name = "_is_null")]
     _is_null: Option<bool>,
-}
-
-async fn fetch_collection(
-    ctx: &Context<'_>,
-    collection_id: Option<String>,
-) -> Option<CollectionSchema> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    let query = WhereCollectionSchema {
-        collection_id,
-        ..Default::default()
-    };
-
-    let filter = FilterCollectionSchema {
-        where_: Some(query),
-        ..Default::default()
-    };
-
-    db.collections()
-        .fetch_collections(filter)
-        .await
-        .unwrap_or_default()
-        .first()
-        .cloned()
 }
 
 async fn fetch_nft(

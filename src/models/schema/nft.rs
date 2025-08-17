@@ -3,19 +3,21 @@ use std::sync::Arc;
 use crate::{
     database::{
         Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
-        listings::IListings,
+        collections::Collections, listings::IListings,
     },
     models::schema::{
         OperatorSchema, OrderingType,
         activity::{ActivitySchema, OrderActivitySchema, QueryActivitySchema},
         attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
         bid::{BidSchema, OrderBidSchema, QueryBidSchema},
-        collection::CollectionSchema,
-        fetch_collection, fetch_nft_top_offer,
+        collection::{CollectionSchema, QueryCollectionSchema},
+        fetch_nft_top_offer,
         listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
     },
 };
-use async_graphql::{ComplexObject, Context, Enum, InputObject, SimpleObject};
+use async_graphql::{
+    ComplexObject, Context, Enum, InputObject, SimpleObject, dataloader::DataLoader,
+};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
@@ -53,7 +55,24 @@ impl NftSchema {
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let data_loader = DataLoader::new(
+            Collections::new(Arc::new(db.get_pool().clone())),
+            tokio::spawn,
+        );
+
+        if let Some(collection_id) = self.collection_id.as_ref() {
+            data_loader
+                .load_one(collection_id.clone())
+                .await
+                .ok()
+                .flatten()
+        } else {
+            None
+        }
     }
 
     async fn attributes(
@@ -177,6 +196,10 @@ pub struct QueryNftSchema {
     pub version: Option<OperatorSchema<String>>,
     pub ranking: Option<OperatorSchema<i64>>,
     pub rarity: Option<OperatorSchema<BigDecimal>>,
+    pub collection: Option<Arc<QueryCollectionSchema>>,
+    pub activity: Option<Arc<QueryActivitySchema>>,
+    pub attribute: Option<Arc<QueryAttributeSchema>>,
+    pub listings: Option<Arc<QueryListingSchema>>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]

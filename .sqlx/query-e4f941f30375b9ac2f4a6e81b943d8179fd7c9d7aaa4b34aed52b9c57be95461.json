@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id,\n                slug,\n                supply,\n                title,\n                description,\n                cover_url,\n                verified,\n                website,\n                discord,\n                twitter,\n                royalty,\n                floor,\n                volume,\n                volume_usd\n            FROM collections\n            WHERE id = ANY($1)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "supply",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "cover_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "website",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "discord",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "twitter",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "royalty",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 11,
+        "name": "floor",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "volume",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 13,
+        "name": "volume_usd",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "e4f941f30375b9ac2f4a6e81b943d8179fd7c9d7aaa4b34aed52b9c57be95461"
+}

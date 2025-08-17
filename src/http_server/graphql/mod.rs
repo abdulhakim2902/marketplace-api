@@ -15,7 +15,7 @@ use crate::{
         attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
         bid::{BidSchema, OrderBidSchema, QueryBidSchema},
         collection::{
-            CollectionSchema, FilterCollectionSchema,
+            CollectionSchema, OrderCollectionSchema, QueryCollectionSchema,
             attribute::CollectionAttributeSchema,
             nft_change::{FilterNftChangeSchema, NftChangeSchema},
             nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
@@ -105,14 +105,22 @@ impl Query {
     async fn collections(
         &self,
         ctx: &Context<'_>,
-        filter: Option<FilterCollectionSchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryCollectionSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderCollectionSchema>,
     ) -> Vec<CollectionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
         db.collections()
-            .fetch_collections(filter.unwrap_or_default())
+            .fetch_collections(limit, offset, query, order)
             .await
             .expect("Failed to fetch collections")
     }

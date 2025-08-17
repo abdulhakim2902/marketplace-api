@@ -20,6 +20,14 @@ pub fn handle_query(
     "#,
     );
 
+    let mut collection_builder = QueryBuilder::<Postgres>::new(
+        r#"
+        collection_id IN (
+            SELECT id FROM collections
+            WHERE
+    "#,
+    );
+
     let mut field_operator_builder = QueryBuilder::<Postgres>::new("(");
     let mut field_seperated = field_operator_builder.separated(conn);
 
@@ -55,6 +63,15 @@ pub fn handle_query(
                     if !nft_builder.sql().trim().ends_with("WHERE") {
                         nft_builder.push(")");
                         seperated.push(nft_builder.sql());
+                    }
+                }
+            }
+            "collection" => {
+                if let Value::Object(o) = value {
+                    handle_query(&mut collection_builder, o, "AND");
+                    if !collection_builder.sql().trim().ends_with("WHERE") {
+                        collection_builder.push(")");
+                        seperated.push(collection_builder.sql());
                     }
                 }
             }

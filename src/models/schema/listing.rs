@@ -3,9 +3,7 @@ use std::sync::Arc;
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{
-        Date, OperatorSchema, OrderingType,
-        collection::CollectionSchema,
-        fetch_collection, fetch_nft, fetch_token_price,
+        Date, OperatorSchema, OrderingType, fetch_nft, fetch_token_price,
         nft::{NftSchema, QueryNftSchema},
     },
 };
@@ -41,10 +39,6 @@ impl ListingSchema {
 
         self.price
             .map(|e| (BigDecimal::from(e) * token_price / APT_DECIMAL).to_plain_string())
-    }
-
-    async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
-        fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
