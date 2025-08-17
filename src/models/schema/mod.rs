@@ -72,6 +72,11 @@ impl Default for OrderingType {
         name = "OperatorSchemaTypeOutDateTime",
         input_name = "OperatorSchemaTypeInDateTime",
         params(Date)
+    ),
+    concrete(
+        name = "OperatorSchemaTypeOutBool",
+        input_name = "OperatorSchemaTypeInBool",
+        params(bool)
     )
 )]
 pub struct OperatorSchema<T: InputType + OutputType> {

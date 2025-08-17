@@ -169,7 +169,7 @@ impl IBids for Bids {
             .build_query_as::<BidSchema>()
             .fetch_all(&*self.pool)
             .await
-            .context("Failed to fetch activities")?;
+            .context("Failed to fetch bids")?;
 
         Ok(res)
     }

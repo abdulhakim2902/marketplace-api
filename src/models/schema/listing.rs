@@ -1,4 +1,4 @@
-use crate::models::schema::fetch_token_price;
+use crate::models::schema::{Date, OperatorSchema, OrderingType, fetch_token_price};
 use crate::models::{
     marketplace::APT_DECIMAL,
     schema::{collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema},
@@ -7,9 +7,10 @@ use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject, FromRow)]
 #[graphql(complex, rename_fields = "snake_case")]
 pub struct ListingSchema {
     pub id: Uuid,
@@ -50,18 +51,42 @@ impl ListingSchema {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterListingSchema {
-    #[graphql(name = "where")]
-    pub where_: Option<WhereListingSchema>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
+#[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct QueryListingSchema {
+    #[graphql(name = "_or")]
+    pub _or: Option<Box<QueryListingSchema>>,
+    #[graphql(name = "_and")]
+    pub _and: Option<Box<QueryListingSchema>>,
+    #[graphql(name = "_not")]
+    pub _not: Option<Box<QueryListingSchema>>,
+    pub id: Option<OperatorSchema<Uuid>>,
+    pub block_height: Option<OperatorSchema<i64>>,
+    pub block_time: Option<OperatorSchema<Date>>,
+    pub market_contract_id: Option<OperatorSchema<String>>,
+    pub listed: Option<OperatorSchema<bool>>,
+    pub market_name: Option<OperatorSchema<String>>,
+    pub collection_id: Option<OperatorSchema<Uuid>>,
+    pub nft_id: Option<OperatorSchema<Uuid>>,
+    pub nonce: Option<OperatorSchema<String>>,
+    pub price: Option<OperatorSchema<i64>>,
+    pub seller: Option<OperatorSchema<String>>,
+    pub tx_index: Option<OperatorSchema<i64>>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct WhereListingSchema {
-    pub id: Option<String>,
-    pub nft_id: Option<String>,
-    pub is_listed: Option<bool>,
+pub struct OrderListingSchema {
+    pub id: Option<OrderingType>,
+    pub block_height: Option<OrderingType>,
+    pub block_time: Option<OrderingType>,
+    pub market_contract_id: Option<OrderingType>,
+    pub listed: Option<OrderingType>,
+    pub market_name: Option<OrderingType>,
+    pub collection_id: Option<OrderingType>,
+    pub nft_id: Option<OrderingType>,
+    pub nonce: Option<OrderingType>,
+    pub price: Option<OrderingType>,
+    pub seller: Option<OrderingType>,
+    pub tx_index: Option<OrderingType>,
 }

@@ -1,10 +1,11 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
-use crate::models::schema::listing::FilterListingSchema;
+use crate::models::schema::listing::{OrderListingSchema, QueryListingSchema};
 use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
+use crate::utils::schema::{handle_order, handle_query};
+use crate::utils::structs;
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
-use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait IListings: Send + Sync {
@@ -16,7 +17,10 @@ pub trait IListings: Send + Sync {
 
     async fn fetch_listings(
         &self,
-        filter: Option<FilterListingSchema>,
+        limit: i64,
+        offset: i64,
+        query: QueryListingSchema,
+        order: OrderListingSchema,
     ) -> anyhow::Result<Vec<ListingSchema>>;
 }
 
@@ -95,35 +99,47 @@ impl IListings for Listings {
 
     async fn fetch_listings(
         &self,
-        filter: Option<FilterListingSchema>,
+        limit: i64,
+        offset: i64,
+        query: QueryListingSchema,
+        order: OrderListingSchema,
     ) -> anyhow::Result<Vec<ListingSchema>> {
-        let filter = filter.unwrap_or_default();
-
-        let query = filter.where_.unwrap_or_default();
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
-        let listing_id = query.id.map(|e| Uuid::from_str(&e).ok()).flatten();
-        let nft_id = query.nft_id.map(|e| Uuid::from_str(&e).ok()).flatten();
-
-        let res = sqlx::query_as!(
-            ListingSchema,
+        let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
-            SELECT * FROM listings l
-            WHERE ($1::UUID IS NULL OR l.id = $1)
-                AND ($2::UUID IS NULL OR l.nft_id = $2) 
-                AND $3::BOOL IS NULL OR l.listed = $3
-            LIMIT $4 OFFSET $5
+            SELECT * FROM listings
+            WHERE
             "#,
-            listing_id,
-            nft_id,
-            query.is_listed,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch nft listings")?;
+        );
+
+        if let Some(object) = structs::to_map(&query).ok().flatten() {
+            handle_query(&mut query_builder, &object, "AND");
+        }
+
+        if query_builder.sql().trim().ends_with("WHERE") {
+            query_builder.push(" ");
+            query_builder.push_bind(true);
+        }
+
+        query_builder.push(" ORDER BY ");
+
+        if let Some(object) = structs::to_map(&order).ok().flatten() {
+            handle_order(&mut query_builder, &object);
+        }
+
+        if query_builder.sql().trim().ends_with("ORDER BY") {
+            query_builder.push("block_time");
+        }
+
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset);
+
+        let res = query_builder
+            .build_query_as::<ListingSchema>()
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch bids")?;
 
         Ok(res)
     }

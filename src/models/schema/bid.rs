@@ -57,26 +57,6 @@ impl BidSchema {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterOfferSchema {
-    #[graphql(name = "where")]
-    pub where_: Option<WhereOfferSchema>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereOfferSchema {
-    pub nft_id: Option<String>,
-    pub collection_id: Option<String>,
-    pub bidder: Option<String>,
-    pub receiver: Option<String>,
-    pub status: Option<String>,
-    #[graphql(name = "type")]
-    pub bid_type: Option<String>,
-}
-
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
 pub struct QueryBidSchema {

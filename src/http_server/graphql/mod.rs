@@ -9,6 +9,7 @@ use crate::models::schema::bid::{OrderBidSchema, QueryBidSchema};
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
 use crate::models::schema::collection::stat::CollectionStatSchema;
 use crate::models::schema::data_point::FilterFloorChartSchema;
+use crate::models::schema::listing::{OrderListingSchema, QueryListingSchema};
 use crate::{
     database::{
         Database, IDatabase, activities::IActivities, bids::IBids, collections::ICollections,
@@ -31,7 +32,7 @@ use crate::{
             trending::{FilterTrendingSchema, TrendingSchema},
         },
         data_point::DataPointSchema,
-        listing::{FilterListingSchema, ListingSchema},
+        listing::ListingSchema,
         marketplace::MarketplaceSchema,
         nft::{FilterNftSchema, NftSchema},
         wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema},
@@ -126,14 +127,22 @@ impl Query {
     async fn listings(
         &self,
         ctx: &Context<'_>,
-        filter: Option<FilterListingSchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryListingSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderListingSchema>,
     ) -> Vec<ListingSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
         db.listings()
-            .fetch_listings(filter)
+            .fetch_listings(limit, offset, query, order)
             .await
             .expect("Failed to fetch nfts")
     }
