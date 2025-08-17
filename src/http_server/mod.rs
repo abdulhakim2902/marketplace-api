@@ -37,7 +37,6 @@ where
     pub fn new(db: Arc<TDb>, _cache: Arc<TCache>, config: Arc<Config>) -> Self {
         let schema = Schema::build(Query, EmptyMutation, EmptySubscription)
             .data(Arc::clone(&db))
-            .limit_depth(3)
             .finish();
 
         Self {
