@@ -1,28 +1,23 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::models::schema::collection::PeriodType;
-use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
-use crate::models::schema::collection::stat::CollectionStatSchema;
-use crate::models::schema::collection::top_wallet::{FilterTopWalletSchema, TopWalletType};
-use crate::models::schema::data_point::FilterFloorChartSchema;
 use crate::{
     models::{
         db::collection::DbCollection,
         schema::{
             collection::{
-                CollectionSchema, FilterCollectionSchema,
+                CollectionSchema, FilterCollectionSchema, PeriodType,
                 attribute::CollectionAttributeSchema,
                 nft_change::FilterNftChangeSchema,
                 nft_change::NftChangeSchema,
                 nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
                 nft_holder::NftHolderSchema,
-                profit_leaderboard::FilterLeaderboardSchema,
                 profit_leaderboard::ProfitLeaderboardSchema,
+                stat::CollectionStatSchema,
                 top_wallet::TopWalletSchema,
-                trending::FilterTrendingSchema,
+                top_wallet::{FilterTopWalletSchema, TopWalletType},
                 trending::TrendingSchema,
             },
-            data_point::DataPointSchema,
+            data_point::{DataPointSchema, FilterFloorChartSchema},
         },
     },
     utils::string_utils,
@@ -49,7 +44,9 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_trending(
         &self,
-        filter: FilterTrendingSchema,
+        collection_id: Uuid,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<TrendingSchema>>;
 
     async fn fetch_nft_changes(
@@ -59,12 +56,14 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_profit_leaderboards(
         &self,
-        filter: FilterLeaderboardSchema,
+        collection_id: Uuid,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>>;
 
     async fn fetch_attributes(
         &self,
-        collection_id: &str,
+        collection_id: Uuid,
     ) -> anyhow::Result<Vec<CollectionAttributeSchema>>;
 
     async fn fetch_top_wallets(
@@ -74,17 +73,19 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_nft_holders(
         &self,
-        filter: FilterNftHolderSchema,
+        collection_id: Uuid,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<NftHolderSchema>>;
 
     async fn fetch_nft_amount_distribution(
         &self,
-        collection_id: &str,
+        collection_id: Uuid,
     ) -> anyhow::Result<NftAmountDistributionSchema>;
 
     async fn fetch_nft_period_distribution(
         &self,
-        id: &str,
+        collection_id: Uuid,
     ) -> anyhow::Result<NftPeriodDistributionSchema>;
 
     async fn fetch_floor_charts(
@@ -411,14 +412,10 @@ impl ICollections for Collections {
 
     async fn fetch_trending(
         &self,
-        filter: FilterTrendingSchema,
+        collection_id: Uuid,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<TrendingSchema>> {
-        let query = filter.where_;
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
-        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
-
         let res = sqlx::query_as!(
             TrendingSchema,
             r#"
@@ -518,14 +515,10 @@ impl ICollections for Collections {
 
     async fn fetch_profit_leaderboards(
         &self,
-        filter: FilterLeaderboardSchema,
+        collection_id: Uuid,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<ProfitLeaderboardSchema>> {
-        let query = filter.where_;
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
-        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
-
         let res = sqlx::query_as!(
             ProfitLeaderboardSchema,
             r#"
@@ -563,10 +556,8 @@ impl ICollections for Collections {
 
     async fn fetch_attributes(
         &self,
-        collection_id: &str,
+        collection_id: Uuid,
     ) -> anyhow::Result<Vec<CollectionAttributeSchema>> {
-        let collection_id = Uuid::from_str(collection_id).ok();
-
         let res = sqlx::query_as!(
             CollectionAttributeSchema,
             r#"
@@ -651,14 +642,10 @@ impl ICollections for Collections {
 
     async fn fetch_nft_holders(
         &self,
-        filter: FilterNftHolderSchema,
+        collection_id: Uuid,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<NftHolderSchema>> {
-        let query = filter.where_;
-
-        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         let res = sqlx::query_as!(
             NftHolderSchema,
             r#"
@@ -721,9 +708,8 @@ impl ICollections for Collections {
 
     async fn fetch_nft_amount_distribution(
         &self,
-        collection_id: &str,
+        collection_id: Uuid,
     ) -> anyhow::Result<NftAmountDistributionSchema> {
-        let collection_id = Uuid::from_str(collection_id).ok();
         let res = sqlx::query_as!(
             NftAmountDistributionSchema,
             r#"
@@ -783,9 +769,8 @@ impl ICollections for Collections {
 
     async fn fetch_nft_period_distribution(
         &self,
-        id: &str,
+        collection_id: Uuid,
     ) -> anyhow::Result<NftPeriodDistributionSchema> {
-        let collection_id = Uuid::from_str(id).ok();
         let res = sqlx::query_as!(
             NftPeriodDistributionSchema,
             r#"

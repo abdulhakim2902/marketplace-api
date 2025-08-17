@@ -1,7 +1,7 @@
 use crate::models::schema::{
     collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema,
 };
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
+use async_graphql::{ComplexObject, Context, SimpleObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -31,18 +31,4 @@ impl ProfitLossSchema {
     async fn collecton(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterProfitLossSchema {
-    #[graphql(name = "where")]
-    pub where_: Option<WhereProfitLossSchema>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereProfitLossSchema {
-    pub wallet_address: Option<String>,
 }

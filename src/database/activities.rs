@@ -6,7 +6,7 @@ use crate::{
         schema::{
             activity::{
                 ActivitySchema, OrderActivitySchema, QueryActivitySchema,
-                profit_loss::{FilterProfitLossSchema, ProfitLossSchema},
+                profit_loss::ProfitLossSchema,
             },
             data_point::DataPointSchema,
         },
@@ -52,7 +52,9 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_profit_and_loss(
         &self,
-        filter: Option<FilterProfitLossSchema>,
+        wallet_address: &str,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<ProfitLossSchema>>;
 }
 
@@ -235,14 +237,10 @@ impl IActivities for Activities {
 
     async fn fetch_profit_and_loss(
         &self,
-        filter: Option<FilterProfitLossSchema>,
+        wallet_address: &str,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<ProfitLossSchema>> {
-        let filter = filter.unwrap_or_default();
-
-        let query = filter.where_.unwrap_or_default();
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
         let res = sqlx::query_as!(
             ProfitLossSchema,
             r#"
@@ -259,7 +257,7 @@ impl IActivities for Activities {
                 AND ($1::TEXT IS NULL OR $1::TEXT = '' OR ra.receiver = $1)
             LIMIT $2 OFFSET $3
             "#,
-            query.wallet_address,
+            wallet_address,
             limit,
             offset,
         )

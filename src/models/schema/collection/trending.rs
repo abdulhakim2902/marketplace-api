@@ -1,7 +1,7 @@
 use crate::models::schema::{
     collection::CollectionSchema, fetch_collection, fetch_nft, nft::NftSchema,
 };
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
+use async_graphql::{ComplexObject, Context, SimpleObject};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -28,18 +28,4 @@ impl TrendingSchema {
         )
         .await
     }
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterTrendingSchema {
-    #[graphql(name = "where")]
-    pub where_: WhereTrendingSchema,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereTrendingSchema {
-    pub collection_id: String,
 }

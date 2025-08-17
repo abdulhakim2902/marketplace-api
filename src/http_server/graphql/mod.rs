@@ -2,39 +2,33 @@ pub mod guard;
 
 use std::sync::Arc;
 
-use crate::database::attributes::IAttributes;
-use crate::models::schema::activity::{OrderActivitySchema, QueryActivitySchema};
-use crate::models::schema::attribute::{
-    AttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
-};
-use crate::models::schema::bid::{OrderBidSchema, QueryBidSchema};
-use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
-use crate::models::schema::collection::stat::CollectionStatSchema;
-use crate::models::schema::data_point::FilterFloorChartSchema;
-use crate::models::schema::listing::{OrderListingSchema, QueryListingSchema};
 use crate::{
     database::{
-        Database, IDatabase, activities::IActivities, bids::IBids, collections::ICollections,
-        listings::IListings, marketplaces::IMarketplaces, nfts::INfts, wallets::IWallets,
+        Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
+        collections::ICollections, listings::IListings, marketplaces::IMarketplaces, nfts::INfts,
+        wallets::IWallets,
     },
     models::schema::{
         activity::{
-            ActivitySchema,
-            profit_loss::{FilterProfitLossSchema, ProfitLossSchema},
+            ActivitySchema, OrderActivitySchema, QueryActivitySchema, profit_loss::ProfitLossSchema,
         },
-        bid::BidSchema,
+        attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
+        bid::{BidSchema, OrderBidSchema, QueryBidSchema},
         collection::{
             CollectionSchema, FilterCollectionSchema,
             attribute::CollectionAttributeSchema,
             nft_change::{FilterNftChangeSchema, NftChangeSchema},
             nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
             nft_holder::NftHolderSchema,
-            profit_leaderboard::{FilterLeaderboardSchema, ProfitLeaderboardSchema},
+            profit_leaderboard::ProfitLeaderboardSchema,
+            stat::CollectionStatSchema,
             top_wallet::{FilterTopWalletSchema, TopWalletSchema},
-            trending::{FilterTrendingSchema, TrendingSchema},
+            trending::TrendingSchema,
         },
         data_point::DataPointSchema,
+        data_point::FilterFloorChartSchema,
         listing::ListingSchema,
+        listing::{OrderListingSchema, QueryListingSchema},
         marketplace::MarketplaceSchema,
         nft::{FilterNftSchema, NftSchema},
         wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema},
@@ -42,6 +36,7 @@ use crate::{
 };
 use async_graphql::{Context, Object, http::GraphiQLSource};
 use axum::response::{Html, IntoResponse};
+use uuid::Uuid;
 
 pub async fn graphql() -> impl IntoResponse {
     Html(GraphiQLSource::build().endpoint("/gql").finish())
@@ -224,14 +219,19 @@ impl Query {
     async fn collection_trending(
         &self,
         ctx: &Context<'_>,
-        filter: FilterTrendingSchema,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        collection_id: Uuid,
     ) -> Vec<TrendingSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
         db.collections()
-            .fetch_trending(filter)
+            .fetch_trending(collection_id, limit, offset)
             .await
             .expect("Failed to fetch collection trending")
     }
@@ -254,14 +254,19 @@ impl Query {
     async fn collection_profit_leaderboards(
         &self,
         ctx: &Context<'_>,
-        filter: FilterLeaderboardSchema,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        collection_id: Uuid,
     ) -> Vec<ProfitLeaderboardSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
         db.collections()
-            .fetch_profit_leaderboards(filter)
+            .fetch_profit_leaderboards(collection_id, limit, offset)
             .await
             .expect("Failed to fetch collection nft period distribution")
     }
@@ -299,14 +304,19 @@ impl Query {
     async fn collection_nft_holders(
         &self,
         ctx: &Context<'_>,
-        filter: FilterNftHolderSchema,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        collection_id: Uuid,
     ) -> Vec<NftHolderSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
         db.collections()
-            .fetch_nft_holders(filter)
+            .fetch_nft_holders(collection_id, limit, offset)
             .await
             .expect("Failed to fetch nft holders")
     }
@@ -314,14 +324,14 @@ impl Query {
     async fn collection_attributes(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        collection_id: Uuid,
     ) -> Vec<CollectionAttributeSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
         db.collections()
-            .fetch_attributes(&collection_id)
+            .fetch_attributes(collection_id)
             .await
             .expect("Failed to fetch collection attributes")
     }
@@ -329,14 +339,14 @@ impl Query {
     async fn collection_nft_amount_distribution(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        collection_id: Uuid,
     ) -> Option<NftAmountDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
         db.collections()
-            .fetch_nft_amount_distribution(&collection_id)
+            .fetch_nft_amount_distribution(collection_id)
             .await
             .ok()
     }
@@ -344,14 +354,14 @@ impl Query {
     async fn collection_nft_period_distribution(
         &self,
         ctx: &Context<'_>,
-        id: String,
+        collection_id: Uuid,
     ) -> Option<NftPeriodDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
         db.collections()
-            .fetch_nft_period_distribution(&id)
+            .fetch_nft_period_distribution(collection_id)
             .await
             .ok()
     }
@@ -362,14 +372,19 @@ impl Query {
     async fn profit_loss_activities(
         &self,
         ctx: &Context<'_>,
-        filter: Option<FilterProfitLossSchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        wallet_address: String,
     ) -> Vec<ProfitLossSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
         db.activities()
-            .fetch_profit_and_loss(filter)
+            .fetch_profit_and_loss(&wallet_address, limit, offset)
             .await
             .expect("Failed to fetch wallet profit loss")
     }
