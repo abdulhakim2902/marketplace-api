@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use crate::database::attributes::IAttributes;
 use crate::models::schema::activity::{OrderActivitySchema, QueryActivitySchema};
-use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
+use crate::models::schema::attribute::{
+    AttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+};
 use crate::models::schema::bid::{OrderBidSchema, QueryBidSchema};
 use crate::models::schema::collection::nft_holder::FilterNftHolderSchema;
 use crate::models::schema::collection::stat::CollectionStatSchema;
@@ -63,14 +65,22 @@ impl Query {
     async fn attributes(
         &self,
         ctx: &Context<'_>,
-        filter: Option<FilterAttributeSchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
     ) -> Vec<AttributeSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
         db.attributes()
-            .fetch_attributes(filter.unwrap_or_default())
+            .fetch_attributes(limit, offset, query, order)
             .await
             .expect("Failed to fetch attributes")
     }

@@ -1,7 +1,11 @@
 use std::{str::FromStr, sync::Arc};
 
 use crate::models::db::attribute::DbAttribute;
-use crate::models::schema::attribute::{AttributeSchema, FilterAttributeSchema};
+use crate::models::schema::attribute::{
+    AttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+};
+use crate::utils::schema::{handle_order, handle_query};
+use crate::utils::structs;
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
@@ -17,7 +21,10 @@ pub trait IAttributes: Send + Sync {
 
     async fn fetch_attributes(
         &self,
-        filter: FilterAttributeSchema,
+        limit: i64,
+        offset: i64,
+        query: QueryAttributeSchema,
+        order: OrderAttributeSchema,
     ) -> anyhow::Result<Vec<AttributeSchema>>;
 
     async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
@@ -81,45 +88,55 @@ impl IAttributes for Attributes {
 
     async fn fetch_attributes(
         &self,
-        filter: FilterAttributeSchema,
+        limit: i64,
+        offset: i64,
+        query: QueryAttributeSchema,
+        order: OrderAttributeSchema,
     ) -> anyhow::Result<Vec<AttributeSchema>> {
-        let query = filter.where_.unwrap_or_default();
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
-        let attribute_id = query.id.map(|e| Uuid::from_str(&e).ok()).flatten();
-        let collection_id = query
-            .collection_id
-            .map(|e| Uuid::from_str(&e).ok())
-            .flatten();
-        let nft_id = query.nft_id.map(|e| Uuid::from_str(&e).ok()).flatten();
-
-        let res = sqlx::query_as!(
-            AttributeSchema,
+        let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
-            SELECT
-                na.id,
-                na.collection_id,
-                na.nft_id,
-                na.type                 AS attr_type,
-                na.value,
-                na.rarity,
-                na.score
-            FROM attributes na
-            WHERE ($1::UUID IS NULL OR na.id = $1) 
-                AND ($2::UUID IS NULL OR na.collection_id = $2)
-                AND ($3::UUID IS NULL OR na.nft_id = $3)
-            LIMIT $4 OFFSET $5
+            SELECT 
+                id,
+                collection_id,
+                nft_id,
+                type            AS attr_type,
+                value,
+                rarity,
+                score
+            FROM attributes
+            WHERE
             "#,
-            attribute_id,
-            collection_id,
-            nft_id,
-            limit,
-            offset,
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .context("Failed to fetch attributes")?;
+        );
+
+        if let Some(object) = structs::to_map(&query).ok().flatten() {
+            handle_query(&mut query_builder, &object, "AND");
+        }
+
+        if query_builder.sql().trim().ends_with("WHERE") {
+            query_builder.push(" ");
+            query_builder.push_bind(true);
+        }
+
+        query_builder.push(" ORDER BY ");
+
+        if let Some(object) = structs::to_map(&order).ok().flatten() {
+            handle_order(&mut query_builder, &object);
+        }
+
+        if query_builder.sql().trim().ends_with("ORDER BY") {
+            query_builder.push("type");
+        }
+
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset);
+
+        let res = query_builder
+            .build_query_as::<AttributeSchema>()
+            .fetch_all(&*self.pool)
+            .await
+            .context("Failed to fetch attributes")?;
 
         Ok(res)
     }

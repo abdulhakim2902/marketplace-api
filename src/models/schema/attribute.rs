@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
+use crate::models::schema::{OperatorSchema, OrderingType};
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
 #[graphql(rename_fields = "snake_case")]
 pub struct AttributeSchema {
@@ -17,18 +19,34 @@ pub struct AttributeSchema {
     pub score: Option<BigDecimal>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterAttributeSchema {
-    #[graphql(name = "where")]
-    pub where_: Option<WhereAttributeSchema>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
+#[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct QueryAttributeSchema {
+    #[graphql(name = "_or")]
+    pub _or: Option<Box<QueryAttributeSchema>>,
+    #[graphql(name = "_and")]
+    pub _and: Option<Box<QueryAttributeSchema>>,
+    #[graphql(name = "_not")]
+    pub _not: Option<Box<QueryAttributeSchema>>,
+    pub id: Option<OperatorSchema<Uuid>>,
+    pub collection_id: Option<OperatorSchema<Uuid>>,
+    pub nft_id: Option<OperatorSchema<Uuid>>,
+    #[graphql(name = "type")]
+    pub attr_type: Option<OperatorSchema<String>>,
+    pub value: Option<OperatorSchema<String>>,
+    pub rarity: Option<OperatorSchema<BigDecimal>>,
+    pub score: Option<OperatorSchema<BigDecimal>>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct WhereAttributeSchema {
-    pub id: Option<String>,
-    pub nft_id: Option<String>,
-    pub collection_id: Option<String>,
+pub struct OrderAttributeSchema {
+    pub id: Option<OrderingType>,
+    pub collection_id: Option<OrderingType>,
+    pub nft_id: Option<OrderingType>,
+    #[graphql(name = "type")]
+    pub attr_type: Option<OrderingType>,
+    pub value: Option<OrderingType>,
+    pub rarity: Option<OrderingType>,
+    pub score: Option<OrderingType>,
 }
