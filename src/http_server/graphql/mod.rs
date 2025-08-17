@@ -204,14 +204,14 @@ impl Query {
     async fn collection_stat(
         &self,
         ctx: &Context<'_>,
-        collection_id: String,
+        collection_id: Uuid,
     ) -> CollectionStatSchema {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
         db.collections()
-            .fetch_stat(&collection_id)
+            .fetch_stat(collection_id)
             .await
             .expect("Failed to fetch collection stat")
     }

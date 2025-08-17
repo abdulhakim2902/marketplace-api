@@ -40,7 +40,7 @@ pub trait ICollections: Send + Sync {
         filter: FilterCollectionSchema,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
 
-    async fn fetch_stat(&self, collection_id: &str) -> anyhow::Result<CollectionStatSchema>;
+    async fn fetch_stat(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema>;
 
     async fn fetch_trending(
         &self,
@@ -342,8 +342,7 @@ impl ICollections for Collections {
         Ok(res)
     }
 
-    async fn fetch_stat(&self, collection_id: &str) -> anyhow::Result<CollectionStatSchema> {
-        let collection_id = Uuid::from_str(collection_id).ok();
+    async fn fetch_stat(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema> {
         let res = sqlx::query_as!(
             CollectionStatSchema,
             r#"
