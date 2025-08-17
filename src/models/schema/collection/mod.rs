@@ -7,8 +7,19 @@ pub mod stat;
 pub mod top_wallet;
 pub mod trending;
 
-use crate::models::schema::{
-    OrderingType, fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
+use std::sync::Arc;
+
+use crate::{
+    database::{
+        Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
+    },
+    models::schema::{
+        OrderingType,
+        activity::{ActivitySchema, OrderActivitySchema, QueryActivitySchema},
+        attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
+        bid::{BidSchema, OrderBidSchema, QueryBidSchema},
+        fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
+    },
 };
 use async_graphql::{ComplexObject, Context, Enum, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
@@ -66,6 +77,75 @@ impl CollectionSchema {
     #[graphql(name = "total_offer")]
     async fn total_offer(&self, ctx: &Context<'_>) -> Option<String> {
         fetch_total_collection_offer(ctx, Some(self.id.to_string())).await
+    }
+
+    async fn attributes(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
+    ) -> Vec<AttributeSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
+        db.attributes()
+            .fetch_attributes(limit, offset, query, order)
+            .await
+            .expect("Failed to fetch attributes")
+    }
+
+    async fn activities(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryActivitySchema>,
+        #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
+    ) -> Vec<ActivitySchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
+        db.activities()
+            .fetch_activities(limit, offset, query, order)
+            .await
+            .expect("Failed to fetch activities")
+    }
+
+    async fn bids(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryBidSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
+    ) -> Vec<BidSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
+        db.bids()
+            .fetch_bids(limit, offset, query, order)
+            .await
+            .expect("Failed to fetch bids")
     }
 }
 

@@ -1,6 +1,19 @@
-use crate::models::schema::{
-    OperatorSchema, OrderingType, collection::CollectionSchema, fetch_collection,
-    fetch_nft_top_offer,
+use std::sync::Arc;
+
+use crate::{
+    database::{
+        Database, IDatabase, activities::IActivities, attributes::IAttributes, bids::IBids,
+        listings::IListings,
+    },
+    models::schema::{
+        OperatorSchema, OrderingType,
+        activity::{ActivitySchema, OrderActivitySchema, QueryActivitySchema},
+        attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
+        bid::{BidSchema, OrderBidSchema, QueryBidSchema},
+        collection::CollectionSchema,
+        fetch_collection, fetch_nft_top_offer,
+        listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
+    },
 };
 use async_graphql::{ComplexObject, Context, Enum, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
@@ -43,10 +56,97 @@ impl NftSchema {
         fetch_collection(ctx, self.collection_id.as_ref().map(|e| e.to_string())).await
     }
 
-    // TODO: FETCH ATTRIBUTES
-    // TODO: FETCH LISTINGS
-    // TODO: FETCH BIDS
-    // TODO: FETCH ACTIONS
+    async fn attributes(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
+    ) -> Vec<AttributeSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
+        db.attributes()
+            .fetch_attributes(limit, offset, query, order)
+            .await
+            .expect("Failed to fetch attributes")
+    }
+
+    async fn activities(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryActivitySchema>,
+        #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
+    ) -> Vec<ActivitySchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
+        db.activities()
+            .fetch_activities(limit, offset, query, order)
+            .await
+            .expect("Failed to fetch activities")
+    }
+
+    async fn listings(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryListingSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderListingSchema>,
+    ) -> Vec<ListingSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
+        db.listings()
+            .fetch_listings(limit, offset, query, order)
+            .await
+            .expect("Failed to fetch nfts")
+    }
+
+    async fn bids(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryBidSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
+    ) -> Vec<BidSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
+        db.bids()
+            .fetch_bids(limit, offset, query, order)
+            .await
+            .expect("Failed to fetch bids")
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
