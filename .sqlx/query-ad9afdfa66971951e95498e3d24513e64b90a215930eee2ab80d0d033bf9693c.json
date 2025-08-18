@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO users (username, password, role, billing)\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (username) DO NOTHING\n            RETURNING id, created_at;\n            ",
+  "query": "\n            INSERT INTO users (username, password, billing, role)\n            VALUES ($1, $2, $3, 'user')\n            RETURNING id, created_at;\n            ",
   "describe": {
     "columns": [
       {
@@ -18,7 +18,6 @@
       "Left": [
         "Varchar",
         "Varchar",
-        "Varchar",
         "Varchar"
       ]
     },
@@ -27,5 +26,5 @@
       false
     ]
   },
-  "hash": "173382dda9db39e1462bde7762d1d144d494fa0ac5307a839cb62f6ff531655d"
+  "hash": "ad9afdfa66971951e95498e3d24513e64b90a215930eee2ab80d0d033bf9693c"
 }

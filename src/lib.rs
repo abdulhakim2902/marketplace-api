@@ -33,7 +33,6 @@ use crate::{
         wallets::Wallets,
     },
     http_server::HttpServer,
-    models::api::requests::create_user::CreateUser,
     utils::shutdown_utils,
     workers::{Worker, price_indexer::PriceIndexer},
 };
@@ -119,9 +118,7 @@ async fn init_price(tapp_url: &str, db: Arc<Database>, cache: Arc<Cache>) -> any
 }
 
 async fn init_admin(db: Arc<Database>, user: &str, password: &str) -> anyhow::Result<()> {
-    let create_user = CreateUser::new(user, password, "");
-
-    db.users().create_user(&create_user, "admin").await?;
+    db.users().create_admin_user(&user, password).await?;
 
     Ok(())
 }

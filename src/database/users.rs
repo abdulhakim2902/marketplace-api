@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::{PgPool, postgres::PgQueryResult};
 use uuid::Uuid;
 
 use crate::models::api::{
@@ -16,11 +16,13 @@ pub trait IUsers: Send + Sync {
 
     async fn fetch_users(&self) -> anyhow::Result<Vec<UserResponse>>;
 
-    async fn create_user(
+    async fn create_user(&self, data: &CreateUser) -> anyhow::Result<(Uuid, DateTime<Utc>)>;
+
+    async fn create_admin_user(
         &self,
-        data: &CreateUser,
-        role: &str,
-    ) -> anyhow::Result<(Uuid, DateTime<Utc>)>;
+        username: &str,
+        password: &str,
+    ) -> anyhow::Result<PgQueryResult>;
 
     async fn is_valid_user(&self, id: &str, role: &str) -> anyhow::Result<bool>;
 }
@@ -80,22 +82,16 @@ impl IUsers for Users {
         Ok(res)
     }
 
-    async fn create_user(
-        &self,
-        data: &CreateUser,
-        role: &str,
-    ) -> anyhow::Result<(Uuid, DateTime<Utc>)> {
+    async fn create_user(&self, data: &CreateUser) -> anyhow::Result<(Uuid, DateTime<Utc>)> {
         let password = data.password().context("Failed to hash password")?;
         let res = sqlx::query!(
             r#"
-            INSERT INTO users (username, password, role, billing)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (username) DO NOTHING
+            INSERT INTO users (username, password, billing, role)
+            VALUES ($1, $2, $3, 'user')
             RETURNING id, created_at;
             "#,
             data.username,
             password,
-            role,
             data.billing,
         )
         .fetch_one(&*self.pool)
@@ -103,6 +99,31 @@ impl IUsers for Users {
         .context("Failed to insert user")?;
 
         Ok((res.id, res.created_at))
+    }
+
+    async fn create_admin_user(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> anyhow::Result<PgQueryResult> {
+        let password =
+            bcrypt::hash(password, bcrypt::DEFAULT_COST).context("Failed to hash password")?;
+
+        let res = sqlx::query!(
+            r#"
+            INSERT INTO users (username, password, role)
+            VALUES ($1, $2, 'admin')
+            ON CONFLICT (username) 
+                DO UPDATE SET password = EXCLUDED.password;
+            "#,
+            username,
+            password,
+        )
+        .execute(&*self.pool)
+        .await
+        .context("Failed to insert user")?;
+
+        Ok(res)
     }
 
     async fn is_valid_user(&self, id: &str, role: &str) -> anyhow::Result<bool> {
