@@ -188,8 +188,6 @@ impl INfts for Nfts {
             query_builder.push("token_id");
         }
 
-        println!("{}", query_builder.sql());
-
         query_builder.push(" LIMIT ");
         query_builder.push_bind(limit);
         query_builder.push(" OFFSET ");
