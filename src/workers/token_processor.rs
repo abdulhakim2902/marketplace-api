@@ -37,6 +37,10 @@ where
     }
 
     pub async fn start(&self) -> anyhow::Result<()> {
+        if !self.config.stream_config.active {
+            return Ok(());
+        }
+
         let processor_name = "token".to_string();
         let starting_version = self
             .db

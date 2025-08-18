@@ -44,6 +44,10 @@ where
     }
 
     pub async fn start(&self) -> anyhow::Result<()> {
+        if !self.config.stream_config.active {
+            return Ok(());
+        }
+
         self.db
             .marketplaces()
             .insert_market_places(&self.config.nft_marketplace_configs)

@@ -7,6 +7,7 @@ stream_config:
   indexer_grpc: "https://grpc.mainnet.aptoslabs.com:443"
   # Go to https://developers.aptoslabs.com/ to create a project and get an API token
   auth_token: "auth_token_you_can_get_from_aptos_build"
+  active: true
   # Default tx version to start indexing
   starting_version: 0
 nft_marketplace_configs:

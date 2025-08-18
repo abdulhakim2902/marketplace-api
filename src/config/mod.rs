@@ -34,6 +34,7 @@ pub struct StreamConfig {
     pub indexer_grpc: String,
     pub auth_token: String,
     pub starting_version: u64,
+    pub active: bool,
 }
 
 impl Config {
