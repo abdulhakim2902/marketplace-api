@@ -8,11 +8,11 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::{
-    database::{Database, IDatabase, collections::Collections},
+    database::{Database, IDatabase, collections::Collections, nfts::Nfts},
     models::schema::{
         OperatorSchema, OrderingType,
         collection::{CollectionSchema, QueryCollectionSchema},
-        nft::QueryNftSchema,
+        nft::{NftSchema, QueryNftSchema},
     },
 };
 
@@ -33,6 +33,16 @@ pub struct AttributeSchema {
 
 #[ComplexObject]
 impl AttributeSchema {
+    async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let data_loader = DataLoader::new(Nfts::new(Arc::new(db.get_pool().clone())), tokio::spawn);
+
+        data_loader.load_one(self.nft_id).await.ok().flatten()
+    }
+
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
