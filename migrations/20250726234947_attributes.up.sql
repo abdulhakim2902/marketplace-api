@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS attributes (
     attr_type VARCHAR NOT NULL,
     value VARCHAR NOT NULL,
     rarity NUMERIC(11, 10) DEFAULT 1,
-    score NUMERIC (20, 10) DEFAULT 0
+    score NUMERIC (20, 10) DEFAULT 0,
+    updated_at timestamp(6) WITH time zone DEFAULT NOW() NOT NULL
 );
 
 CREATE FUNCTION update_rarity_and_score ()
@@ -47,7 +48,8 @@ BEGIN
 
     UPDATE attributes
     SET score = NEW.score,
-        rarity = NEW.rarity
+        rarity = NEW.rarity,
+        updated_at = NOW()
     WHERE collection_id = NEW.collection_id
         AND attr_type = NEW.attr_type
         AND value = NEW.value;

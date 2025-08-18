@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -26,6 +27,8 @@ pub struct AttributeSchema {
     pub value: String,
     pub rarity: Option<BigDecimal>,
     pub score: Option<BigDecimal>,
+    #[graphql(visible = false)]
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[ComplexObject]
