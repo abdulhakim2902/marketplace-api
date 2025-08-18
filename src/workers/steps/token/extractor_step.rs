@@ -269,7 +269,9 @@ where
                                 table_item,
                                 txn_version,
                                 &table_handler_to_owner,
-                            );
+                                self.db.get_pool(),
+                            )
+                            .await;
 
                             let nft_result = DbNft::get_from_write_table_item(
                                 table_item,

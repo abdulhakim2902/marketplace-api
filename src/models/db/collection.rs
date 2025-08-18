@@ -18,6 +18,7 @@ use aptos_indexer_processor_sdk::{
 };
 use bigdecimal::{BigDecimal, ToPrimitive};
 use serde::{Deserialize, Serialize};
+use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -33,13 +34,16 @@ pub struct DbCollection {
     pub discord: Option<String>,
     pub twitter: Option<String>,
     pub royalty: Option<BigDecimal>,
+    pub creator_address: Option<String>,
+    pub table_handle: Option<String>,
 }
 
 impl DbCollection {
-    pub fn get_from_write_table_item(
+    pub async fn get_from_write_table_item(
         table_item: &WriteTableItem,
         txn_version: i64,
         table_handle_to_owner: &AHashMap<String, TableMetadataForToken>,
+        conn: &Pool<Postgres>,
     ) -> Result<Option<Self>> {
         if let Some(table_item_data) = table_item.data.as_ref() {
             let maybe_collection_data = match TokenWriteSet::from_table_item_type(
@@ -53,9 +57,13 @@ impl DbCollection {
 
             if let Some(collection_data) = maybe_collection_data {
                 let table_handle = table_item.handle.to_string();
-                let maybe_creator_address = table_handle_to_owner
-                    .get(&standardize_address(&table_handle))
-                    .map(|metadata| metadata.get_owner_address());
+                let maybe_creator_address =
+                    match table_handle_to_owner.get(&standardize_address(&table_handle)) {
+                        Some(metadata) => Some(metadata.get_owner_address()),
+                        None => Self::get_collection_creator_for_v1(conn, &table_handle, 5, 500)
+                            .await
+                            .ok(),
+                    };
 
                 if let Some(creator_address) = maybe_creator_address {
                     let collection_id_struct = CollectionDataIdType::new(
@@ -75,6 +83,8 @@ impl DbCollection {
                         description: Some(collection_data.description.clone()),
                         supply: collection_data.supply.to_i64(),
                         cover_url: Some(collection_data.uri.clone()),
+                        creator_address: Some(creator_address),
+                        table_handle: Some(standardize_address(&table_handle)),
                         ..Default::default()
                     };
 
@@ -95,6 +105,7 @@ impl DbCollection {
 
             let mut collection = DbCollection {
                 id: generate_collection_id(address.as_str()),
+                creator_address: Some(inner.get_creator_address()),
                 slug: Some(address.clone()),
                 title: Some(inner.name),
                 description: Some(inner.description),
@@ -151,6 +162,45 @@ impl DbCollection {
         }
 
         Ok(None)
+    }
+
+    async fn get_collection_creator_for_v1(
+        conn: &Pool<Postgres>,
+        table_handle: &str,
+        query_retries: u32,
+        query_retry_delay_ms: u64,
+    ) -> anyhow::Result<String> {
+        let mut tried = 0;
+
+        while tried < query_retries {
+            tried += 1;
+
+            let res = sqlx::query!(
+                r#"
+                SELECT creator_address FROM collections
+                WHERE table_handle = $1
+                "#,
+                table_handle
+            )
+            .fetch_one(&*conn)
+            .await;
+
+            match res {
+                Ok(res) => {
+                    if let Some(creator_address) = res.creator_address {
+                        return Ok(creator_address)
+                    }
+                }
+                Err(_) => {
+                    if tried < query_retries {
+                        tokio::time::sleep(std::time::Duration::from_millis(query_retry_delay_ms))
+                            .await;
+                    }
+                }
+            }
+        }
+
+        Err(anyhow::anyhow!("Failed to get collection creator"))
     }
 }
 

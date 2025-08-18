@@ -16,5 +16,7 @@ CREATE TABLE IF NOT EXISTS collections (
     volume BIGINT DEFAULT 0,
     volume_usd NUMERIC(20, 2) DEFAULT 0,
     sales BIGINT DEFAULT 0,
-    owners BIGINT DEFAULT 0
+    owners BIGINT DEFAULT 0,
+    creator_address VARCHAR(66) DEFAULT NULL,
+    table_handle VARCHAR(66)
 );
