@@ -54,11 +54,6 @@ where
             .address("0x4")
             .build()?;
 
-        let object_struct_filter = MoveStructTagFilterBuilder::default()
-            .address("0x1")
-            .module("object")
-            .build()?;
-
         let token_v1_filter = EventFilterBuilder::default()
             .struct_type(token_v1_struct_filter)
             .build()?;
@@ -67,18 +62,12 @@ where
             .struct_type(token_v2_struct_filter)
             .build()?;
 
-        let object_filter = EventFilterBuilder::default()
-            .struct_type(object_struct_filter)
-            .build()?;
-
         let tx_filter = TransactionRootFilterBuilder::default()
             .success(true)
             .txn_type(TransactionType::User)
             .build()?;
 
-        let token_filter = BooleanTransactionFilter::from(token_v1_filter)
-            .or(token_v2_filter)
-            .or(object_filter);
+        let token_filter = BooleanTransactionFilter::from(token_v1_filter).or(token_v2_filter);
 
         let filter = BooleanTransactionFilter::from(tx_filter).and(token_filter);
 
