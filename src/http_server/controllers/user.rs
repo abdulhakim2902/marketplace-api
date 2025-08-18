@@ -3,11 +3,14 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
+use validator::Validate;
 
 use crate::{
     cache::ICache,
     database::users::IUsers,
-    http_server::utils::err_handler::{response_404_unhandled_err, response_429_unhandled_err},
+    http_server::utils::err_handler::{
+        response_400_with_message, response_404_unhandled_err, response_429_unhandled_err,
+    },
     models::api::{requests::create_user::CreateUser, responses::user::UserResponse},
 };
 use crate::{database::IDatabase, http_server::controllers::InternalState};
@@ -49,6 +52,10 @@ pub async fn create_user<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
     Json(req): Json<CreateUser>,
 ) -> Response {
+    if let Err(e) = req.validate() {
+        return response_400_with_message(&e.to_string());
+    }
+
     match state.db.users().create_user(&req).await {
         Ok((id, created_at)) => Json(UserResponse {
             id,

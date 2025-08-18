@@ -5,10 +5,16 @@ use axum::{
 };
 use jsonwebtoken::errors::Error;
 
-use crate::models::api::responses::{HttpResponseErr, UNAUTHORIZED_ERR};
+use crate::models::api::responses::{BAD_REQUEST_ERR, HttpResponseErr, UNAUTHORIZED_ERR};
 
 pub fn response_400_with_const() -> Response {
-    (StatusCode::BAD_REQUEST, Json(UNAUTHORIZED_ERR)).into_response()
+    (StatusCode::BAD_REQUEST, Json(BAD_REQUEST_ERR)).into_response()
+}
+
+pub fn response_400_with_message(msg: &str) -> Response {
+    let error = HttpResponseErr::new("ERR_400", msg);
+
+    (StatusCode::BAD_REQUEST, Json(error)).into_response()
 }
 
 pub fn response_401_with_const() -> Response {
