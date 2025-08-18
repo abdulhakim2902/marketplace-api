@@ -85,6 +85,45 @@ pub fn handle_query(
     let mut nft_builder = QueryBuilder::<Postgres>::new(
         r#"
         nft_id IN (
+            WITH
+                nft_rarities AS (
+                    SELECT
+                        na.collection_id,
+                        na.nft_id,
+                        SUM(-LOG(2, na.rarity))             AS rarity
+                    FROM attributes na
+                    GROUP BY na.collection_id, na.nft_id
+                ),
+                nfts AS (
+                    SELECT 
+                        n.id,
+                        COALESCE(n.name, nm.name)                   AS name,
+                        owner,
+                        n.collection_id,
+                        burned,
+                        n.properties,
+                        n.token_id,
+                        COALESCE(n.description, nm.description)     AS description,
+                        COALESCE(nm.image, n.uri)                   AS image_url,
+                        nm.animation_url,
+                        nm.avatar_url,
+                        nm.youtube_url,
+                        nm.external_url,
+                        nm.background_color,
+                        royalty,
+                        version,
+                        nr.rarity,
+                        CASE
+                            WHEN nr.rarity IS NOT NULL
+                            THEN RANK () OVER (
+                                PARTITION BY n.collection_id
+                                ORDER BY nr.rarity DESC
+                            )
+                            END                                     AS ranking
+                    FROM nfts n
+                        LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
+                        LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
+                )
             SELECT id FROM nfts
             WHERE
         "#,
@@ -208,8 +247,16 @@ pub fn handle_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<Strin
     let mut order_seperated_builder = order_builder.separated(",");
 
     for (key, value) in object {
-        if let Value::String(s) = value {
-            order_seperated_builder.push(format!("{} {}", key, s.replace("_", "")));
+        match value {
+            Value::String(s) => {
+                order_seperated_builder.push(format!("{} {}", key, s.replace("_", "")));
+            }
+            Value::Object(_) => {
+                // TODO:
+            }
+            _ => {
+                // Not implemented
+            }
         }
     }
 

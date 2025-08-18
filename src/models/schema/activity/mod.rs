@@ -6,7 +6,7 @@ use crate::{
     database::{Database, IDatabase, collections::Collections, nfts::Nfts},
     models::schema::{
         Date, OperatorSchema, OrderingType,
-        collection::{CollectionSchema, QueryCollectionSchema},
+        collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
         nft::{NftSchema, QueryNftSchema},
     },
 };
@@ -102,7 +102,6 @@ pub struct QueryActivitySchema {
     pub block_height: Option<OperatorSchema<i64>>,
     pub amount: Option<OperatorSchema<i64>>,
     pub collection: Option<Arc<QueryCollectionSchema>>,
-    // TODO:
     pub nft: Option<QueryNftSchema>,
 }
 
@@ -125,4 +124,5 @@ pub struct OrderActivitySchema {
     pub block_time: Option<OrderingType>,
     pub block_height: Option<OrderingType>,
     pub amount: Option<OrderingType>,
+    pub collection: Option<Arc<OrderCollectionSchema>>,
 }

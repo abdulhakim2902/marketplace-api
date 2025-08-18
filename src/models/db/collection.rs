@@ -188,7 +188,7 @@ impl DbCollection {
             match res {
                 Ok(res) => {
                     if let Some(creator_address) = res.creator_address {
-                        return Ok(creator_address)
+                        return Ok(creator_address);
                     }
                 }
                 Err(_) => {

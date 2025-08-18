@@ -12,7 +12,9 @@ pub mod wallets;
 
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, migrate::Migrator};
+use strum::{Display, EnumString};
 
 use crate::database::{
     activities::{Activities, IActivities},
@@ -185,7 +187,9 @@ impl IDatabase for Database {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumString, Display, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum Schema {
     Activities,
     Attributes,
