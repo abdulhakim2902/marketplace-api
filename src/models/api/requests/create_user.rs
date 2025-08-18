@@ -19,6 +19,6 @@ impl CreateUser {
 
 impl CreateUser {
     pub fn password(&self) -> bcrypt::BcryptResult<String> {
-        bcrypt::hash(&self.password, bcrypt::DEFAULT_COST)
+        bcrypt::hash(&self.password, 10)
     }
 }

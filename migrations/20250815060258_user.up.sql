@@ -1,7 +1,7 @@
 -- Add up migration script here
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username VARCHAR(20) UNIQUE NOT NULL,
+    id UUID PRIMARY KEY NOT NULL,
+    username VARCHAR(20) NOT NULL,
     password VARCHAR NOT NULL,
     role VARCHAR(10) NOT NULL,
     billing VARCHAR(15),

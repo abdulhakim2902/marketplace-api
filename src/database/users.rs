@@ -5,9 +5,12 @@ use chrono::{DateTime, Utc};
 use sqlx::{PgPool, postgres::PgQueryResult};
 use uuid::Uuid;
 
-use crate::models::api::{
-    requests::create_user::CreateUser,
-    responses::{auth_user::AuthUserResponse, user::UserResponse},
+use crate::{
+    models::api::{
+        requests::create_user::CreateUser,
+        responses::{auth_user::AuthUserResponse, user::UserResponse},
+    },
+    utils::generate_user_id,
 };
 
 #[async_trait::async_trait]
@@ -83,13 +86,15 @@ impl IUsers for Users {
     }
 
     async fn create_user(&self, data: &CreateUser) -> anyhow::Result<(Uuid, DateTime<Utc>)> {
+        let id = generate_user_id(&data.username);
         let password = data.password().context("Failed to hash password")?;
         let res = sqlx::query!(
             r#"
-            INSERT INTO users (username, password, billing, role)
-            VALUES ($1, $2, $3, 'user')
+            INSERT INTO users (id, username, password, billing, role)
+            VALUES ($1, $2, $3, $4, 'user')
             RETURNING id, created_at;
             "#,
+            id,
             data.username,
             password,
             data.billing,
@@ -106,16 +111,17 @@ impl IUsers for Users {
         username: &str,
         password: &str,
     ) -> anyhow::Result<PgQueryResult> {
-        let password =
-            bcrypt::hash(password, bcrypt::DEFAULT_COST).context("Failed to hash password")?;
+        let id = generate_user_id(username);
+        let password = bcrypt::hash(password, 10).context("Failed to hash password")?;
 
         let res = sqlx::query!(
             r#"
-            INSERT INTO users (username, password, role)
-            VALUES ($1, $2, 'admin')
-            ON CONFLICT (username) 
+            INSERT INTO users (id, username, password, role)
+            VALUES ($1, $2, $3, 'admin')
+            ON CONFLICT (id) 
                 DO UPDATE SET password = EXCLUDED.password;
             "#,
+            id,
             username,
             password,
         )

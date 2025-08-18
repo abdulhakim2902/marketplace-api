@@ -3,21 +3,6 @@ pub mod graphql;
 pub mod middlewares;
 pub mod utils;
 
-use async_graphql::{EmptyMutation, EmptySubscription, Schema};
-use axum::{
-    Router,
-    extract::DefaultBodyLimit,
-    middleware,
-    routing::{delete, get, post},
-};
-use std::{net::SocketAddr, sync::Arc, time::Duration};
-use tokio::net::TcpListener;
-use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
-use tower_http::{
-    cors::{self, CorsLayer},
-    limit::RequestBodyLimitLayer,
-};
-
 use crate::{
     cache::ICache,
     config::Config,
@@ -29,6 +14,26 @@ use crate::{
     },
     utils::shutdown_utils,
 };
+use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+use axum::{
+    Router,
+    extract::DefaultBodyLimit,
+    middleware,
+    routing::{delete, get, post},
+};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
+use tokio::net::TcpListener;
+use tower::ServiceBuilder;
+use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
+use tower_http::{
+    compression::{CompressionLayer, CompressionLevel},
+    cors::{self, CorsLayer},
+    limit::RequestBodyLimitLayer,
+    request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
+    timeout::{RequestBodyTimeoutLayer, TimeoutLayer},
+    trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
+};
+use tracing::Level;
 
 pub struct HttpServer<TDb: IDatabase, TCache: ICache> {
     db: Arc<TDb>,
@@ -79,6 +84,26 @@ where
     }
 
     fn router(self: &Arc<Self>) -> Router {
+        let api_middleware = ServiceBuilder::new()
+            .layer(CompressionLayer::new().quality(CompressionLevel::Fastest))
+            .layer(
+                TraceLayer::new_for_http()
+                    .make_span_with(
+                        DefaultMakeSpan::new()
+                            .level(Level::INFO)
+                            .include_headers(true),
+                    )
+                    .on_response(
+                        DefaultOnResponse::new()
+                            .level(Level::INFO)
+                            .include_headers(true),
+                    ),
+            )
+            .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
+            .layer(PropagateRequestIdLayer::x_request_id())
+            .layer(RequestBodyTimeoutLayer::new(Duration::from_secs(4)))
+            .layer(TimeoutLayer::new(Duration::from_secs(5)));
+
         let governor_config = GovernorConfigBuilder::default()
             .per_second(2)
             .burst_size(5)
@@ -116,27 +141,32 @@ where
                     .nest(
                         "/users",
                         Router::new()
-                            .route("/", get(user::fetch_user).post(user::create_user))
-                            .layer(middleware::from_fn(authorize::authorize)),
-                    )
-                    .nest(
-                        "/api-keys",
-                        Router::new()
                             .route(
                                 "/",
-                                get(api_key::fetch_api_keys).post(api_key::create_api_key),
+                                get(user::fetch_user)
+                                    .post(user::create_user)
+                                    .layer(middleware::from_fn(authorize::authorize)),
                             )
-                            .route("/{id}", delete(api_key::remove_api_key)),
+                            .nest(
+                                "/api-keys",
+                                Router::new()
+                                    .route(
+                                        "/",
+                                        get(api_key::fetch_api_keys).post(api_key::create_api_key),
+                                    )
+                                    .route("/{id}", delete(api_key::remove_api_key)),
+                            )
+                            .layer(middleware::from_fn(move |req, next| {
+                                authentication::authentication(
+                                    req,
+                                    next,
+                                    Arc::clone(&db),
+                                    jwt_secret.clone(),
+                                )
+                            })),
                     )
-                    .layer(middleware::from_fn(move |req, next| {
-                        authentication::authentication(
-                            req,
-                            next,
-                            Arc::clone(&db),
-                            jwt_secret.clone(),
-                        )
-                    }))
-                    .nest("/auth", Router::new().route("/login", post(auth::login))),
+                    .nest("/auth", Router::new().route("/login", post(auth::login)))
+                    .layer(api_middleware),
             )
             .route("/gql", get(graphql).post(graphql_handler))
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
