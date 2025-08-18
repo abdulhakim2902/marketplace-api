@@ -184,3 +184,14 @@ impl IDatabase for Database {
         Arc::clone(&self.nft_metadata)
     }
 }
+
+#[derive(Debug, Clone)]
+pub enum Schema {
+    Activities,
+    Attributes,
+    Bids,
+    Nfts,
+    Collections,
+    Listings,
+    Wallets,
+}

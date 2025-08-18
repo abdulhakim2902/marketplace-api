@@ -1,6 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
+    database::Schema,
     models::{
         db::activity::DbActivity,
         schema::{
@@ -145,7 +146,7 @@ impl IActivities for Activities {
         );
 
         if let Some(object) = structs::to_map(&query).ok().flatten() {
-            handle_query(&mut query_builder, &object, "AND");
+            handle_query(&mut query_builder, &object, "AND", Schema::Activities);
         }
 
         if query_builder.sql().trim().ends_with("WHERE") {

@@ -15,9 +15,7 @@ use crate::{
         listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
     },
 };
-use async_graphql::{
-    ComplexObject, Context, Enum, InputObject, SimpleObject, dataloader::DataLoader,
-};
+use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
@@ -204,7 +202,7 @@ pub struct QueryNftSchema {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
 #[graphql(rename_fields = "snake_case")]
-pub struct OrderNftSchemas {
+pub struct OrderNftSchema {
     pub id: Option<OrderingType>,
     pub name: Option<OrderingType>,
     pub owner: Option<OrderingType>,
@@ -224,96 +222,4 @@ pub struct OrderNftSchemas {
     pub version: Option<OrderingType>,
     pub ranking: Option<OrderingType>,
     pub rarity: Option<OrderingType>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-pub struct FilterNftSchema {
-    #[graphql(name = "where")]
-    pub where_: Option<WhereNftSchema>,
-    #[graphql(name = "order_by")]
-    pub order_by: Option<OrderNftSchema>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereNftSchema {
-    #[graphql(name = "type")]
-    pub type_: Option<FilterType>,
-    pub search: Option<String>,
-    pub wallet_address: Option<String>,
-    pub collection_id: Option<String>,
-    pub nft_id: Option<String>,
-    pub burned: Option<bool>,
-    pub rarity: Option<WhereNftRankSchema>,
-    pub market_contract_ids: Option<Vec<String>>,
-    pub price: Option<WhereNftPriceSchema>,
-    pub attributes: Option<Vec<WhereNftAttributeSchema>>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereNftAttributeSchema {
-    #[graphql(name = "type")]
-    pub type_: String,
-    pub values: Vec<String>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereNftRankSchema {
-    pub min: i64,
-    pub max: Option<i64>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereNftPriceSchema {
-    #[graphql(name = "type")]
-    pub type_: CoinType,
-    pub range: WhereNftPriceRangeSchema,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct WhereNftPriceRangeSchema {
-    pub min: BigDecimal,
-    pub max: Option<BigDecimal>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct OrderNftSchema {
-    pub price: Option<OrderingType>,
-    pub rarity: Option<OrderingType>,
-    pub listed_at: Option<OrderingType>,
-    pub received_at: Option<OrderingType>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
-#[graphql(rename_items = "snake_case")]
-pub enum CoinType {
-    APT,
-    USD,
-}
-
-impl Default for CoinType {
-    fn default() -> Self {
-        Self::APT
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize)]
-#[graphql(rename_items = "snake_case")]
-pub enum FilterType {
-    All,
-    Listed,
-    HasOffer,
-}
-
-impl Default for FilterType {
-    fn default() -> Self {
-        Self::All
-    }
 }

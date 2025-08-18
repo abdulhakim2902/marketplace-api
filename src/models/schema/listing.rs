@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
-use crate::models::{
-    marketplace::APT_DECIMAL,
-    schema::{
-        Date, OperatorSchema, OrderingType, fetch_nft, fetch_token_price,
-        nft::{NftSchema, QueryNftSchema},
+use crate::{
+    database::{Database, IDatabase, nfts::Nfts},
+    models::{
+        marketplace::APT_DECIMAL,
+        schema::{
+            Date, OperatorSchema, OrderingType, fetch_token_price,
+            nft::{NftSchema, QueryNftSchema},
+        },
     },
 };
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
+use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -23,7 +26,6 @@ pub struct ListingSchema {
     pub market_contract_id: Option<String>,
     pub listed: Option<bool>,
     pub market_name: Option<String>,
-    pub collection_id: Option<Uuid>,
     pub nft_id: Option<Uuid>,
     pub nonce: Option<String>,
     pub price: Option<i64>,
@@ -42,12 +44,17 @@ impl ListingSchema {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        fetch_nft(
-            ctx,
-            self.nft_id.as_ref().map(|e| e.to_string()),
-            self.collection_id.as_ref().map(|e| e.to_string()),
-        )
-        .await
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let data_loader = DataLoader::new(Nfts::new(Arc::new(db.get_pool().clone())), tokio::spawn);
+
+        if let Some(nft_id) = self.nft_id.as_ref() {
+            data_loader.load_one(nft_id.clone()).await.ok().flatten()
+        } else {
+            None
+        }
     }
 }
 

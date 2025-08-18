@@ -5,6 +5,6 @@ use serde::{Deserialize, Serialize};
 #[graphql(rename_fields = "snake_case")]
 pub struct CollectionAttributeSchema {
     #[graphql(name = "type")]
-    pub type_: String,
+    pub attr_type: String,
     pub values: serde_json::Value,
 }

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    database::{Database, IDatabase, collections::Collections},
-    models::schema::{collection::CollectionSchema, fetch_nft, nft::NftSchema},
+    database::{Database, IDatabase, collections::Collections, nfts::Nfts},
+    models::schema::{collection::CollectionSchema, nft::NftSchema},
 };
 use async_graphql::{ComplexObject, Context, SimpleObject, dataloader::DataLoader};
 use serde::{Deserialize, Serialize};
@@ -41,11 +41,12 @@ impl TrendingNftSchema {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        fetch_nft(
-            ctx,
-            Some(self.nft_id.to_string()),
-            self.collection_id.as_ref().map(|e| e.to_string()),
-        )
-        .await
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let data_loader = DataLoader::new(Nfts::new(Arc::new(db.get_pool().clone())), tokio::spawn);
+
+        data_loader.load_one(self.nft_id).await.ok().flatten()
     }
 }

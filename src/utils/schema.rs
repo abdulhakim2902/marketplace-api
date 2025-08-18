@@ -1,10 +1,13 @@
 use serde_json::{Map, Value};
 use sqlx::{Postgres, QueryBuilder, query_builder::Separated};
 
+use crate::database::Schema;
+
 pub fn handle_query(
     builder: &mut QueryBuilder<'_, Postgres>,
     object: &Map<String, Value>,
     conn: &str,
+    schema: Schema,
 ) {
     let mut seperated = builder.separated(" AND ");
 
@@ -12,20 +15,88 @@ pub fn handle_query(
     let mut or_operator_builder = QueryBuilder::<Postgres>::new("");
     let mut not_operator_builder = QueryBuilder::<Postgres>::new("");
 
+    // Available for nft and collection schema only
+    let mut activity_builder = match schema.to_owned() {
+        Schema::Collections => QueryBuilder::<Postgres>::new(
+            r#"
+            id IN (
+                SELECT collection_id from activities
+                WHERE
+            "#,
+        ),
+        Schema::Nfts => QueryBuilder::<Postgres>::new(
+            r#"
+            id IN (
+                SELECT nft_id from activities
+                WHERE
+            "#,
+        ),
+        _ => QueryBuilder::<Postgres>::new(""),
+    };
+
+    // Available for nft and collection schema only
+    let mut attribute_builder = match schema.to_owned() {
+        Schema::Collections => QueryBuilder::<Postgres>::new(
+            r#"
+            id IN (
+                SELECT collection_id from attributes
+                WHERE
+            "#,
+        ),
+        Schema::Nfts => QueryBuilder::<Postgres>::new(
+            r#"
+            id IN (
+                SELECT nft_id from attributes
+                WHERE
+            "#,
+        ),
+        _ => QueryBuilder::<Postgres>::new(""),
+    };
+
+    // Available for nft and collection schema only
+    let mut bid_builder = match schema.to_owned() {
+        Schema::Collections => QueryBuilder::<Postgres>::new(
+            r#"
+            id IN (
+                SELECT collection_id from bids
+                WHERE
+            "#,
+        ),
+        Schema::Nfts => QueryBuilder::<Postgres>::new(
+            r#"
+            id IN (
+                SELECT nft_id from bids
+                WHERE
+            "#,
+        ),
+        _ => QueryBuilder::<Postgres>::new(""),
+    };
+
+    // Available for nft schema only
+    let mut listing_builder = QueryBuilder::<Postgres>::new(
+        r#"
+        id IN (
+            SELECT nft_id FROM listings
+            WHERE
+        "#,
+    );
+
+    // Available for attribute, activity, bid and listing schema
     let mut nft_builder = QueryBuilder::<Postgres>::new(
         r#"
         nft_id IN (
             SELECT id FROM nfts
             WHERE
-    "#,
+        "#,
     );
 
+    // Available for attribute, activity, bid, and nft schema
     let mut collection_builder = QueryBuilder::<Postgres>::new(
         r#"
         collection_id IN (
             SELECT id FROM collections
             WHERE
-    "#,
+        "#,
     );
 
     let mut field_operator_builder = QueryBuilder::<Postgres>::new("(");
@@ -35,7 +106,7 @@ pub fn handle_query(
         match key.as_str() {
             "_and" => {
                 if let Value::Object(o) = value {
-                    handle_query(&mut and_operator_builder, o, "AND");
+                    handle_query(&mut and_operator_builder, o, "AND", schema.to_owned());
                     if and_operator_builder.sql() != "()" {
                         seperated.push(and_operator_builder.sql());
                     }
@@ -43,7 +114,7 @@ pub fn handle_query(
             }
             "_not" => {
                 if let Value::Object(o) = value {
-                    handle_query(&mut not_operator_builder, o, "AND NOT");
+                    handle_query(&mut not_operator_builder, o, "AND NOT", schema.to_owned());
                     if not_operator_builder.sql() != "()" {
                         seperated.push(not_operator_builder.sql());
                     }
@@ -51,7 +122,7 @@ pub fn handle_query(
             }
             "_or" => {
                 if let Value::Object(o) = value {
-                    handle_query(&mut or_operator_builder, o, "OR");
+                    handle_query(&mut or_operator_builder, o, "OR", schema.to_owned());
                     if or_operator_builder.sql() != "()" {
                         seperated.push(or_operator_builder.sql());
                     }
@@ -59,19 +130,61 @@ pub fn handle_query(
             }
             "nft" => {
                 if let Value::Object(o) = value {
-                    handle_query(&mut nft_builder, o, "AND");
+                    handle_query(&mut nft_builder, o, "AND", Schema::Nfts);
                     if !nft_builder.sql().trim().ends_with("WHERE") {
                         nft_builder.push(")");
                         seperated.push(nft_builder.sql());
                     }
                 }
             }
+            "activity" => {
+                if !activity_builder.sql().trim().is_empty() {
+                    if let Value::Object(o) = value {
+                        handle_query(&mut activity_builder, o, "AND", Schema::Activities);
+                        if !activity_builder.sql().trim().ends_with("WHERE") {
+                            activity_builder.push(")");
+                            seperated.push(activity_builder.sql());
+                        }
+                    }
+                }
+            }
+            "bid" => {
+                if !bid_builder.sql().trim().is_empty() {
+                    if let Value::Object(o) = value {
+                        handle_query(&mut bid_builder, o, "AND", Schema::Bids);
+                        if !bid_builder.sql().trim().ends_with("WHERE") {
+                            bid_builder.push(")");
+                            seperated.push(bid_builder.sql());
+                        }
+                    }
+                }
+            }
+            "attribute" => {
+                if !attribute_builder.sql().trim().is_empty() {
+                    if let Value::Object(o) = value {
+                        handle_query(&mut attribute_builder, o, "AND", Schema::Attributes);
+                        if !attribute_builder.sql().trim().ends_with("WHERE") {
+                            attribute_builder.push(")");
+                            seperated.push(attribute_builder.sql());
+                        }
+                    }
+                }
+            }
             "collection" => {
                 if let Value::Object(o) = value {
-                    handle_query(&mut collection_builder, o, "AND");
+                    handle_query(&mut collection_builder, o, "AND", Schema::Collections);
                     if !collection_builder.sql().trim().ends_with("WHERE") {
                         collection_builder.push(")");
                         seperated.push(collection_builder.sql());
+                    }
+                }
+            }
+            "listing" => {
+                if let Value::Object(o) = value {
+                    handle_query(&mut listing_builder, o, "AND", Schema::Listings);
+                    if !listing_builder.sql().trim().ends_with("WHERE") {
+                        listing_builder.push(")");
+                        seperated.push(listing_builder.sql());
                     }
                 }
             }

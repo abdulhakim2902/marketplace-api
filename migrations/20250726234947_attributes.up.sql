@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS attributes (
     id UUID PRIMARY KEY NOT NULL,   
     collection_id UUID NOT NULL,
     nft_id UUID NOT NULL,
-    type VARCHAR NOT NULL,
+    attr_type VARCHAR NOT NULL,
     value VARCHAR NOT NULL,
     rarity NUMERIC(11, 10) DEFAULT 1,
     score NUMERIC (20, 10) DEFAULT 0
@@ -22,18 +22,18 @@ BEGIN
         collection_attribute_counts AS (
             SELECT
                 attributes.collection_id,
-                attributes.type,
+                attributes.attr_type,
                 attributes.value,
                 COUNT(*)::NUMERIC
             FROM attributes
             WHERE attributes.collection_id = NEW.collection_id
-              AND attributes.type = NEW.type
+              AND attributes.attr_type = NEW.attr_type
               AND attributes.value = NEW.value
-            GROUP BY attributes.collection_id, attributes.type, attributes.value
+            GROUP BY attributes.collection_id, attributes.attr_type, attributes.value
             UNION
             SELECT
                 NEW.collection_id,
-                NEW.type,
+                NEW.attr_type,
                 NEW.value,
                 0
         )
@@ -49,7 +49,7 @@ BEGIN
     SET score = NEW.score,
         rarity = NEW.rarity
     WHERE collection_id = NEW.collection_id
-        AND type = NEW.type
+        AND attr_type = NEW.attr_type
         AND value = NEW.value;
 
     RETURN new;

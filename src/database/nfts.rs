@@ -1,13 +1,17 @@
+use std::collections::HashMap;
 use std::{str::FromStr, sync::Arc};
 
-use crate::models::schema::nft::{FilterNftSchema, OrderNftSchemas, QueryNftSchema};
+use crate::database::Schema;
+use crate::models::schema::nft::{OrderNftSchema, QueryNftSchema};
 use crate::models::{
     db::nft::{DbNft, DbNftUri},
-    schema::nft::{CoinType, FilterType, NftSchema},
+    schema::nft::NftSchema,
 };
 use crate::utils::schema::{handle_order, handle_query};
 use crate::utils::structs;
 use anyhow::Context;
+use async_graphql::FieldError;
+use async_graphql::dataloader::Loader;
 use chrono::Utc;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 use uuid::Uuid;
@@ -20,15 +24,13 @@ pub trait INfts: Send + Sync {
         items: Vec<DbNft>,
     ) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_nfts_v2(
+    async fn fetch_nfts(
         &self,
         limit: i64,
         offset: i64,
         query: QueryNftSchema,
-        order: OrderNftSchemas,
+        order: OrderNftSchema,
     ) -> anyhow::Result<Vec<NftSchema>>;
-
-    async fn fetch_nfts(&self, filter: FilterNftSchema) -> anyhow::Result<Vec<NftSchema>>;
 
     async fn fetch_nft_uri(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNftUri>>;
 
@@ -114,12 +116,12 @@ impl INfts for Nfts {
         Ok(res)
     }
 
-    async fn fetch_nfts_v2(
+    async fn fetch_nfts(
         &self,
         limit: i64,
         offset: i64,
         query: QueryNftSchema,
-        order: OrderNftSchemas,
+        order: OrderNftSchema,
     ) -> anyhow::Result<Vec<NftSchema>> {
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
@@ -150,7 +152,7 @@ impl INfts for Nfts {
                         nm.background_color,
                         royalty,
                         version,
-                        na.rarity,
+                        nr.rarity,
                         CASE
                             WHEN nr.rarity IS NOT NULL
                             THEN RANK () OVER (
@@ -168,7 +170,7 @@ impl INfts for Nfts {
         );
 
         if let Some(object) = structs::to_map(&query).ok().flatten() {
-            handle_query(&mut query_builder, &object, "AND");
+            handle_query(&mut query_builder, &object, "AND", Schema::Nfts);
         }
 
         if query_builder.sql().trim().ends_with("WHERE") {
@@ -186,272 +188,7 @@ impl INfts for Nfts {
             query_builder.push("token_id");
         }
 
-        query_builder.push(" LIMIT ");
-        query_builder.push_bind(limit);
-        query_builder.push(" OFFSET ");
-        query_builder.push_bind(offset);
-
-        let res = query_builder
-            .build_query_as::<NftSchema>()
-            .fetch_all(&*self.pool)
-            .await
-            .context("Failed to fetch nfts")?;
-
-        Ok(res)
-    }
-
-    async fn fetch_nfts(&self, filter: FilterNftSchema) -> anyhow::Result<Vec<NftSchema>> {
-        let query = filter.where_.unwrap_or_default();
-        let order = filter.order_by;
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
-        let mut query_builder = QueryBuilder::<Postgres>::new(
-            r#"
-            WITH
-                latest_prices AS (
-                    SELECT DISTINCT ON (tp.token_address) tp.token_address, tp.price FROM token_prices tp
-                    WHERE tp.token_address = '0x000000000000000000000000000000000000000000000000000000000000000a'
-                    ORDER BY tp.token_address, tp.created_at DESC
-                ),
-                sales AS (
-                    SELECT DISTINCT ON (a.nft_id) 
-                        a.nft_id, 
-                        a.block_time, 
-                        a.price 
-                    FROM activities a
-                    WHERE a.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
-                    ORDER BY a.nft_id, a.block_time DESC
-                ),
-                nft_attributes AS (
-                    SELECT
-                        na.collection_id,
-                        na.nft_id,
-                        json_agg(
-                            json_build_object(
-                                'attr_type', na.type,
-                                'value', na.value,
-                                'score', na.score,
-                                'rarity', na.rarity
-                            )
-                        )                       AS attributes, 
-                        SUM(na.score)           AS score
-                    FROM attributes na
-                    GROUP BY na.collection_id, na.nft_id
-                ),
-                nfts AS (
-                    SELECT 
-                        n.id,
-                        COALESCE(n.name, nm.name)                   AS name,
-                        owner,
-                        n.collection_id,
-                        burned,
-                        n.properties,
-                        n.token_id,
-                        COALESCE(n.description, nm.description)     AS description,
-                        COALESCE(nm.image, n.uri)                   AS image_url,
-                        nm.animation_url,
-                        nm.avatar_url,
-                        nm.youtube_url,
-                        nm.external_url,
-                        nm.background_color,
-                        royalty,
-                        version,
-                        updated_at,
-                        l.price                                     AS list_price,
-                        l.price * lp.price                          AS list_usd_price,
-                        l.block_time                                AS listed_at,
-                        l.market_name,
-                        l.market_contract_id,
-                        s.price                                     AS last_sale,
-                        s.block_time                                AS received_at,
-                        na.attributes,
-                        na.score,
-                        CASE
-                            WHEN na.score IS NOT NULL
-                            THEN RANK () OVER (
-                                PARTITION BY n.collection_id
-                                ORDER BY na.score DESC
-                            )
-                            END                                     AS rank
-                    FROM nfts n
-                        LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
-                        LEFT JOIN nft_attributes na ON na.nft_id = n.id AND na.collection_id = n.collection_id
-                        LEFT JOIN listings l ON l.nft_id = n.id AND l.seller = n.owner AND l.listed
-                        LEFT JOIN sales s ON s.nft_id = n.id
-                        LEFT JOIN latest_prices lp ON TRUE
-                )
-            SELECT
-                n.id,
-                n.name,
-                n.owner,
-                n.collection_id,
-                n.burned,
-                n.properties,
-                n.description,
-                n.image_url,
-                n.royalty,
-                n.version,
-                n.token_id,
-                n.attributes,
-                n.updated_at,
-                n.list_price,
-                n.list_usd_price,
-                n.listed_at,
-                n.received_at,
-                n.last_sale,
-                n.score,
-                n.rank,
-                n.animation_url,
-                n.avatar_url,
-                n.youtube_url,
-                n.external_url,
-                n.background_color
-            FROM nfts n
-            WHERE TRUE
-            "#,
-        );
-
-        if let Some(type_) = query.type_.as_ref() {
-            match type_ {
-                FilterType::Listed => {
-                    query_builder.push(" AND n.list_price IS NOT NULL ");
-                }
-                FilterType::HasOffer => {
-                    query_builder.push(" AND n.id IN (");
-                    query_builder.push(
-                        r#"
-                        SELECT DISTINCT ON (b.nft_id) b.nft_id
-                        FROM bids b
-                        WHERE b.status = 'active'
-                            AND (b.expired_at IS NULL OR b.expired_at > NOW())
-                            AND b.accepted_tx_id IS NULL
-                            AND b.cancelled_tx_id IS NULL
-                            AND b.bid_type = 'solo'
-                        "#,
-                    );
-                    query_builder.push(")");
-                }
-                _ => {}
-            }
-        }
-
-        if let Some(search) = query.search.as_ref() {
-            query_builder.push(" AND n.name ILIKE ");
-            query_builder.push_bind(search);
-        }
-
-        if let Some(nft_id) = query.nft_id.as_ref() {
-            let nft_id = Uuid::from_str(nft_id).ok();
-
-            query_builder.push(" AND n.id = ");
-            query_builder.push_bind(nft_id);
-        }
-
-        if let Some(collection_id) = query.collection_id.as_ref() {
-            let collection_id = Uuid::from_str(collection_id).ok();
-
-            query_builder.push(" AND n.collection_id = ");
-            query_builder.push_bind(collection_id);
-        }
-
-        if let Some(wallet_address) = query.wallet_address.as_ref() {
-            query_builder.push(" AND n.owner = ");
-            query_builder.push_bind(wallet_address);
-        }
-
-        if let Some(burned) = query.burned {
-            if burned {
-                query_builder.push(" AND n.burned");
-            } else {
-                query_builder.push(" AND NOT n.burned");
-            }
-        }
-
-        if let Some(rank) = query.rarity.as_ref() {
-            query_builder.push(" AND n.rank >= ");
-            query_builder.push(rank.min);
-
-            if let Some(max) = rank.max {
-                query_builder.push(" AND n.rank <= ");
-                query_builder.push(max);
-            }
-        }
-
-        if let Some(contract_ids) = query.market_contract_ids.as_ref() {
-            query_builder.push(" AND n.market_contract_id = ANY(");
-            query_builder.push_bind(contract_ids);
-            query_builder.push(")");
-        }
-
-        if let Some(price) = query.price.as_ref() {
-            match price.type_ {
-                CoinType::APT => {
-                    query_builder.push(" AND n.list_price >= ");
-                    query_builder.push_bind(&price.range.min);
-
-                    if let Some(max) = price.range.max.as_ref() {
-                        query_builder.push(" AND n.list_price <= ");
-                        query_builder.push_bind(max);
-                    }
-                }
-                CoinType::USD => {
-                    query_builder.push(" AND n.list_usd_price >= ");
-                    query_builder.push_bind(&price.range.min);
-
-                    if let Some(max) = price.range.max.as_ref() {
-                        query_builder.push(" AND n.list_usd_price <= ");
-                        query_builder.push_bind(max);
-                    }
-                }
-            }
-        }
-
-        if let Some(attributes) = query.attributes.as_ref() {
-            for attribute in attributes {
-                query_builder.push(" AND n.id IN (SELECT na.nft_id FROM attributes na WHERE TRUE");
-
-                if let Some(collection_id) = query.collection_id.as_ref() {
-                    query_builder.push(" AND na.collection_id = ");
-                    query_builder.push_bind(collection_id);
-                }
-
-                query_builder.push(" AND na.type = ");
-                query_builder.push_bind(attribute.type_.as_str());
-                query_builder.push(" AND na.value = ANY(");
-                query_builder.push_bind(attribute.values.as_slice());
-                query_builder.push("))");
-            }
-        }
-
-        if let Some(order) = order.as_ref() {
-            let mut order_builder = String::new();
-            if let Some(order_type) = order.price {
-                order_builder
-                    .push_str(format!(" n.list_price {},", order_type.to_string()).as_str());
-            }
-
-            if let Some(order_type) = order.rarity {
-                order_builder.push_str(format!(" n.score {},", order_type.to_string()).as_str());
-            }
-
-            if let Some(order_type) = order.listed_at {
-                order_builder
-                    .push_str(format!(" n.listed_at {},", order_type.to_string()).as_str());
-            }
-
-            if let Some(order_type) = order.received_at {
-                order_builder
-                    .push_str(format!(" n.received_at {},", order_type.to_string()).as_str());
-            }
-
-            let ordering = &order_builder[..(order_builder.len() - 1)];
-            if ordering.trim().is_empty() {
-                query_builder.push(" ORDER BY n.list_price DESC ");
-            } else {
-                query_builder.push(format!(" ORDER BY {}", ordering.to_lowercase().trim()));
-            }
-        }
+        println!("{}", query_builder.sql());
 
         query_builder.push(" LIMIT ");
         query_builder.push_bind(limit);
@@ -512,5 +249,61 @@ impl INfts for Nfts {
         .context("Failed to count total nft")?;
 
         Ok(res.unwrap_or_default())
+    }
+}
+
+impl Loader<Uuid> for Nfts {
+    type Value = NftSchema;
+    type Error = FieldError;
+
+    async fn load(&self, keys: &[Uuid]) -> Result<HashMap<Uuid, Self::Value>, Self::Error> {
+        let res = sqlx::query_as!(
+            NftSchema,
+            r#"
+             WITH
+                nft_rarities AS (
+                    SELECT
+                        na.collection_id,
+                        na.nft_id,
+                        SUM(-LOG(2, na.rarity))             AS rarity
+                    FROM attributes na
+                    GROUP BY na.collection_id, na.nft_id
+                )
+            SELECT 
+                n.id,
+                COALESCE(n.name, nm.name)                   AS name,
+                owner,
+                n.collection_id,
+                burned,
+                n.properties,
+                n.token_id,
+                COALESCE(n.description, nm.description)     AS description,
+                COALESCE(nm.image, n.uri)                   AS image_url,
+                nm.animation_url,
+                nm.avatar_url,
+                nm.youtube_url,
+                nm.external_url,
+                nm.background_color,
+                royalty,
+                version,
+                nr.rarity,
+                CASE
+                    WHEN nr.rarity IS NOT NULL
+                    THEN RANK () OVER (
+                        PARTITION BY n.collection_id
+                        ORDER BY nr.rarity DESC
+                    )
+                    END                                     AS ranking
+            FROM nfts n
+                LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
+                LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
+            WHERE n.id = ANY($1)
+            "#,
+            keys
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+
+        Ok(res.into_iter().map(|c| (c.id, c)).collect())
     }
 }

@@ -1,11 +1,14 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::models::{
-    db::bid::DbBid,
-    schema::bid::{BidSchema, OrderBidSchema, QueryBidSchema},
-};
 use crate::utils::schema::{handle_order, handle_query};
 use crate::utils::structs;
+use crate::{
+    database::Schema,
+    models::{
+        db::bid::DbBid,
+        schema::bid::{BidSchema, OrderBidSchema, QueryBidSchema},
+    },
+};
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
@@ -142,7 +145,7 @@ impl IBids for Bids {
         );
 
         if let Some(object) = structs::to_map(&query).ok().flatten() {
-            handle_query(&mut query_builder, &object, "AND");
+            handle_query(&mut query_builder, &object, "AND", Schema::Bids);
         }
 
         if query_builder.sql().trim().ends_with("WHERE") {

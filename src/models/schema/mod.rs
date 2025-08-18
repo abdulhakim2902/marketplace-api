@@ -1,9 +1,6 @@
-use crate::{
-    database::{
-        Database, IDatabase, attributes::IAttributes, bids::IBids, nfts::INfts,
-        token_prices::ITokenPrices,
-    },
-    models::schema::nft::{FilterNftSchema, NftSchema, WhereNftSchema},
+use crate::database::{
+    Database, IDatabase, attributes::IAttributes, bids::IBids, nfts::INfts,
+    token_prices::ITokenPrices,
 };
 use async_graphql::{Context, Enum, InputObject, InputType, OutputType};
 use bigdecimal::BigDecimal;
@@ -94,38 +91,6 @@ pub struct OperatorSchema<T: InputType + OutputType> {
     _is_null: Option<bool>,
 }
 
-async fn fetch_nft(
-    ctx: &Context<'_>,
-    nft_id: Option<String>,
-    collection_id: Option<String>,
-) -> Option<NftSchema> {
-    if nft_id.is_none() {
-        return None;
-    }
-
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    let query = WhereNftSchema {
-        collection_id,
-        nft_id,
-        ..Default::default()
-    };
-
-    let filter = FilterNftSchema {
-        where_: Some(query),
-        ..Default::default()
-    };
-
-    db.nfts()
-        .fetch_nfts(filter)
-        .await
-        .unwrap_or_default()
-        .first()
-        .cloned()
-}
-
 async fn fetch_total_collection_trait(
     ctx: &Context<'_>,
     collection_id: Option<String>,
@@ -174,12 +139,12 @@ async fn fetch_nft_top_offer(ctx: &Context<'_>, nft_id: &str) -> Option<String> 
         .data::<Arc<Database>>()
         .expect("Missing database in the context");
 
-    let res = db.bids().fetch_nft_top_offer(nft_id).await;
-    if res.is_err() {
-        return None;
-    }
-
-    res.unwrap().map(|e| e.to_plain_string())
+    db.bids()
+        .fetch_nft_top_offer(nft_id)
+        .await
+        .ok()
+        .flatten()
+        .map(|e| e.to_plain_string())
 }
 
 async fn fetch_total_nft(

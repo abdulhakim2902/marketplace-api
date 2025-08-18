@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::database::Schema;
 use crate::models::schema::listing::{OrderListingSchema, QueryListingSchema};
 use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
 use crate::utils::schema::{handle_order, handle_query};
@@ -106,13 +107,25 @@ impl IListings for Listings {
     ) -> anyhow::Result<Vec<ListingSchema>> {
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
-            SELECT * FROM listings
+            SELECT 
+                id,
+                block_height,
+                block_time,
+                market_contract_id,
+                listed,
+                market_name,
+                nft_id,
+                nonce,
+                price,
+                seller,
+                tx_index
+            FROM listings
             WHERE
             "#,
         );
 
         if let Some(object) = structs::to_map(&query).ok().flatten() {
-            handle_query(&mut query_builder, &object, "AND");
+            handle_query(&mut query_builder, &object, "AND", Schema::Listings);
         }
 
         if query_builder.sql().trim().ends_with("WHERE") {

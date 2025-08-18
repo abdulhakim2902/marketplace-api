@@ -1,6 +1,7 @@
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use crate::{
+    database::Schema,
     models::{
         db::collection::DbCollection,
         schema::{
@@ -212,7 +213,7 @@ impl ICollections for Collections {
         );
 
         if let Some(object) = structs::to_map(&query).ok().flatten() {
-            handle_query(&mut query_builder, &object, "AND");
+            handle_query(&mut query_builder, &object, "AND", Schema::Collections);
         }
 
         if query_builder.sql().trim().ends_with("WHERE") {
@@ -356,12 +357,12 @@ impl ICollections for Collections {
                     GROUP BY activities.collection_id
                 ),
                 collection_scores AS (
-                    SELECT DISTINCT ON (ca.collection_id, ca.type, ca.value)
+                    SELECT DISTINCT ON (ca.collection_id, ca.attr_type, ca.value)
                         ca.collection_id,
                         SUM(ca.score) AS score
                     FROM attributes ca
                     WHERE ca.collection_id = $1
-                    GROUP BY ca.collection_id, ca.type, ca.value
+                    GROUP BY ca.collection_id, ca.attr_type, ca.value
                 )
             SELECT
                 c.floor,
@@ -542,11 +543,11 @@ impl ICollections for Collections {
             CollectionAttributeSchema,
             r#"
             SELECT 
-                ca.type                      AS type_,
+                ca.attr_type,
                 jsonb_agg(DISTINCT ca.value) AS values
             FROM attributes ca
             WHERE ca.collection_id = $1
-            GROUP BY ca.collection_id, ca.type
+            GROUP BY ca.collection_id, ca.attr_type
             "#,
             collection_id,
         )

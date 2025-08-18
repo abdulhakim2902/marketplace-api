@@ -1,5 +1,6 @@
 use std::{str::FromStr, sync::Arc};
 
+use crate::database::Schema;
 use crate::models::db::attribute::DbAttribute;
 use crate::models::schema::attribute::{
     AttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
@@ -61,7 +62,7 @@ impl IAttributes for Attributes {
                 id,
                 collection_id,
                 nft_id,
-                type,
+                attr_type,
                 value
             )
             "#,
@@ -95,21 +96,13 @@ impl IAttributes for Attributes {
     ) -> anyhow::Result<Vec<AttributeSchema>> {
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
-            SELECT 
-                id,
-                collection_id,
-                nft_id,
-                type            AS attr_type,
-                value,
-                rarity,
-                score
-            FROM attributes
+            SELECT * FROM attributes
             WHERE
             "#,
         );
 
         if let Some(object) = structs::to_map(&query).ok().flatten() {
-            handle_query(&mut query_builder, &object, "AND");
+            handle_query(&mut query_builder, &object, "AND", Schema::Attributes);
         }
 
         if query_builder.sql().trim().ends_with("WHERE") {
@@ -124,7 +117,7 @@ impl IAttributes for Attributes {
         }
 
         if query_builder.sql().trim().ends_with("ORDER BY") {
-            query_builder.push("type");
+            query_builder.push("attr_type");
         }
 
         query_builder.push(" LIMIT ");
@@ -146,9 +139,9 @@ impl IAttributes for Attributes {
         let res = sqlx::query_scalar!(
             r#"
             WITH collection_score AS (
-                SELECT DISTINCT ON (collection_id, type, value)
+                SELECT DISTINCT ON (collection_id, attr_type, value)
                     collection_id,
-                    type,
+                    attr_type,
                     value,
                     rarity,
                     score
@@ -173,9 +166,9 @@ impl IAttributes for Attributes {
         let res = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM (
-                SELECT collection_id, type FROM attributes
+                SELECT collection_id, attr_type FROM attributes
                 WHERE collection_id = $1
-                GROUP BY collection_id, type
+                GROUP BY collection_id, attr_type
             ) AS collection_attributes
             "#,
             collection_id

@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use crate::{
-    database::{Database, IDatabase, collections::Collections},
+    database::{Database, IDatabase, collections::Collections, nfts::Nfts},
     models::{
         marketplace::APT_DECIMAL,
         schema::{
             Date, OperatorSchema, OrderingType,
             collection::{CollectionSchema, QueryCollectionSchema},
-            fetch_nft, fetch_token_price,
+            fetch_token_price,
             nft::{NftSchema, QueryNftSchema},
         },
     },
@@ -53,12 +53,17 @@ impl BidSchema {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        fetch_nft(
-            ctx,
-            self.nft_id.as_ref().map(|e| e.to_string()),
-            self.collection_id.as_ref().map(|e| e.to_string()),
-        )
-        .await
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let data_loader = DataLoader::new(Nfts::new(Arc::new(db.get_pool().clone())), tokio::spawn);
+
+        if let Some(nft_id) = self.nft_id.as_ref() {
+            data_loader.load_one(nft_id.clone()).await.ok().flatten()
+        } else {
+            None
+        }
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {

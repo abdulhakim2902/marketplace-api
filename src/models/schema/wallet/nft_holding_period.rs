@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    database::{Database, IDatabase, collections::Collections},
-    models::schema::{collection::CollectionSchema, fetch_nft, nft::NftSchema},
+    database::{Database, IDatabase, collections::Collections, nfts::Nfts},
+    models::schema::{collection::CollectionSchema, nft::NftSchema},
 };
 use async_graphql::{ComplexObject, Context, SimpleObject, dataloader::DataLoader};
 use bigdecimal::BigDecimal;
@@ -41,11 +41,16 @@ impl NftHoldingPeriod {
     }
 
     async fn nft(&self, ctx: &Context<'_>) -> Option<NftSchema> {
-        fetch_nft(
-            ctx,
-            self.nft_id.as_ref().map(|e| e.to_string()),
-            self.collection_id.as_ref().map(|e| e.to_string()),
-        )
-        .await
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let data_loader = DataLoader::new(Nfts::new(Arc::new(db.get_pool().clone())), tokio::spawn);
+
+        if let Some(nft_id) = self.nft_id.as_ref() {
+            data_loader.load_one(nft_id.clone()).await.ok().flatten()
+        } else {
+            None
+        }
     }
 }

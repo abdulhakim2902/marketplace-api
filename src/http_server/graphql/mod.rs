@@ -29,7 +29,7 @@ use crate::{
         data_point::{DataPointSchema, FilterFloorChartSchema},
         listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
         marketplace::MarketplaceSchema,
-        nft::{FilterNftSchema, NftSchema},
+        nft::{NftSchema, OrderNftSchema, QueryNftSchema},
         wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema},
     },
 };
@@ -125,13 +125,25 @@ impl Query {
             .expect("Failed to fetch collections")
     }
 
-    async fn nfts(&self, ctx: &Context<'_>, filter: Option<FilterNftSchema>) -> Vec<NftSchema> {
+    async fn nfts(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryNftSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderNftSchema>,
+    ) -> Vec<NftSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let query = query.unwrap_or_default();
+        let order = order.unwrap_or_default();
+
         db.nfts()
-            .fetch_nfts(filter.unwrap_or_default())
+            .fetch_nfts(limit, offset, query, order)
             .await
             .expect("Failed to fetch nfts")
     }
