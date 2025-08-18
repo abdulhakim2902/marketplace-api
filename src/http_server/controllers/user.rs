@@ -12,6 +12,19 @@ use crate::{
 };
 use crate::{database::IDatabase, http_server::controllers::InternalState};
 
+pub const USER_TAG: &str = "user";
+
+#[utoipa::path(
+    get,
+    path = "",
+    tag = USER_TAG,
+    responses(
+        (status = 200, description = "Returns a list of users", body = [UserResponse])
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn fetch_user<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
 ) -> Response {
@@ -21,6 +34,17 @@ pub async fn fetch_user<TDb: IDatabase, TCache: ICache>(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "",
+    tag = USER_TAG,
+    responses(
+        (status = 200, description = "Returns a new created user", body = [UserResponse])
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn create_user<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
     Json(req): Json<CreateUser>,
@@ -29,7 +53,6 @@ pub async fn create_user<TDb: IDatabase, TCache: ICache>(
         Ok((id, created_at)) => Json(UserResponse {
             id,
             username: req.username,
-            role: "user".to_string(),
             billing: Some(req.billing),
             active: true,
             created_at: created_at,

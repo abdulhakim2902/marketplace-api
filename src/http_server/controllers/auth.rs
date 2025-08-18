@@ -20,6 +20,16 @@ use crate::{
     http_server::controllers::InternalState,
 };
 
+pub const AUTH_TAG: &str = "auth";
+
+#[utoipa::path(
+    post,
+    path = "/login",
+    tag = AUTH_TAG,
+    responses(
+        (status = 200, description = "Returns a token to access the api", body = AccessToken)
+    )
+)]
 pub async fn login<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
     Json(req): Json<Login>,

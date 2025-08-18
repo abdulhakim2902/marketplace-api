@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                u.id,\n                u.username,\n                u.role,\n                u.billing,\n                u.active,\n                u.created_at\n            FROM users u\n            WHERE u.role = 'user'\n            ",
+  "query": "\n            SELECT\n                u.id,\n                u.username,\n                u.billing,\n                u.active,\n                u.created_at\n            FROM users u\n            WHERE u.role = 'user'\n            ",
   "describe": {
     "columns": [
       {
@@ -15,21 +15,16 @@
       },
       {
         "ordinal": 2,
-        "name": "role",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 3,
         "name": "billing",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "active",
         "type_info": "Bool"
       },
       {
-        "ordinal": 5,
+        "ordinal": 4,
         "name": "created_at",
         "type_info": "Timestamptz"
       }
@@ -40,11 +35,10 @@
     "nullable": [
       false,
       false,
-      false,
       true,
       false,
       false
     ]
   },
-  "hash": "721c839adb0bc44d6097a13b7a753625378d4d02cd5a34f6bd12630d48649827"
+  "hash": "b256a79b4ac4dc75dc386d5dc11b4668facdc09b660acc29df264b1bd265572f"
 }

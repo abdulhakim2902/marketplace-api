@@ -4,8 +4,9 @@ pub mod auth_user;
 pub mod user;
 
 use serde::Serialize;
+use utoipa::ToSchema;
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct HttpResponseConstErr {
     pub code: &'static str,
     pub msg: &'static str,
@@ -21,7 +22,7 @@ pub const BAD_REQUEST_ERR: HttpResponseConstErr = HttpResponseConstErr {
     msg: "Bad Request",
 };
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct HttpResponseErr {
     pub code: String,
     pub msg: String,

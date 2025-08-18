@@ -8,7 +8,12 @@ use crate::{
     config::Config,
     database::IDatabase,
     http_server::{
-        controllers::{api_key, auth, graphql_handler, health, user},
+        controllers::{
+            api_key::{self, API_KEY_TAG},
+            auth::{self, AUTH_TAG},
+            graphql_handler, health,
+            user::{self, USER_TAG},
+        },
         graphql::{Query, graphql},
         middlewares::{authentication, authorize},
     },
@@ -34,6 +39,58 @@ use tower_http::{
     trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
 };
 use tracing::Level;
+use utoipa::{
+    Modify, OpenApi,
+    openapi::security::{Http, HttpAuthScheme, SecurityScheme},
+};
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_swagger_ui::SwaggerUi;
+
+#[derive(OpenApi)]
+#[openapi(paths(auth::login))]
+struct AuthApi;
+
+#[derive(OpenApi)]
+#[openapi(paths(user::fetch_user, user::create_user))]
+struct UserApi;
+
+#[derive(OpenApi)]
+#[openapi(paths(
+    api_key::fetch_api_keys,
+    api_key::create_api_key,
+    api_key::remove_api_key
+))]
+struct ApiKeyApi;
+
+#[derive(OpenApi)]
+#[openapi(
+    nest(
+        (path = "/auth", api = AuthApi),
+        (path = "/users", api = UserApi),
+        (path = "/api-keys", api = ApiKeyApi),
+    ),
+    modifiers(&SecurityAddon),
+    tags(
+        (name = AUTH_TAG, description = "Auth items management API"),
+        (name = USER_TAG, description = "User items management API"),
+        (name = API_KEY_TAG, description = "User api key items management API")
+    ),
+    servers((url = "/api/v1"))
+)]
+struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "BearerAuth",
+                SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
+            );
+        }
+    }
+}
 
 pub struct HttpServer<TDb: IDatabase, TCache: ICache> {
     db: Arc<TDb>,
@@ -133,39 +190,46 @@ where
         let db = Arc::clone(&self.db);
         let jwt_secret = self.config.jwt_config.secret.to_string();
 
-        Router::new()
+        // let mut api_doc = ApiDoc::openapi();
+        // let local_url = format!("http://localhost:{}/api/v1", self.config.server_config.port);
+
+        // api_doc.servers = Some(vec![Server::new(local_url)]);
+
+        let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
             .route("/health", get(health::check))
             .nest(
                 "/api/v1",
-                Router::new()
+                OpenApiRouter::new()
                     .nest(
                         "/users",
-                        Router::new()
+                        OpenApiRouter::new().route(
+                            "/",
+                            get(user::fetch_user)
+                                .post(user::create_user)
+                                .layer(middleware::from_fn(authorize::authorize)),
+                        ),
+                    )
+                    .nest(
+                        "/api-keys",
+                        OpenApiRouter::new()
                             .route(
                                 "/",
-                                get(user::fetch_user)
-                                    .post(user::create_user)
-                                    .layer(middleware::from_fn(authorize::authorize)),
+                                get(api_key::fetch_api_keys).post(api_key::create_api_key),
                             )
-                            .nest(
-                                "/api-keys",
-                                Router::new()
-                                    .route(
-                                        "/",
-                                        get(api_key::fetch_api_keys).post(api_key::create_api_key),
-                                    )
-                                    .route("/{id}", delete(api_key::remove_api_key)),
-                            )
-                            .layer(middleware::from_fn(move |req, next| {
-                                authentication::authentication(
-                                    req,
-                                    next,
-                                    Arc::clone(&db),
-                                    jwt_secret.clone(),
-                                )
-                            })),
+                            .route("/{id}", delete(api_key::remove_api_key)),
                     )
-                    .nest("/auth", Router::new().route("/login", post(auth::login)))
+                    .layer(middleware::from_fn(move |req, next| {
+                        authentication::authentication(
+                            req,
+                            next,
+                            Arc::clone(&db),
+                            jwt_secret.clone(),
+                        )
+                    }))
+                    .nest(
+                        "/auth",
+                        OpenApiRouter::new().route("/login", post(auth::login)),
+                    )
                     .layer(api_middleware),
             )
             .route("/gql", get(graphql).post(graphql_handler))
@@ -174,6 +238,9 @@ where
             .layer(cors)
             .layer(governor)
             .with_state(Arc::clone(self))
+            .split_for_parts();
+
+        router.merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", api.clone()))
     }
 
     async fn shutdown_signal() {

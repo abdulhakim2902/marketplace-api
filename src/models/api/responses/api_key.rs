@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct ApiKeyResponse {
     pub id: Uuid,
     pub user_id: String,
@@ -10,4 +11,10 @@ pub struct ApiKeyResponse {
     pub name: String,
     pub description: Option<String>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct SuccessRemoveApiKeyResponse {
+    pub id: String,
+    pub message: String,
 }

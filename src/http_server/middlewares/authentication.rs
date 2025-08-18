@@ -10,7 +10,7 @@ use axum::{extract::Request, http::header, middleware::Next, response::Response}
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Claims {
     pub id: String,
     pub role: String,
@@ -48,8 +48,7 @@ pub async fn authentication<TDb: IDatabase>(
         .filter(|e| *e)
         .ok_or(response_401_with_message("User not found"))?;
 
-    req.extensions_mut()
-        .insert((token_data.claims.id, token_data.claims.role));
+    req.extensions_mut().insert(token_data.claims);
 
     Ok(next.run(req).await)
 }

@@ -70,7 +70,6 @@ impl IUsers for Users {
             SELECT
                 u.id,
                 u.username,
-                u.role,
                 u.billing,
                 u.active,
                 u.created_at
