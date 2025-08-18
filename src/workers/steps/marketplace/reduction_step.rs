@@ -5,6 +5,7 @@ use crate::{
         db::{activity::DbActivity, bid::DbBid, listing::DbListing},
         marketplace::{APT_DECIMAL, MarketplaceField, MarketplaceModel, NftMarketplaceActivity},
     },
+    utils::string_utils::capitalize,
 };
 use anyhow::Result;
 use aptos_indexer_processor_sdk::{
@@ -113,14 +114,16 @@ pub struct NFTReductionStep<TDb: IDatabase, TCache: ICache>
 where
     Self: Sized + Send + 'static,
 {
+    name: String,
     db: Arc<TDb>,
     cache: Arc<TCache>,
     accumulator: NFTAccumulator,
 }
 
 impl<TDb: IDatabase, TCache: ICache> NFTReductionStep<TDb, TCache> {
-    pub fn new(db: Arc<TDb>, cache: Arc<TCache>) -> Self {
+    pub fn new(name: &str, db: Arc<TDb>, cache: Arc<TCache>) -> Self {
         Self {
+            name: name.to_string(),
             db,
             cache,
             accumulator: NFTAccumulator::default(),
@@ -192,6 +195,6 @@ impl<TDb: IDatabase, TCache: ICache> AsyncStep for NFTReductionStep<TDb, TCache>
 
 impl<TDb: IDatabase, TCache: ICache> NamedStep for NFTReductionStep<TDb, TCache> {
     fn name(&self) -> String {
-        "NFTReductionStep".to_string()
+        format!("{}NFTReductionStep", capitalize(&self.name))
     }
 }

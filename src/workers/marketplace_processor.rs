@@ -115,9 +115,12 @@ where
         })
         .await?;
 
+        let name = config.name.as_str();
+
         let remapping_step = RemappingStep::new(config.clone())?;
-        let reduction_step = NFTReductionStep::new(Arc::clone(&self.db), Arc::clone(&self.cache));
-        let db_writing_step = DBWritingStep::new(Arc::clone(&self.db));
+        let reduction_step =
+            NFTReductionStep::new(name, Arc::clone(&self.db), Arc::clone(&self.cache));
+        let db_writing_step = DBWritingStep::new(name, Arc::clone(&self.db));
         let version_tracker_step = VersionTrackerStep::new(
             DbProcessorStatusSaver::new(config.name.clone(), Arc::clone(&self.db)),
             DEFAULT_UPDATE_PROCESSOR_STATUS_SECS,

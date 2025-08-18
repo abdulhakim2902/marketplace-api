@@ -31,3 +31,16 @@ pub fn str_to_pginterval(interval_str: &str) -> anyhow::Result<Option<PgInterval
 
     Ok(Some(pg_interval))
 }
+
+pub fn capitalize(s: &str) -> String {
+    s.chars()
+        .enumerate()
+        .map(|(index, char)| {
+            if index == 0 {
+                char.to_ascii_uppercase()
+            } else {
+                char.to_ascii_lowercase()
+            }
+        })
+        .collect::<String>()
+}

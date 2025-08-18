@@ -1,6 +1,7 @@
 use crate::{
     config::marketplace_config::NFTMarketplaceConfig,
     models::marketplace::NftMarketplaceActivity,
+    utils::string_utils::capitalize,
     workers::steps::marketplace::remappers::{
         event_remapper::EventRemapper, resource_remapper::ResourceMapper,
     },
@@ -19,6 +20,7 @@ pub struct RemappingStep
 where
     Self: Sized + Send + 'static,
 {
+    name: String,
     event_remapper: Arc<EventRemapper>,
     resource_remapper: Arc<ResourceMapper>,
 }
@@ -29,6 +31,7 @@ impl RemappingStep {
         let resource_remapper: Arc<ResourceMapper> = ResourceMapper::new(&config)?;
 
         Ok(Self {
+            name: config.name,
             event_remapper,
             resource_remapper,
         })
@@ -93,6 +96,6 @@ impl AsyncStep for RemappingStep {}
 
 impl NamedStep for RemappingStep {
     fn name(&self) -> String {
-        "RemappingStep".to_string()
+        format!("{}RemappingStep", capitalize(&self.name))
     }
 }

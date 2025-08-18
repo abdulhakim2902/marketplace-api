@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{
     database::{IDatabase, activities::IActivities, bids::IBids, listings::IListings},
     models::db::{activity::DbActivity, bid::DbBid, listing::DbListing},
+    utils::string_utils::capitalize,
 };
 use aptos_indexer_processor_sdk::{
     traits::{AsyncStep, NamedStep, Processable, async_step::AsyncRunType},
@@ -11,12 +12,16 @@ use aptos_indexer_processor_sdk::{
 };
 
 pub struct DBWritingStep<TDb: IDatabase> {
+    pub name: String,
     pub db: Arc<TDb>,
 }
 
 impl<TDb: IDatabase> DBWritingStep<TDb> {
-    pub fn new(db: Arc<TDb>) -> Self {
-        Self { db }
+    pub fn new(name: &str, db: Arc<TDb>) -> Self {
+        Self {
+            name: name.to_string(),
+            db,
+        }
     }
 }
 
@@ -85,6 +90,6 @@ impl<TDb: IDatabase> AsyncStep for DBWritingStep<TDb> {}
 
 impl<TDb: IDatabase> NamedStep for DBWritingStep<TDb> {
     fn name(&self) -> String {
-        "DBMarketplaceWritingStep".to_string()
+        format!("{}DBWritingStep", capitalize(&self.name))
     }
 }

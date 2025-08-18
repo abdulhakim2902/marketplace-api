@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::database::IDatabase;
 use crate::utils::generate_nft_id;
 use crate::{
     config::marketplace_config::MarketplaceEventType,
@@ -23,10 +26,11 @@ use aptos_indexer_processor_sdk::{
 use bigdecimal::{BigDecimal, ToPrimitive};
 use uuid::Uuid;
 
-pub struct TokenExtractor
+pub struct TokenExtractor<TDb: IDatabase>
 where
     Self: Sized + Send + 'static,
 {
+    db: Arc<TDb>,
     current_wallets: AHashSet<String>,
     current_collections: AHashMap<Uuid, DbCollection>,
     current_nfts: AHashMap<Uuid, DbNft>,
@@ -34,9 +38,10 @@ where
     current_activities: AHashMap<i64, DbActivity>,
 }
 
-impl TokenExtractor {
-    pub fn new() -> Self {
+impl<TDb: IDatabase> TokenExtractor<TDb> {
+    pub fn new(db: Arc<TDb>) -> Self {
         Self {
+            db,
             current_wallets: AHashSet::new(),
             current_collections: AHashMap::new(),
             current_nfts: AHashMap::new(),
@@ -47,7 +52,10 @@ impl TokenExtractor {
 }
 
 #[async_trait::async_trait]
-impl Processable for TokenExtractor {
+impl<TDb: IDatabase> Processable for TokenExtractor<TDb>
+where
+    TDb: Send + Sync,
+{
     type Input = Vec<Transaction>;
     type Output = (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>, Vec<String>);
     type RunType = AsyncRunType;
@@ -312,15 +320,15 @@ impl Processable for TokenExtractor {
     }
 }
 
-impl AsyncStep for TokenExtractor {}
+impl<TDb: IDatabase> AsyncStep for TokenExtractor<TDb> {}
 
-impl NamedStep for TokenExtractor {
+impl<TDb: IDatabase> NamedStep for TokenExtractor<TDb> {
     fn name(&self) -> String {
         "TokenExtractorStep".to_string()
     }
 }
 
-impl TokenExtractor {
+impl<TDb: IDatabase> TokenExtractor<TDb> {
     fn drain(&mut self) -> (Vec<DbActivity>, Vec<DbCollection>, Vec<DbNft>, Vec<String>) {
         let mut nfts = self
             .current_nfts

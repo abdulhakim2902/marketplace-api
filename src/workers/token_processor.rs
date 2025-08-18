@@ -89,7 +89,7 @@ where
         })
         .await?;
 
-        let remapping_step = TokenExtractor::new();
+        let remapping_step = TokenExtractor::new(Arc::clone(&self.db));
         let db_writing_step = DBWritingStep::new(Arc::clone(&self.db));
         let version_tracker_step = VersionTrackerStep::new(
             DbProcessorStatusSaver::new(processor_name, Arc::clone(&self.db)),
