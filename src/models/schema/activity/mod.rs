@@ -18,7 +18,7 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "Activity", rename_fields = "snake_case")]
 pub struct ActivitySchema {
     pub id: Uuid,
     #[graphql(name = "type")]
@@ -77,7 +77,7 @@ impl ActivitySchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "ActivityQuery", rename_fields = "snake_case")]
 pub struct QueryActivitySchema {
     #[graphql(name = "_or")]
     pub _or: Option<Arc<QueryActivitySchema>>,
@@ -106,7 +106,7 @@ pub struct QueryActivitySchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "ActivityOrder", rename_fields = "snake_case")]
 pub struct OrderActivitySchema {
     pub id: Option<OrderingType>,
     #[graphql(name = "type")]

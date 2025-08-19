@@ -25,7 +25,7 @@ pub type Date = DateTime<Utc>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[graphql(rename_items = "snake_case")]
+#[graphql(name = "Order", rename_items = "snake_case")]
 pub enum OrderingType {
     Asc,
     AscNullsFirst,
@@ -43,6 +43,7 @@ impl Default for OrderingType {
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, InputObject)]
 #[graphql(
+    name = "ComparisonOperator",
     concrete(
         name = "OperatorSchemaTypeOutString",
         input_name = "OperatorSchemaTypeInString",

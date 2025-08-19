@@ -10,15 +10,15 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, SimpleObject)]
-#[graphql(complex, rename_fields = "snake_case")]
-pub struct NftHoldingPeriod {
+#[graphql(complex, name = "NftHoldingPeriod", rename_fields = "snake_case")]
+pub struct NftHoldingPeriodSchema {
     pub collection_id: Option<Uuid>,
     pub nft_id: Option<Uuid>,
     pub period: Option<BigDecimal>,
 }
 
 #[ComplexObject]
-impl NftHoldingPeriod {
+impl NftHoldingPeriodSchema {
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
         let db = ctx
             .data::<Arc<Database>>()

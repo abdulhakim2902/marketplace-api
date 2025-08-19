@@ -3,7 +3,7 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, SimpleObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "CollectionTopWallet", rename_fields = "snake_case")]
 pub struct TopWalletSchema {
     pub address: Option<String>,
     pub total: Option<i64>,

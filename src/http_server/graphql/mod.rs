@@ -30,7 +30,7 @@ use crate::{
         listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
         marketplace::MarketplaceSchema,
         nft::{NftSchema, OrderNftSchema, QueryNftSchema},
-        wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema},
+        wallet::{nft_holding_period::NftHoldingPeriodSchema, stats::StatsSchema},
     },
 };
 use async_graphql::{Context, Object, http::GraphiQLSource};
@@ -233,7 +233,7 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         address: String,
-    ) -> Vec<NftHoldingPeriod> {
+    ) -> Vec<NftHoldingPeriodSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
@@ -438,8 +438,8 @@ impl Query {
     // ================================================
 
     // ================== Activities ==================
-    #[graphql(name = "profit_loss_activities")]
-    async fn profit_loss_activities(
+    #[graphql(name = "activity_profit_losses")]
+    async fn activity_profit_losses(
         &self,
         ctx: &Context<'_>,
         limit: Option<i64>,
@@ -459,8 +459,8 @@ impl Query {
             .expect("Failed to fetch wallet profit loss")
     }
 
-    #[graphql(name = "contribution_chart_activities")]
-    async fn contribution_chart_activities(
+    #[graphql(name = "activity_contribution_charts")]
+    async fn activity_contribution_charts(
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "wallet_address")] wallet_address: String,

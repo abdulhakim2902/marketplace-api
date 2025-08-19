@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "CollectionTrending", rename_fields = "snake_case")]
 pub struct CollectionTrendingSchema {
     pub collection_id: Uuid,
     pub floor: Option<i64>,

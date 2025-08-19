@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "CollectionStats", rename_fields = "snake_case")]
 pub struct CollectionStatSchema {
     pub floor: Option<i64>,
     pub owners: Option<i64>,

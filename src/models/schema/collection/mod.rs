@@ -29,7 +29,7 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "collection", rename_fields = "snake_case")]
 pub struct CollectionSchema {
     pub id: Uuid,
     pub slug: Option<String>,
@@ -166,7 +166,7 @@ impl CollectionSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "CollectionQuery", rename_fields = "snake_case")]
 pub struct QueryCollectionSchema {
     #[graphql(name = "_or")]
     pub _or: Option<Arc<QueryCollectionSchema>>,
@@ -194,7 +194,7 @@ pub struct QueryCollectionSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "CollectionOrderBy", rename_fields = "snake_case")]
 pub struct OrderCollectionSchema {
     pub id: Option<OrderingType>,
     pub slug: Option<OrderingType>,

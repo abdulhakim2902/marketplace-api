@@ -18,7 +18,7 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject, FromRow)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "Listing", rename_fields = "snake_case")]
 pub struct ListingSchema {
     pub id: Uuid,
     pub block_height: Option<i64>,
@@ -59,7 +59,7 @@ impl ListingSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "ListingQuery", rename_fields = "snake_case")]
 pub struct QueryListingSchema {
     #[graphql(name = "_or")]
     pub _or: Option<Arc<QueryListingSchema>>,
@@ -83,7 +83,7 @@ pub struct QueryListingSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "ListingOrderBy", rename_fields = "snake_case")]
 pub struct OrderListingSchema {
     pub id: Option<OrderingType>,
     pub block_height: Option<OrderingType>,

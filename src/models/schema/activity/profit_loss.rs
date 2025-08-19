@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "ActivityProfitLoss", rename_fields = "snake_case")]
 pub struct ProfitLossSchema {
     pub collection_id: Option<Uuid>,
     pub nft_id: Option<Uuid>,

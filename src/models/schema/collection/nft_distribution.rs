@@ -2,7 +2,7 @@ use async_graphql::SimpleObject;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "CollectionNftAmountDistribution", rename_fields = "snake_case")]
 pub struct NftAmountDistributionSchema {
     pub range_1: Option<i64>,
     pub range_2_to_3: Option<i64>,
@@ -13,7 +13,7 @@ pub struct NftAmountDistributionSchema {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "CollectionNftPeriodDistribution", rename_fields = "snake_case")]
 pub struct NftPeriodDistributionSchema {
     pub range_lt_24h: Option<i64>,
     pub range_1d_to_7d: Option<i64>,

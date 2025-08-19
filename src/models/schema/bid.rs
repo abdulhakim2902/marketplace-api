@@ -20,7 +20,7 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject, FromRow)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "Bid", rename_fields = "snake_case")]
 pub struct BidSchema {
     pub id: Uuid,
     pub bidder: Option<String>,
@@ -89,7 +89,7 @@ impl BidSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "BidQuery", rename_fields = "snake_case")]
 pub struct QueryBidSchema {
     #[graphql(name = "_or")]
     pub _or: Option<Arc<QueryBidSchema>>,
@@ -119,7 +119,7 @@ pub struct QueryBidSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "BidOrderBy", rename_fields = "snake_case")]
 pub struct OrderBidSchema {
     pub id: Option<OrderingType>,
     pub bidder: Option<OrderingType>,

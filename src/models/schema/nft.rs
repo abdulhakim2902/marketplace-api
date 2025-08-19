@@ -22,7 +22,7 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Deserialize, Serialize, FromRow, SimpleObject)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "Nft", rename_fields = "snake_case")]
 pub struct NftSchema {
     pub id: Uuid,
     pub name: Option<String>,
@@ -187,7 +187,7 @@ impl NftSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "NftQuery", rename_fields = "snake_case")]
 pub struct QueryNftSchema {
     #[graphql(name = "_or")]
     pub _or: Option<Box<QueryNftSchema>>,
@@ -221,7 +221,7 @@ pub struct QueryNftSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "NftOrderBy", rename_fields = "snake_case")]
 pub struct OrderNftSchema {
     pub id: Option<OrderingType>,
     pub name: Option<OrderingType>,

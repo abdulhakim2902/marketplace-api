@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
-#[graphql(complex, rename_fields = "snake_case")]
+#[graphql(complex, name = "Attribute", rename_fields = "snake_case")]
 pub struct AttributeSchema {
     pub id: Uuid,
     pub collection_id: Uuid,
@@ -62,7 +62,7 @@ impl AttributeSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "AttributeQuery", rename_fields = "snake_case")]
 pub struct QueryAttributeSchema {
     #[graphql(name = "_or")]
     pub _or: Option<Arc<QueryAttributeSchema>>,
@@ -83,7 +83,7 @@ pub struct QueryAttributeSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(rename_fields = "snake_case")]
+#[graphql(name = "AttributeOrder", rename_fields = "snake_case")]
 pub struct OrderAttributeSchema {
     pub id: Option<OrderingType>,
     pub collection_id: Option<OrderingType>,

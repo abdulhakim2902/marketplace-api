@@ -3,7 +3,9 @@ use std::sync::Arc;
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
-use crate::models::schema::wallet::{nft_holding_period::NftHoldingPeriod, stats::StatsSchema};
+use crate::models::schema::wallet::{
+    nft_holding_period::NftHoldingPeriodSchema, stats::StatsSchema,
+};
 
 #[async_trait::async_trait]
 pub trait IWallets: Send + Sync {
@@ -18,7 +20,7 @@ pub trait IWallets: Send + Sync {
     async fn fetch_nft_holding_periods(
         &self,
         address: &str,
-    ) -> anyhow::Result<Vec<NftHoldingPeriod>>;
+    ) -> anyhow::Result<Vec<NftHoldingPeriodSchema>>;
 }
 
 pub struct Wallets {
@@ -140,9 +142,9 @@ impl IWallets for Wallets {
     async fn fetch_nft_holding_periods(
         &self,
         address: &str,
-    ) -> anyhow::Result<Vec<NftHoldingPeriod>> {
+    ) -> anyhow::Result<Vec<NftHoldingPeriodSchema>> {
         let res = sqlx::query_as!(
-            NftHoldingPeriod,
+            NftHoldingPeriodSchema,
             r#"
             SELECT
                 ra.collection_id,
