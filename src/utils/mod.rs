@@ -52,3 +52,10 @@ pub fn generate_attribute_id(
         .as_str(),
     )
 }
+pub fn generate_request_log_id(api_key_id: &str, ts: i64) -> Uuid {
+    generate_uuid_from_str(format!("{}::{}", api_key_id, ts.to_string()).as_str())
+}
+
+pub fn generate_user_id(username: &str) -> Uuid {
+    generate_uuid_from_str(username)
+}

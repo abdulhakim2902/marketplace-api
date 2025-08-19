@@ -35,4 +35,20 @@ async-graphql = { version = "7.0.17", features = ["chrono", "bigdecimal", "uuid"
 async-graphql-axum = "7.0.17"
 uuid = { version = "1.18.0", features = ["serde", "v5"] }
 tower = "0.5.2"
-tower-http = { version = "0.6.6", features = ["cors", "limit"] }
+tower-http = {  version = "0.6.6", features = [
+    "compression-full",
+    "timeout",
+    "catch-panic",
+    "request-id",
+    "trace",
+    "limit",
+    "cors",
+] }
+tower_governor = "0.8.0"
+prefixed-api-key = { version = "0.3.0", features = ["sha2"] }
+bcrypt = "0.17.0"
+jsonwebtoken = "9.3.1"
+utoipa = { version = "5.4.0", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
+utoipa-axum = "0.2.0"
+

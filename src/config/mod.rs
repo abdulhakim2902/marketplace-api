@@ -10,10 +10,29 @@ pub mod marketplace_config;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
     pub tapp_url: String,
-    pub server_port: u16,
+    pub admin_config: AdminConfig,
+    pub server_config: ServerConfig,
+    pub jwt_config: JWTConfig,
     pub db_config: DbConfig,
     pub stream_config: StreamConfig,
     pub nft_marketplace_configs: Vec<NFTMarketplaceConfig>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ServerConfig {
+    pub port: u16,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct AdminConfig {
+    pub user: String,
+    pub password: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct JWTConfig {
+    pub secret: String,
+    pub expires_in: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

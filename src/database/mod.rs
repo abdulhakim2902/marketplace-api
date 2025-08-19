@@ -1,4 +1,5 @@
 pub mod activities;
+pub mod api_keys;
 pub mod attributes;
 pub mod bids;
 pub mod collections;
@@ -7,7 +8,9 @@ pub mod marketplaces;
 pub mod nft_metadata;
 pub mod nfts;
 pub mod processor_status;
+pub mod request_logs;
 pub mod token_prices;
+pub mod users;
 pub mod wallets;
 
 use std::sync::Arc;
@@ -18,6 +21,7 @@ use strum::{Display, EnumString};
 
 use crate::database::{
     activities::{Activities, IActivities},
+    api_keys::{ApiKeys, IApiKeys},
     attributes::{Attributes, IAttributes},
     bids::{Bids, IBids},
     collections::{Collections, ICollections},
@@ -26,7 +30,9 @@ use crate::database::{
     nft_metadata::{INFTMetadata, NFTMetadata},
     nfts::{INfts, Nfts},
     processor_status::{IProcessorStatus, ProcessorStatus},
+    request_logs::{IRequestLogs, RequestLogs},
     token_prices::{ITokenPrices, TokenPrices},
+    users::{IUsers, Users},
     wallets::{IWallets, Wallets},
 };
 
@@ -43,6 +49,9 @@ pub trait IDatabase: Send + Sync + 'static {
     type TWallets: IWallets;
     type TMarketplaces: IMarketplaces;
     type TNFTMetadata: INFTMetadata;
+    type TUsers: IUsers;
+    type TRequestLogs: IRequestLogs;
+    type TApiKeys: IApiKeys;
 
     async fn is_healthy(&self) -> bool;
 
@@ -58,6 +67,9 @@ pub trait IDatabase: Send + Sync + 'static {
     fn marketplaces(&self) -> Arc<Self::TMarketplaces>;
     fn nft_metadata(&self) -> Arc<Self::TNFTMetadata>;
     fn processor_status(&self) -> Arc<Self::TProcessorStatus>;
+    fn users(&self) -> Arc<Self::TUsers>;
+    fn request_logs(&self) -> Arc<Self::TRequestLogs>;
+    fn api_keys(&self) -> Arc<Self::TApiKeys>;
 }
 
 pub struct Database {
@@ -73,6 +85,9 @@ pub struct Database {
     processor_status: Arc<ProcessorStatus>,
     marketplaces: Arc<Marketplaces>,
     nft_metadata: Arc<NFTMetadata>,
+    users: Arc<Users>,
+    request_logs: Arc<RequestLogs>,
+    api_keys: Arc<ApiKeys>,
 }
 
 impl Database {
@@ -89,6 +104,9 @@ impl Database {
         processor_status: Arc<ProcessorStatus>,
         marketplaces: Arc<Marketplaces>,
         nft_metadata: Arc<NFTMetadata>,
+        users: Arc<Users>,
+        request_logs: Arc<RequestLogs>,
+        api_keys: Arc<ApiKeys>,
     ) -> Self {
         Self {
             pool,
@@ -103,6 +121,9 @@ impl Database {
             processor_status,
             marketplaces,
             nft_metadata,
+            users,
+            request_logs,
+            api_keys,
         }
     }
 
@@ -133,6 +154,9 @@ impl IDatabase for Database {
     type TWallets = Wallets;
     type TMarketplaces = Marketplaces;
     type TNFTMetadata = NFTMetadata;
+    type TUsers = Users;
+    type TRequestLogs = RequestLogs;
+    type TApiKeys = ApiKeys;
 
     async fn is_healthy(&self) -> bool {
         sqlx::query("SELECT 1").fetch_one(&*self.pool).await.is_ok()
@@ -184,6 +208,18 @@ impl IDatabase for Database {
 
     fn nft_metadata(&self) -> Arc<Self::TNFTMetadata> {
         Arc::clone(&self.nft_metadata)
+    }
+
+    fn users(&self) -> Arc<Self::TUsers> {
+        Arc::clone(&self.users)
+    }
+
+    fn request_logs(&self) -> Arc<Self::TRequestLogs> {
+        Arc::clone(&self.request_logs)
+    }
+
+    fn api_keys(&self) -> Arc<Self::TApiKeys> {
+        Arc::clone(&self.api_keys)
     }
 }
 

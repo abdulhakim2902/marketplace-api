@@ -16,10 +16,21 @@ use crate::{
     cache::Cache,
     config::Config,
     database::{
-        Database, activities::Activities, attributes::Attributes, bids::Bids,
-        collections::Collections, listings::Listings, marketplaces::Marketplaces,
-        nft_metadata::NFTMetadata, nfts::Nfts, processor_status::ProcessorStatus,
-        token_prices::TokenPrices, wallets::Wallets,
+        Database, IDatabase,
+        activities::Activities,
+        api_keys::ApiKeys,
+        attributes::Attributes,
+        bids::Bids,
+        collections::Collections,
+        listings::Listings,
+        marketplaces::Marketplaces,
+        nft_metadata::NFTMetadata,
+        nfts::Nfts,
+        processor_status::ProcessorStatus,
+        request_logs::RequestLogs,
+        token_prices::TokenPrices,
+        users::{IUsers, Users},
+        wallets::Wallets,
     },
     http_server::HttpServer,
     utils::shutdown_utils,
@@ -55,7 +66,18 @@ pub async fn init() -> anyhow::Result<(Arc<Worker<Database, Cache>>, HttpServer<
         Arc::new(ProcessorStatus::new(Arc::clone(&pool))),
         Arc::new(Marketplaces::new(Arc::clone(&pool))),
         Arc::new(NFTMetadata::new(Arc::clone(&pool))),
+        Arc::new(Users::new(Arc::clone(&pool))),
+        Arc::new(RequestLogs::new(Arc::clone(&pool))),
+        Arc::new(ApiKeys::new(Arc::clone(&pool))),
     ));
+
+    init_admin(
+        Arc::clone(&db),
+        &config.admin_config.user,
+        &config.admin_config.password,
+    )
+    .await
+    .context("Failed to initialize admin")?;
 
     init_price(&config.tapp_url, Arc::clone(&db), Arc::clone(&cache))
         .await
@@ -91,6 +113,12 @@ async fn init_price(tapp_url: &str, db: Arc<Database>, cache: Arc<Cache>) -> any
     let price_indexer = PriceIndexer::new(tapp_url.to_string(), db, cache);
 
     price_indexer.fetch_and_store_token_prices(&client).await?;
+
+    Ok(())
+}
+
+async fn init_admin(db: Arc<Database>, user: &str, password: &str) -> anyhow::Result<()> {
+    db.users().create_admin_user(&user, password).await?;
 
     Ok(())
 }

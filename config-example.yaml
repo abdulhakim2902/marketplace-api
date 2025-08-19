@@ -1,5 +1,12 @@
-server_port: 8080
 tapp_url: "https://display-engine-mirror.tapp-dex.devucc.name/api/v1"
+admin_config:
+  user: admin
+  password: admin
+server_config:
+  port: 8080
+jwt_config:
+  secret: secret
+  expires_in: 1d
 db_config:
   url: "postgresql://username:password@neon_host/db_name"
   pool_size: 25
@@ -7,9 +14,9 @@ stream_config:
   indexer_grpc: "https://grpc.mainnet.aptoslabs.com:443"
   # Go to https://developers.aptoslabs.com/ to create a project and get an API token
   auth_token: "auth_token_you_can_get_from_aptos_build"
-  active: true
   # Default tx version to start indexing
   starting_version: 0
+  active: true
 nft_marketplace_configs:
   - name: topaz
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed

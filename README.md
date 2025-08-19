@@ -63,8 +63,15 @@ cargo run --release
 
 The `config.yaml` file is used to configure the NFT aggregator. Below is an explanation of each field:
 
-- **server_port**: Port number for the endpoint (e.g. 8080)
 - **tapp_url**: Tapp aptos price indexer
+- **admin_config**:
+  - **user**: The admin username
+  - **password**: The admin password
+- **server_config**: 
+  - **port**: Port number for the endpoint (e.g. 8080)
+- **jwt_config**:
+  - **secret**: The jwt secret
+  - **expires_in**: The jwt expiration
 - **db_config**:
     - **pool_size**: PostgreSQL pool size
     - **url**: PostgreSQL connection string. **Replace with your own.**
@@ -72,7 +79,7 @@ The `config.yaml` file is used to configure the NFT aggregator. Below is an expl
   - **indexer_grpc**: The gRPC address (e.g., "https://grpc.mainnet.aptoslabs.com:443")
   - **auth_token**: The authentication token. **Replace with your own.**
     Get your token from https://developers.aptoslabs.com/
-- **nft_marketplace_configs: A list of marketplace configurations, each containing:
+- **nft_marketplace_configs**: A list of marketplace configurations, each containing:
   - **name**: Marketplace identifier (e.g., "topaz", "tradeport", "bluemove")
   - **starting_version**: The starting version of the marketplace contract
   - **ending_version**: The ending version of the marketplace contract (optional)
@@ -114,3 +121,9 @@ The processor handles two types of data:
   - Matches token_data_id or collection_id to existing activities based on the `resource_type` field of the write_set_changes
   - Updates activities with additional data from resources
   - Handles V2 token standard specific data
+
+### Admin and User Management API
+
+To access the api explorer
+
+``{basepath}/api/v1/docs``

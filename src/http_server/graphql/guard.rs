@@ -1,15 +1,25 @@
 use crate::http_server::controllers::ApiKey;
 use async_graphql::*;
+use prefixed_api_key::{PrefixedApiKey, PrefixedApiKeyController};
 
 pub struct UserGuard;
 
 impl Guard for UserGuard {
     async fn check(&self, ctx: &Context<'_>) -> Result<()> {
-        if let Some(_) = ctx.data_opt::<ApiKey>() {
-            // TODO: api key check
-            // TODO: counting api request
+        if let Some(api_key) = ctx.data_opt::<ApiKey>() {
+            let prefixed_api_key = PrefixedApiKey::from_string(&api_key.key)?;
+            let controller = PrefixedApiKeyController::configure()
+                .prefix("ucc".to_owned())
+                .seam_defaults()
+                .finalize()?;
 
-            Ok(())
+            let is_authorize = controller.check_hash(&prefixed_api_key, &api_key.token_hash);
+
+            if is_authorize {
+                Ok(())
+            } else {
+                Err("Api key is invalid".into())
+            }
         } else {
             Err("Api key not found".into())
         }
