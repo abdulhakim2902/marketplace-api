@@ -14,8 +14,6 @@ nft_marketplace_configs:
   - name: topaz
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
     starting_version: 1088549
-#    # Optional: At which tx version to stop indexing the marketplace
-#    ending_version: 1
     contract_address: 0x2c7bccf7b31baf770fdbcc768d9e9cb3d87805e255355df5db32ac9a669010a2
     event_model_mapping:
       events::ListEvent: list
@@ -268,8 +266,6 @@ nft_marketplace_configs:
   - name: blumove
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
     starting_version: 2756487
-#    # Optional: At which tx version to stop indexing the marketplace
-#    ending_version: 1
     contract_address: 0xd1fd99c1944b84d1670a2536417e997864ad12303d19eac725891691b04d614e
     event_model_mapping:
       marketplaceV2::ListEvent: list
@@ -490,8 +486,6 @@ nft_marketplace_configs:
   - name: wapal
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
     starting_version: 147546570
-#    # Optional: At which tx version to stop indexing the marketplace
-#    ending_version:   1
     contract_address: 0x584b50b999c78ade62f8359c91b5165ff390338d45f8e55969a04e65d76258c9
     event_model_mapping:
       events::ListingPlacedEvent: list
@@ -753,8 +747,6 @@ nft_marketplace_configs:
   - name: rarible
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
     starting_version: 1011760686
-#    # Optional: At which tx version to stop indexing the marketplace
-#    ending_version: 1
     contract_address: 0x465a0051e8535859d4794f0af24dbf35c5349bedadab26404b20b825035ee790
     event_model_mapping:
       events::ListingPlaced: list
@@ -969,8 +961,6 @@ nft_marketplace_configs:
   - name: tradeport
     # At which tx version to start indexing the marketplace, usually this is the tx version when the contract was deployed
     starting_version: 94187912
-#    # Optional: At which tx version to stop indexing the marketplace
-#    ending_version: 	1
     contract_address: 0xe11c12ec495f3989c35e1c6a0af414451223305b579291fc8f3d9d0575a23c26
     event_model_mapping:
       # V1 TOKEN EVENT

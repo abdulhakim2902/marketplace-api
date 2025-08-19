@@ -49,6 +49,8 @@ where
             .await
             .unwrap_or(self.config.stream_config.starting_version as i64);
 
+        let request_ending_version = self.config.stream_config.ending_version;
+
         let token_v1_struct_filter = MoveStructTagFilterBuilder::default()
             .address("0x3")
             .module("token")
@@ -80,7 +82,7 @@ where
                 &self.config.stream_config.indexer_grpc,
             )?,
             starting_version: Some(starting_version as u64),
-            request_ending_version: None,
+            request_ending_version,
             auth_token: self.config.stream_config.auth_token.clone(),
             request_name_header: "marketplace-event-processor".to_string(),
             additional_headers: Default::default(),
