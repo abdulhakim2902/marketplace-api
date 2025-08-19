@@ -10,11 +10,14 @@ use crate::{
         nft::{NftSchema, OrderNftSchema, QueryNftSchema},
     },
 };
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
+use async_graphql::{
+    ComplexObject, Context, Enum, InputObject, SimpleObject, dataloader::DataLoader,
+};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use strum::{Display, EnumString};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
@@ -126,4 +129,33 @@ pub struct OrderActivitySchema {
     pub amount: Option<OrderingType>,
     pub collection: Option<Arc<OrderCollectionSchema>>,
     pub nft: Option<Arc<OrderNftSchema>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(name = "ActivityDistinctOn", rename_items = "snake_case")]
+pub enum DistinctActivitySchema {
+    Id,
+    #[graphql(name = "type")]
+    TxType,
+    TxIndex,
+    TxId,
+    Sender,
+    Receiver,
+    Price,
+    UsdPrice,
+    MarketName,
+    MarketContractId,
+    NftId,
+    CollectionId,
+    BlockTime,
+    BlockHeight,
+    Amount,
+}
+
+impl Default for DistinctActivitySchema {
+    fn default() -> Self {
+        Self::Id
+    }
 }

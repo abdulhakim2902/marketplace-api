@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
+use async_graphql::{
+    ComplexObject, Context, Enum, InputObject, SimpleObject, dataloader::DataLoader,
+};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use strum::{Display, EnumString};
 use uuid::Uuid;
 
 use crate::{
@@ -83,7 +86,7 @@ pub struct QueryAttributeSchema {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
-#[graphql(name = "AttributeOrder", rename_fields = "snake_case")]
+#[graphql(name = "AttributeOrderBy", rename_fields = "snake_case")]
 pub struct OrderAttributeSchema {
     pub id: Option<OrderingType>,
     pub collection_id: Option<OrderingType>,
@@ -95,4 +98,25 @@ pub struct OrderAttributeSchema {
     pub score: Option<OrderingType>,
     pub collection: Option<OrderCollectionSchema>,
     pub nft: Option<OrderNftSchema>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(name = "AttributeDistinctOn", rename_items = "snake_case")]
+pub enum DistinctAttributeSchema {
+    Id,
+    CollectionId,
+    NftId,
+    #[graphql(name = "type")]
+    AttrType,
+    Value,
+    Rarity,
+    Score,
+}
+
+impl Default for DistinctAttributeSchema {
+    fn default() -> Self {
+        Self::Id
+    }
 }

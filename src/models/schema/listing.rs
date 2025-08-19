@@ -10,11 +10,14 @@ use crate::{
         },
     },
 };
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
+use async_graphql::{
+    ComplexObject, Context, Enum, InputObject, SimpleObject, dataloader::DataLoader,
+};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use strum::{Display, EnumString};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject, FromRow)]
@@ -98,4 +101,29 @@ pub struct OrderListingSchema {
     pub seller: Option<OrderingType>,
     pub tx_index: Option<OrderingType>,
     pub nft: Option<OrderNftSchema>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(name = "ListingDistinctOn", rename_items = "snake_case")]
+pub enum DistinctListingSchema {
+    Id,
+    BlockHeight,
+    BlockTime,
+    MarketContractId,
+    Listed,
+    MarketName,
+    CollectionId,
+    NftId,
+    Nonce,
+    Price,
+    Seller,
+    TxIndex,
+}
+
+impl Default for DistinctListingSchema {
+    fn default() -> Self {
+        Self::Id
+    }
 }

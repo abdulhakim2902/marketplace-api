@@ -3,6 +3,26 @@ use sqlx::{Postgres, QueryBuilder, query_builder::Separated};
 
 use crate::database::Schema;
 
+pub fn handle_join(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<String, Value>) {
+    for (key, value) in object {
+        if let Value::Object(o) = value {
+            if !is_object_empty(o) {
+                match key.as_str() {
+                    "collection" => {
+                        builder.push(" LEFT JOIN collections c ON c.id = collection_id ");
+                    }
+                    "nft" => {
+                        builder.push(" LEFT JOIN nfts n ON n.id = nft_id ");
+                    }
+                    _ => {
+                        // Not implemented
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub fn handle_query(
     builder: &mut QueryBuilder<'_, Postgres>,
     object: &Map<String, Value>,
@@ -348,26 +368,6 @@ pub fn handle_nested_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Ma
     }
 
     builder.push(nested_order.sql());
-}
-
-pub fn handle_join(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<String, Value>) {
-    for (key, value) in object {
-        if let Value::Object(o) = value {
-            if !is_object_empty(o) {
-                match key.as_str() {
-                    "collection" => {
-                        builder.push(" LEFT JOIN collections c ON c.id = collection_id ");
-                    }
-                    "nft" => {
-                        builder.push(" LEFT JOIN nfts n ON n.id = nft_id ");
-                    }
-                    _ => {
-                        // Not implemented
-                    }
-                }
-            }
-        }
-    }
 }
 
 pub fn handle_field_operators(

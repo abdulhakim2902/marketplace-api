@@ -10,12 +10,16 @@ use crate::{
     },
     models::schema::{
         activity::{
-            ActivitySchema, OrderActivitySchema, QueryActivitySchema, profit_loss::ProfitLossSchema,
+            ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
+            profit_loss::ProfitLossSchema,
         },
-        attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
-        bid::{BidSchema, OrderBidSchema, QueryBidSchema},
+        attribute::{
+            AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+        },
+        bid::{BidSchema, DistinctBidSchema, OrderBidSchema, QueryBidSchema},
         collection::{
-            CollectionSchema, OrderCollectionSchema, QueryCollectionSchema,
+            CollectionSchema, DistinctCollectionSchema, OrderCollectionSchema,
+            QueryCollectionSchema,
             attribute::CollectionAttributeSchema,
             nft_change::NftChangeSchema,
             nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
@@ -27,9 +31,9 @@ use crate::{
             trending_nft::TrendingNftSchema,
         },
         data_point::DataPointSchema,
-        listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
+        listing::{DistinctListingSchema, ListingSchema, OrderListingSchema, QueryListingSchema},
         marketplace::MarketplaceSchema,
-        nft::{NftSchema, OrderNftSchema, QueryNftSchema},
+        nft::{DistinctNftSchema, NftSchema, OrderNftSchema, QueryNftSchema},
         wallet::{nft_holding_period::NftHoldingPeriodSchema, stats::StatsSchema},
     },
 };
@@ -59,6 +63,7 @@ impl Query {
     async fn attributes(
         &self,
         ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
@@ -68,13 +73,14 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
 
         db.attributes()
-            .fetch_attributes(limit, offset, query, order)
+            .fetch_attributes(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch attributes")
     }
@@ -82,6 +88,7 @@ impl Query {
     async fn activities(
         &self,
         ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryActivitySchema>,
@@ -91,13 +98,14 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
 
         db.activities()
-            .fetch_activities(limit, offset, query, order)
+            .fetch_activities(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch activities")
     }
@@ -105,6 +113,7 @@ impl Query {
     async fn collections(
         &self,
         ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctCollectionSchema>,
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryCollectionSchema>,
@@ -114,13 +123,14 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
 
         db.collections()
-            .fetch_collections(limit, offset, query, order)
+            .fetch_collections(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch collections")
     }
@@ -128,6 +138,7 @@ impl Query {
     async fn nfts(
         &self,
         ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryNftSchema>,
@@ -137,13 +148,14 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
 
         db.nfts()
-            .fetch_nfts(limit, offset, query, order)
+            .fetch_nfts(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch nfts")
     }
@@ -151,6 +163,7 @@ impl Query {
     async fn listings(
         &self,
         ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryListingSchema>,
@@ -160,13 +173,14 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
 
         db.listings()
-            .fetch_listings(limit, offset, query, order)
+            .fetch_listings(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch nfts")
     }
@@ -174,6 +188,7 @@ impl Query {
     async fn bids(
         &self,
         ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctBidSchema>,
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryBidSchema>,
@@ -183,13 +198,14 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
 
         db.bids()
-            .fetch_bids(limit, offset, query, order)
+            .fetch_bids(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch bids")
     }

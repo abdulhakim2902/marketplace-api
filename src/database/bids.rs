@@ -1,5 +1,6 @@
 use std::{str::FromStr, sync::Arc};
 
+use crate::models::schema::bid::DistinctBidSchema;
 use crate::utils::schema::{handle_join, handle_nested_order, handle_order, handle_query};
 use crate::utils::structs;
 use crate::{
@@ -25,6 +26,7 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
+        distinct: DistinctBidSchema,
         limit: i64,
         offset: i64,
         query: QueryBidSchema,
@@ -132,6 +134,7 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
+        distinct: DistinctBidSchema,
         limit: i64,
         offset: i64,
         query: QueryBidSchema,
@@ -139,7 +142,11 @@ impl IBids for Bids {
     ) -> anyhow::Result<Vec<BidSchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(" SELECT * FROM bids ");
+        let selection_builder = QueryBuilder::<Postgres>::new(format!(
+            " SELECT DISTINCT ON ({}) * FROM bids ",
+            distinct.to_string()
+        ));
+
         let mut join_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");

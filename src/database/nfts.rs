@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::{str::FromStr, sync::Arc};
 
 use crate::database::Schema;
-use crate::models::schema::nft::{OrderNftSchema, QueryNftSchema};
+use crate::models::schema::nft::{DistinctNftSchema, OrderNftSchema, QueryNftSchema};
 use crate::models::{
     db::nft::{DbNft, DbNftUri},
     schema::nft::NftSchema,
@@ -26,6 +26,7 @@ pub trait INfts: Send + Sync {
 
     async fn fetch_nfts(
         &self,
+        distinct: DistinctNftSchema,
         limit: i64,
         offset: i64,
         query: QueryNftSchema,
@@ -118,6 +119,7 @@ impl INfts for Nfts {
 
     async fn fetch_nfts(
         &self,
+        distinct: DistinctNftSchema,
         limit: i64,
         offset: i64,
         query: QueryNftSchema,
@@ -167,7 +169,11 @@ impl INfts for Nfts {
             "#,
         );
 
-        let selection_builder = QueryBuilder::<Postgres>::new(" SELECT * FROM nfts ");
+        let selection_builder = QueryBuilder::<Postgres>::new(format!(
+            " SELECT DISTINCT ON ({}) * FROM nfts ",
+            distinct.to_string()
+        ));
+
         let mut join_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");

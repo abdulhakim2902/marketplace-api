@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::database::Schema;
-use crate::models::schema::listing::{OrderListingSchema, QueryListingSchema};
+use crate::models::schema::listing::{
+    DistinctListingSchema, OrderListingSchema, QueryListingSchema,
+};
 use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
 use crate::utils::schema::{handle_join, handle_nested_order, handle_order, handle_query};
 use crate::utils::structs;
@@ -18,6 +20,7 @@ pub trait IListings: Send + Sync {
 
     async fn fetch_listings(
         &self,
+        distinct: DistinctListingSchema,
         limit: i64,
         offset: i64,
         query: QueryListingSchema,
@@ -100,6 +103,7 @@ impl IListings for Listings {
 
     async fn fetch_listings(
         &self,
+        distinct: DistinctListingSchema,
         limit: i64,
         offset: i64,
         query: QueryListingSchema,
@@ -107,7 +111,11 @@ impl IListings for Listings {
     ) -> anyhow::Result<Vec<ListingSchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(" SELECT * FROM listings ");
+        let selection_builder: QueryBuilder<'_, Postgres> = QueryBuilder::<Postgres>::new(format!(
+            " SELECT DISTINCT ON ({}) * FROM listings ",
+            distinct.to_string()
+        ));
+
         let mut join_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");

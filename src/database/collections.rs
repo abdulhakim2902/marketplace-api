@@ -6,7 +6,8 @@ use crate::{
         db::collection::DbCollection,
         schema::{
             collection::{
-                CollectionSchema, OrderCollectionSchema, QueryCollectionSchema,
+                CollectionSchema, DistinctCollectionSchema, OrderCollectionSchema,
+                QueryCollectionSchema,
                 attribute::CollectionAttributeSchema,
                 nft_change::NftChangeSchema,
                 nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
@@ -41,6 +42,7 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_collections(
         &self,
+        distinct: DistinctCollectionSchema,
         limit: i64,
         offset: i64,
         query: QueryCollectionSchema,
@@ -200,6 +202,7 @@ impl ICollections for Collections {
 
     async fn fetch_collections(
         &self,
+        distinct: DistinctCollectionSchema,
         limit: i64,
         offset: i64,
         query: QueryCollectionSchema,
@@ -207,7 +210,11 @@ impl ICollections for Collections {
     ) -> anyhow::Result<Vec<CollectionSchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(" SELECT * FROM collections ");
+        let selection_builder = QueryBuilder::<Postgres>::new(format!(
+            " SELECT DISTINCT ON ({}) * FROM collections ",
+            distinct.to_string()
+        ));
+
         let mut join_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");

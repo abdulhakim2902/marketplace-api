@@ -3,7 +3,7 @@ use std::{str::FromStr, sync::Arc};
 use crate::database::Schema;
 use crate::models::db::attribute::DbAttribute;
 use crate::models::schema::attribute::{
-    AttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+    AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
 };
 use crate::utils::schema::{handle_join, handle_nested_order, handle_order, handle_query};
 use crate::utils::structs;
@@ -22,6 +22,7 @@ pub trait IAttributes: Send + Sync {
 
     async fn fetch_attributes(
         &self,
+        distinct: DistinctAttributeSchema,
         limit: i64,
         offset: i64,
         query: QueryAttributeSchema,
@@ -89,6 +90,7 @@ impl IAttributes for Attributes {
 
     async fn fetch_attributes(
         &self,
+        distinct: DistinctAttributeSchema,
         limit: i64,
         offset: i64,
         query: QueryAttributeSchema,
@@ -96,7 +98,11 @@ impl IAttributes for Attributes {
     ) -> anyhow::Result<Vec<AttributeSchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(" SELECT * FROM attributes ");
+        let selection_builder = QueryBuilder::<Postgres>::new(format!(
+            " SELECT DISTINCT ON ({}) * FROM attributes ",
+            distinct.to_string()
+        ));
+
         let mut join_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");

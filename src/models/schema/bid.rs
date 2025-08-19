@@ -12,11 +12,14 @@ use crate::{
         },
     },
 };
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
+use async_graphql::{
+    ComplexObject, Context, Enum, InputObject, SimpleObject, dataloader::DataLoader,
+};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use strum::{Display, EnumString};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject, FromRow)]
@@ -140,4 +143,34 @@ pub struct OrderBidSchema {
     pub bid_type: Option<OrderingType>,
     pub collection: Option<OrderCollectionSchema>,
     pub nft: Option<OrderNftSchema>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(name = "BidDistinctOn", rename_items = "snake_case")]
+pub enum DistinctBidSchema {
+    Id,
+    Bidder,
+    AcceptedTxId,
+    CancelledTxId,
+    CreatedTxId,
+    CollectionId,
+    ExpiredAt,
+    MarketContractId,
+    MarketName,
+    Nonce,
+    NftId,
+    Price,
+    Receiver,
+    RemainingCount,
+    Status,
+    #[graphql(name = "type")]
+    BidType,
+}
+
+impl Default for DistinctBidSchema {
+    fn default() -> Self {
+        Self::Id
+    }
 }

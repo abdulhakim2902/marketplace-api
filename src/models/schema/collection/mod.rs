@@ -16,16 +16,21 @@ use crate::{
     },
     models::schema::{
         OperatorSchema, OrderingType,
-        activity::{ActivitySchema, OrderActivitySchema, QueryActivitySchema},
-        attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
-        bid::{BidSchema, OrderBidSchema, QueryBidSchema},
+        activity::{
+            ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
+        },
+        attribute::{
+            AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+        },
+        bid::{BidSchema, DistinctBidSchema, OrderBidSchema, QueryBidSchema},
         fetch_total_collection_offer, fetch_total_collection_trait, fetch_total_nft,
     },
 };
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject};
+use async_graphql::{ComplexObject, Context, Enum, InputObject, SimpleObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use strum::{Display, EnumString};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromRow, SimpleObject)]
@@ -85,6 +90,7 @@ impl CollectionSchema {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
         #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
         #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
     ) -> Vec<AttributeSchema> {
@@ -92,6 +98,7 @@ impl CollectionSchema {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let order = order.unwrap_or_default();
@@ -103,7 +110,7 @@ impl CollectionSchema {
         query.collection_id = Some(operator);
 
         db.attributes()
-            .fetch_attributes(limit, offset, query, order)
+            .fetch_attributes(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch attributes")
     }
@@ -113,6 +120,7 @@ impl CollectionSchema {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
         #[graphql(name = "where")] query: Option<QueryActivitySchema>,
         #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
     ) -> Vec<ActivitySchema> {
@@ -120,6 +128,7 @@ impl CollectionSchema {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let order = order.unwrap_or_default();
@@ -131,7 +140,7 @@ impl CollectionSchema {
         query.collection_id = Some(operator);
 
         db.activities()
-            .fetch_activities(limit, offset, query, order)
+            .fetch_activities(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch activities")
     }
@@ -141,6 +150,7 @@ impl CollectionSchema {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctBidSchema>,
         #[graphql(name = "where")] query: Option<QueryBidSchema>,
         #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
     ) -> Vec<BidSchema> {
@@ -148,6 +158,7 @@ impl CollectionSchema {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let order = order.unwrap_or_default();
@@ -159,7 +170,7 @@ impl CollectionSchema {
         query.collection_id = Some(operator);
 
         db.bids()
-            .fetch_bids(limit, offset, query, order)
+            .fetch_bids(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch bids")
     }
@@ -210,4 +221,31 @@ pub struct OrderCollectionSchema {
     pub floor: Option<OrderingType>,
     pub volume: Option<OrderingType>,
     pub volume_usd: Option<OrderingType>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(name = "CollectionDistinctOn", rename_items = "snake_case")]
+pub enum DistinctCollectionSchema {
+    Id,
+    Slug,
+    Supply,
+    Title,
+    Description,
+    CoverUrl,
+    Verified,
+    Website,
+    Discord,
+    Twitter,
+    Royalty,
+    Floor,
+    Volume,
+    VolumeUsd,
+}
+
+impl Default for DistinctCollectionSchema {
+    fn default() -> Self {
+        Self::Id
+    }
 }

@@ -7,18 +7,25 @@ use crate::{
     },
     models::schema::{
         OperatorSchema, OrderingType,
-        activity::{ActivitySchema, OrderActivitySchema, QueryActivitySchema},
-        attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
-        bid::{BidSchema, OrderBidSchema, QueryBidSchema},
+        activity::{
+            ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
+        },
+        attribute::{
+            AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+        },
+        bid::{BidSchema, DistinctBidSchema, OrderBidSchema, QueryBidSchema},
         collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
         fetch_nft_top_offer,
-        listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
+        listing::{DistinctListingSchema, ListingSchema, OrderListingSchema, QueryListingSchema},
     },
 };
-use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
+use async_graphql::{
+    ComplexObject, Context, Enum, InputObject, SimpleObject, dataloader::DataLoader,
+};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use strum::{Display, EnumString};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Deserialize, Serialize, FromRow, SimpleObject)]
@@ -40,6 +47,7 @@ pub struct NftSchema {
     pub youtube_url: Option<String>,
     pub background_color: Option<String>,
     pub royalty: Option<BigDecimal>,
+    #[graphql(visible = false)]
     pub version: Option<String>,
     pub ranking: Option<i64>,
     pub rarity: Option<BigDecimal>,
@@ -78,6 +86,7 @@ impl NftSchema {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
         #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
         #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
     ) -> Vec<AttributeSchema> {
@@ -85,6 +94,7 @@ impl NftSchema {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let order = order.unwrap_or_default();
@@ -96,7 +106,7 @@ impl NftSchema {
         query.nft_id = Some(operator);
 
         db.attributes()
-            .fetch_attributes(limit, offset, query, order)
+            .fetch_attributes(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch attributes")
     }
@@ -106,6 +116,7 @@ impl NftSchema {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
         #[graphql(name = "where")] query: Option<QueryActivitySchema>,
         #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
     ) -> Vec<ActivitySchema> {
@@ -113,6 +124,7 @@ impl NftSchema {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let order = order.unwrap_or_default();
@@ -124,7 +136,7 @@ impl NftSchema {
         query.nft_id = Some(operator);
 
         db.activities()
-            .fetch_activities(limit, offset, query, order)
+            .fetch_activities(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch activities")
     }
@@ -134,6 +146,7 @@ impl NftSchema {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
         #[graphql(name = "where")] query: Option<QueryListingSchema>,
         #[graphql(name = "order_by")] order: Option<OrderListingSchema>,
     ) -> Vec<ListingSchema> {
@@ -141,6 +154,7 @@ impl NftSchema {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let order = order.unwrap_or_default();
@@ -152,7 +166,7 @@ impl NftSchema {
         query.nft_id = Some(operator);
 
         db.listings()
-            .fetch_listings(limit, offset, query, order)
+            .fetch_listings(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch nfts")
     }
@@ -162,6 +176,7 @@ impl NftSchema {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctBidSchema>,
         #[graphql(name = "where")] query: Option<QueryBidSchema>,
         #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
     ) -> Vec<BidSchema> {
@@ -169,6 +184,7 @@ impl NftSchema {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let order = order.unwrap_or_default();
@@ -180,7 +196,7 @@ impl NftSchema {
         query.nft_id = Some(operator);
 
         db.bids()
-            .fetch_bids(limit, offset, query, order)
+            .fetch_bids(distinct, limit, offset, query, order)
             .await
             .expect("Failed to fetch bids")
     }
@@ -200,7 +216,8 @@ pub struct QueryNftSchema {
     pub owner: Option<OperatorSchema<String>>,
     pub collection_id: Option<OperatorSchema<Uuid>>,
     pub burned: Option<OperatorSchema<bool>>,
-    // pub properties: Option<serde_json::Value>,
+    #[graphql(visible = false)]
+    pub properties: Option<serde_json::Value>,
     pub description: Option<OperatorSchema<String>>,
     #[graphql(name = "media_url")]
     pub image_url: Option<OperatorSchema<String>>,
@@ -211,6 +228,7 @@ pub struct QueryNftSchema {
     pub youtube_url: Option<OperatorSchema<String>>,
     pub background_color: Option<OperatorSchema<String>>,
     pub royalty: Option<OperatorSchema<BigDecimal>>,
+    #[graphql(visible = false)]
     pub version: Option<OperatorSchema<String>>,
     pub ranking: Option<OperatorSchema<i64>>,
     pub rarity: Option<OperatorSchema<BigDecimal>>,
@@ -228,7 +246,8 @@ pub struct OrderNftSchema {
     pub owner: Option<OrderingType>,
     pub collection_id: Option<OrderingType>,
     pub burned: Option<OrderingType>,
-    // pub properties: Option<serde_json::Value>,
+    #[graphql(visible = false)]
+    pub properties: Option<serde_json::Value>,
     pub description: Option<OrderingType>,
     #[graphql(name = "media_url")]
     pub image_url: Option<OrderingType>,
@@ -239,8 +258,40 @@ pub struct OrderNftSchema {
     pub youtube_url: Option<OrderingType>,
     pub background_color: Option<OrderingType>,
     pub royalty: Option<OrderingType>,
+    #[graphql(visible = false)]
     pub version: Option<OrderingType>,
     pub ranking: Option<OrderingType>,
     pub rarity: Option<OrderingType>,
     pub collection: Option<OrderCollectionSchema>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(name = "NftDistinctOn", rename_items = "snake_case")]
+pub enum DistinctNftSchema {
+    Id,
+    Name,
+    Owner,
+    CollectionId,
+    Burned,
+    Description,
+    #[graphql(name = "media_url")]
+    ImageUrl,
+    TokenId,
+    AnimationUrl,
+    AvatarUrl,
+    ExternalUrl,
+    YoutubeUrl,
+    BackgroundColor,
+    Royalty,
+    Version,
+    Ranking,
+    Rarity,
+}
+
+impl Default for DistinctNftSchema {
+    fn default() -> Self {
+        Self::Id
+    }
 }

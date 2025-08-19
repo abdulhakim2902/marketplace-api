@@ -6,7 +6,7 @@ use crate::{
         db::activity::DbActivity,
         schema::{
             activity::{
-                ActivitySchema, OrderActivitySchema, QueryActivitySchema,
+                ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
                 profit_loss::ProfitLossSchema,
             },
             data_point::DataPointSchema,
@@ -34,6 +34,7 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_activities(
         &self,
+        distinct: DistinctActivitySchema,
         limit: i64,
         offset: i64,
         query: QueryActivitySchema,
@@ -133,6 +134,7 @@ impl IActivities for Activities {
 
     async fn fetch_activities(
         &self,
+        distinct: DistinctActivitySchema,
         limit: i64,
         offset: i64,
         query: QueryActivitySchema,
@@ -140,7 +142,11 @@ impl IActivities for Activities {
     ) -> anyhow::Result<Vec<ActivitySchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(" SELECT * FROM activities ");
+        let selection_builder = QueryBuilder::<Postgres>::new(format!(
+            " SELECT DISTINCT ON ({}) * FROM activities ",
+            distinct.to_string()
+        ));
+
         let mut join_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");
