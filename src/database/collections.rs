@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     database::Schema,
@@ -8,16 +8,16 @@ use crate::{
             collection::{
                 CollectionSchema, OrderCollectionSchema, QueryCollectionSchema,
                 attribute::CollectionAttributeSchema,
-                nft_change::{FilterNftChangeSchema, NftChangeSchema},
+                nft_change::NftChangeSchema,
                 nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
                 nft_holder::NftHolderSchema,
                 profit_leaderboard::ProfitLeaderboardSchema,
                 stat::CollectionStatSchema,
-                top_wallet::{FilterTopWalletSchema, TopWalletSchema, TopWalletType},
+                top_wallet::{TopWalletSchema, TopWalletType},
                 trending::{CollectionTrendingSchema, OrderTrendingType},
                 trending_nft::TrendingNftSchema,
             },
-            data_point::{DataPointSchema, FilterFloorChartSchema},
+            data_point::DataPointSchema,
         },
     },
     utils::{
@@ -66,7 +66,10 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_nft_changes(
         &self,
-        filter: FilterNftChangeSchema,
+        collection_id: Uuid,
+        limit: i64,
+        offset: i64,
+        interval: Option<String>,
     ) -> anyhow::Result<Vec<NftChangeSchema>>;
 
     async fn fetch_profit_leaderboards(
@@ -83,7 +86,10 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_top_wallets(
         &self,
-        filter: FilterTopWalletSchema,
+        collection_id: Uuid,
+        type_: TopWalletType,
+        limit: i64,
+        interval: Option<String>,
     ) -> anyhow::Result<Vec<TopWalletSchema>>;
 
     async fn fetch_nft_holders(
@@ -105,7 +111,10 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_floor_charts(
         &self,
-        filter: FilterFloorChartSchema,
+        collection_id: Uuid,
+        start_time: i64,
+        end_time: i64,
+        interval: &str,
     ) -> anyhow::Result<Vec<DataPointSchema>>;
 }
 
@@ -442,17 +451,13 @@ impl ICollections for Collections {
 
     async fn fetch_nft_changes(
         &self,
-        filter: FilterNftChangeSchema,
+        collection_id: Uuid,
+        limit: i64,
+        offset: i64,
+        interval: Option<String>,
     ) -> anyhow::Result<Vec<NftChangeSchema>> {
-        let query = filter.where_;
+        let interval = string_utils::str_to_pginterval(&interval.clone().unwrap_or_default())?;
 
-        let limit = filter.limit.unwrap_or(10);
-        let offset = filter.offset.unwrap_or(0);
-
-        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
-
-        let interval =
-            string_utils::str_to_pginterval(&query.interval.clone().unwrap_or_default())?;
         let res = sqlx::query_as!(
             NftChangeSchema,
             r#"
@@ -565,16 +570,13 @@ impl ICollections for Collections {
 
     async fn fetch_top_wallets(
         &self,
-        filter: FilterTopWalletSchema,
+        collection_id: Uuid,
+        type_: TopWalletType,
+        limit: i64,
+        interval: Option<String>,
     ) -> anyhow::Result<Vec<TopWalletSchema>> {
-        let query = filter.where_;
-
-        let type_ = query.type_;
-        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
-        let interval = string_utils::str_to_pginterval(&query.interval.unwrap_or_default())
+        let interval = string_utils::str_to_pginterval(&interval.unwrap_or_default())
             .expect("Invalid interval");
-
-        let limit = filter.limit.unwrap_or(10);
 
         let res = match type_ {
             TopWalletType::Buyer => sqlx::query_as!(
@@ -821,19 +823,17 @@ impl ICollections for Collections {
 
     async fn fetch_floor_charts(
         &self,
-        filter: FilterFloorChartSchema,
+        collection_id: Uuid,
+        start_time: i64,
+        end_time: i64,
+        interval: &str,
     ) -> anyhow::Result<Vec<DataPointSchema>> {
-        let query = filter.where_;
-
-        let collection_id = Uuid::from_str(query.collection_id.as_str()).ok();
-
-        let interval = string_utils::str_to_pginterval(query.interval.as_str())
+        let interval = string_utils::str_to_pginterval(interval)
             .expect("Invalid interval")
             .expect("Invalid interval");
 
-        let start_date =
-            DateTime::from_timestamp_millis(query.start_time).expect("Invalid start time");
-        let end_date = DateTime::from_timestamp_millis(query.end_time).expect("Invalid end time");
+        let start_date = DateTime::from_timestamp_millis(start_time).expect("Invalid start time");
+        let end_date = DateTime::from_timestamp_millis(end_time).expect("Invalid end time");
 
         let res = sqlx::query_as!(
             DataPointSchema,

@@ -17,16 +17,16 @@ use crate::{
         collection::{
             CollectionSchema, OrderCollectionSchema, QueryCollectionSchema,
             attribute::CollectionAttributeSchema,
-            nft_change::{FilterNftChangeSchema, NftChangeSchema},
+            nft_change::NftChangeSchema,
             nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
             nft_holder::NftHolderSchema,
             profit_leaderboard::ProfitLeaderboardSchema,
             stat::CollectionStatSchema,
-            top_wallet::{FilterTopWalletSchema, TopWalletSchema},
+            top_wallet::{TopWalletSchema, TopWalletType},
             trending::{CollectionTrendingSchema, OrderTrendingType},
             trending_nft::TrendingNftSchema,
         },
-        data_point::{DataPointSchema, FilterFloorChartSchema},
+        data_point::DataPointSchema,
         listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
         marketplace::MarketplaceSchema,
         nft::{NftSchema, OrderNftSchema, QueryNftSchema},
@@ -194,6 +194,7 @@ impl Query {
             .expect("Failed to fetch bids")
     }
 
+    #[graphql(name = "collection_trendings")]
     async fn collection_trendings(
         &self,
         ctx: &Context<'_>,
@@ -218,6 +219,7 @@ impl Query {
     }
 
     // ==================== WALLET ====================
+    #[graphql(name = "wallet_stats")]
     async fn wallet_stats(&self, ctx: &Context<'_>, address: String) -> Option<StatsSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -226,6 +228,7 @@ impl Query {
         db.wallets().fetch_stats(&address).await.ok()
     }
 
+    #[graphql(name = "wallet_nft_holding_period")]
     async fn wallet_nft_holding_period(
         &self,
         ctx: &Context<'_>,
@@ -243,10 +246,11 @@ impl Query {
     // ================================================
 
     // ============= COLLECTION ANALYTICS =============
+    #[graphql(name = "collection_stats")]
     async fn collection_stats(
         &self,
         ctx: &Context<'_>,
-        collection_id: Uuid,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> CollectionStatSchema {
         let db = ctx
             .data::<Arc<Database>>()
@@ -258,12 +262,13 @@ impl Query {
             .expect("Failed to fetch collection stats")
     }
 
+    #[graphql(name = "collection_trending_nfts")]
     async fn collection_trending_nfts(
         &self,
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
-        collection_id: Uuid,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<TrendingNftSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -278,27 +283,35 @@ impl Query {
             .expect("Failed to fetch collection trending")
     }
 
+    #[graphql(name = "collection_nft_changes")]
     async fn collection_nft_changes(
         &self,
         ctx: &Context<'_>,
-        filter: FilterNftChangeSchema,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        interval: Option<String>,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<NftChangeSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
         db.collections()
-            .fetch_nft_changes(filter)
+            .fetch_nft_changes(collection_id, limit, offset, interval)
             .await
             .expect("Failed to fetch collection nft period distribution")
     }
 
+    #[graphql(name = "collection_profit_leaderboards")]
     async fn collection_profit_leaderboards(
         &self,
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
-        collection_id: Uuid,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<ProfitLeaderboardSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -313,42 +326,53 @@ impl Query {
             .expect("Failed to fetch collection nft period distribution")
     }
 
+    #[graphql(name = "collection_top_wallets")]
     async fn collection_top_wallets(
         &self,
         ctx: &Context<'_>,
-        filter: FilterTopWalletSchema,
+        limit: Option<i64>,
+        interval: Option<String>,
+        #[graphql(name = "type")] type_: TopWalletType,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<TopWalletSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        let limit = limit.unwrap_or(10);
+
         db.collections()
-            .fetch_top_wallets(filter)
+            .fetch_top_wallets(collection_id, type_, limit, interval)
             .await
             .expect("Failed to fetch collection top buyers")
     }
 
+    #[graphql(name = "collection_floor_charts")]
     async fn collection_floor_charts(
         &self,
         ctx: &Context<'_>,
-        filter: FilterFloorChartSchema,
+        #[graphql(name = "start_time")] start_time: i64,
+        #[graphql(name = "end_time")] end_time: i64,
+        interval: String,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<DataPointSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
         db.collections()
-            .fetch_floor_charts(filter)
+            .fetch_floor_charts(collection_id, start_time, end_time, &interval)
             .await
             .expect("Failed to fetch floor chart")
     }
 
+    #[graphql(name = "collection_nft_holders")]
     async fn collection_nft_holders(
         &self,
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
-        collection_id: Uuid,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<NftHolderSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -363,10 +387,11 @@ impl Query {
             .expect("Failed to fetch nft holders")
     }
 
+    #[graphql(name = "collection_attributes")]
     async fn collection_attributes(
         &self,
         ctx: &Context<'_>,
-        collection_id: Uuid,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<CollectionAttributeSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -378,10 +403,11 @@ impl Query {
             .expect("Failed to fetch collection attributes")
     }
 
+    #[graphql(name = "collection_nft_amount_distribution")]
     async fn collection_nft_amount_distribution(
         &self,
         ctx: &Context<'_>,
-        collection_id: Uuid,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Option<NftAmountDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -393,10 +419,11 @@ impl Query {
             .ok()
     }
 
+    #[graphql(name = "collection_nft_period_distribution")]
     async fn collection_nft_period_distribution(
         &self,
         ctx: &Context<'_>,
-        collection_id: Uuid,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Option<NftPeriodDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -411,12 +438,13 @@ impl Query {
     // ================================================
 
     // ================== Activities ==================
+    #[graphql(name = "profit_loss_activities")]
     async fn profit_loss_activities(
         &self,
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
-        wallet_address: String,
+        #[graphql(name = "wallet_address")] wallet_address: String,
     ) -> Vec<ProfitLossSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -431,10 +459,11 @@ impl Query {
             .expect("Failed to fetch wallet profit loss")
     }
 
+    #[graphql(name = "contribution_chart_activities")]
     async fn contribution_chart_activities(
         &self,
         ctx: &Context<'_>,
-        wallet_address: String,
+        #[graphql(name = "wallet_address")] wallet_address: String,
     ) -> Vec<DataPointSchema> {
         let db = ctx
             .data::<Arc<Database>>()
