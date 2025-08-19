@@ -249,7 +249,7 @@ pub fn handle_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<Strin
     for (key, value) in object {
         match value {
             Value::String(s) => {
-                order_seperated_builder.push(format!("{} {}", key, s.replace("_", "")));
+                order_seperated_builder.push(format!("{} {}", key, s.replace("_", " ")));
             }
             Value::Object(o) => {
                 for (sub_key, value) in o {
@@ -265,7 +265,7 @@ pub fn handle_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<Strin
                                 "{}.{} {}",
                                 table,
                                 sub_key,
-                                s.replace("_", "")
+                                s.replace("_", " ")
                             ));
                         }
                     }

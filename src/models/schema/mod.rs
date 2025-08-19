@@ -27,13 +27,17 @@ pub type Date = DateTime<Utc>;
 #[strum(serialize_all = "snake_case")]
 #[graphql(rename_items = "snake_case")]
 pub enum OrderingType {
-    ASC,
-    DESC,
+    Asc,
+    AscNullsFirst,
+    AscNullsLast,
+    Desc,
+    DescNullsLast,
+    DescNullsFirst,
 }
 
 impl Default for OrderingType {
     fn default() -> Self {
-        Self::DESC
+        Self::Desc
     }
 }
 
