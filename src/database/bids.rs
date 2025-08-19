@@ -1,6 +1,6 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::utils::schema::{handle_order, handle_query};
+use crate::utils::schema::{handle_join, handle_nested_order, handle_order, handle_query};
 use crate::utils::structs;
 use crate::{
     database::Schema,
@@ -137,38 +137,52 @@ impl IBids for Bids {
         query: QueryBidSchema,
         order: OrderBidSchema,
     ) -> anyhow::Result<Vec<BidSchema>> {
-        let mut query_builder = QueryBuilder::<Postgres>::new(
-            r#"
-            SELECT * FROM bids
-            WHERE
-            "#,
-        );
+        let mut builder = QueryBuilder::<Postgres>::new("");
 
+        let selection_builder = QueryBuilder::<Postgres>::new(" SELECT * FROM bids ");
+        let mut join_builder = QueryBuilder::<Postgres>::new("");
+        let mut query_builder = QueryBuilder::<Postgres>::new("");
+        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
+
+        // Handle join
+        let order_map = structs::to_map(&order).ok().flatten();
+        if let Some(object) = order_map.as_ref() {
+            builder.push(" WITH ");
+            handle_nested_order(&mut builder, object);
+            if builder.sql().trim().ends_with("WITH") {
+                builder.reset();
+            } else {
+                handle_join(&mut join_builder, object);
+            }
+        }
+
+        // Handle query
         if let Some(object) = structs::to_map(&query).ok().flatten() {
+            query_builder.push(" WHERE ");
             handle_query(&mut query_builder, &object, "AND", Schema::Bids);
+            if query_builder.sql().trim().ends_with("WHERE") {
+                query_builder.reset();
+            }
         }
 
-        if query_builder.sql().trim().ends_with("WHERE") {
-            query_builder.push(" ");
-            query_builder.push_bind(true);
+        // Handle ordering
+        if let Some(object) = order_map.as_ref() {
+            order_by_builder.push(" ORDER BY ");
+            handle_order(&mut order_by_builder, object);
+            if order_by_builder.sql().trim().ends_with("ORDER BY") {
+                order_by_builder.reset();
+            }
         }
 
-        query_builder.push(" ORDER BY ");
+        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
 
-        if let Some(object) = structs::to_map(&order).ok().flatten() {
-            handle_order(&mut query_builder, &object);
-        }
+        builder.push(selection_builder.sql());
+        builder.push(join_builder.sql());
+        builder.push(query_builder.sql());
+        builder.push(order_by_builder.sql());
+        builder.push(pagination);
 
-        if query_builder.sql().trim().ends_with("ORDER BY") {
-            query_builder.push("updated_at");
-        }
-
-        query_builder.push(" LIMIT ");
-        query_builder.push_bind(limit);
-        query_builder.push(" OFFSET ");
-        query_builder.push_bind(offset);
-
-        let res = query_builder
+        let res = builder
             .build_query_as::<BidSchema>()
             .fetch_all(&*self.pool)
             .await

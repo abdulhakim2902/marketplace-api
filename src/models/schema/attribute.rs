@@ -11,8 +11,8 @@ use crate::{
     database::{Database, IDatabase, collections::Collections, nfts::Nfts},
     models::schema::{
         OperatorSchema, OrderingType,
-        collection::{CollectionSchema, QueryCollectionSchema},
-        nft::{NftSchema, QueryNftSchema},
+        collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
+        nft::{NftSchema, OrderNftSchema, QueryNftSchema},
     },
 };
 
@@ -79,7 +79,6 @@ pub struct QueryAttributeSchema {
     pub rarity: Option<OperatorSchema<BigDecimal>>,
     pub score: Option<OperatorSchema<BigDecimal>>,
     pub collection: Option<Arc<QueryCollectionSchema>>,
-    // TODO:
     pub nft: Option<QueryNftSchema>,
 }
 
@@ -94,4 +93,6 @@ pub struct OrderAttributeSchema {
     pub value: Option<OrderingType>,
     pub rarity: Option<OrderingType>,
     pub score: Option<OrderingType>,
+    pub collection: Option<OrderCollectionSchema>,
+    pub nft: Option<OrderNftSchema>,
 }

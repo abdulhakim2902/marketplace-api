@@ -6,9 +6,9 @@ use crate::{
         marketplace::APT_DECIMAL,
         schema::{
             Date, OperatorSchema, OrderingType,
-            collection::{CollectionSchema, QueryCollectionSchema},
+            collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
             fetch_token_price,
-            nft::{NftSchema, QueryNftSchema},
+            nft::{NftSchema, OrderNftSchema, QueryNftSchema},
         },
     },
 };
@@ -138,4 +138,6 @@ pub struct OrderBidSchema {
     pub status: Option<OrderingType>,
     #[graphql(name = "type")]
     pub bid_type: Option<OrderingType>,
+    pub collection: Option<OrderCollectionSchema>,
+    pub nft: Option<OrderNftSchema>,
 }

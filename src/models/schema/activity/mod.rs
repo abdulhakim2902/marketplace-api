@@ -7,7 +7,7 @@ use crate::{
     models::schema::{
         Date, OperatorSchema, OrderingType,
         collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
-        nft::{NftSchema, QueryNftSchema},
+        nft::{NftSchema, OrderNftSchema, QueryNftSchema},
     },
 };
 use async_graphql::{ComplexObject, Context, InputObject, SimpleObject, dataloader::DataLoader};
@@ -125,4 +125,5 @@ pub struct OrderActivitySchema {
     pub block_height: Option<OrderingType>,
     pub amount: Option<OrderingType>,
     pub collection: Option<Arc<OrderCollectionSchema>>,
+    pub nft: Option<Arc<OrderNftSchema>>,
 }

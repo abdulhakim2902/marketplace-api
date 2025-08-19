@@ -6,7 +6,7 @@ use crate::{
         marketplace::APT_DECIMAL,
         schema::{
             Date, OperatorSchema, OrderingType, fetch_token_price,
-            nft::{NftSchema, QueryNftSchema},
+            nft::{NftSchema, OrderNftSchema, QueryNftSchema},
         },
     },
 };
@@ -97,4 +97,5 @@ pub struct OrderListingSchema {
     pub price: Option<OrderingType>,
     pub seller: Option<OrderingType>,
     pub tx_index: Option<OrderingType>,
+    pub nft: Option<OrderNftSchema>,
 }

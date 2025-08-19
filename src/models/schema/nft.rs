@@ -10,7 +10,7 @@ use crate::{
         activity::{ActivitySchema, OrderActivitySchema, QueryActivitySchema},
         attribute::{AttributeSchema, OrderAttributeSchema, QueryAttributeSchema},
         bid::{BidSchema, OrderBidSchema, QueryBidSchema},
-        collection::{CollectionSchema, QueryCollectionSchema},
+        collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
         fetch_nft_top_offer,
         listing::{ListingSchema, OrderListingSchema, QueryListingSchema},
     },
@@ -222,4 +222,5 @@ pub struct OrderNftSchema {
     pub version: Option<OrderingType>,
     pub ranking: Option<OrderingType>,
     pub rarity: Option<OrderingType>,
+    pub collection: Option<OrderCollectionSchema>,
 }

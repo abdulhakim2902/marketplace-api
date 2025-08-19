@@ -251,8 +251,25 @@ pub fn handle_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<Strin
             Value::String(s) => {
                 order_seperated_builder.push(format!("{} {}", key, s.replace("_", "")));
             }
-            Value::Object(_) => {
-                // TODO:
+            Value::Object(o) => {
+                for (sub_key, value) in o {
+                    if let Value::String(s) = value {
+                        let table = match key.as_str() {
+                            "collection" => "c",
+                            "nft" => "n",
+                            _ => "",
+                        };
+
+                        if !table.is_empty() {
+                            order_seperated_builder.push(format!(
+                                "{}.{} {}",
+                                table,
+                                sub_key,
+                                s.replace("_", "")
+                            ));
+                        }
+                    }
+                }
             }
             _ => {
                 // Not implemented
@@ -261,6 +278,96 @@ pub fn handle_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<Strin
     }
 
     builder.push(order_builder.sql());
+}
+
+pub fn handle_nested_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<String, Value>) {
+    let mut nested_order = QueryBuilder::<Postgres>::new("");
+    let mut nested_order_seperated_builder = nested_order.separated(",");
+
+    for (key, value) in object {
+        if let Value::Object(o) = value {
+            if !is_object_empty(o) {
+                match key.as_str() {
+                    "collection" => {
+                        nested_order_seperated_builder.push(
+                            r#"
+                            collections AS (SELECT * FROM collections)
+                            "#,
+                        );
+                    }
+                    "nft" => {
+                        nested_order_seperated_builder.push(
+                        r#"
+                            nft_rarities AS (
+                                SELECT
+                                    na.collection_id,
+                                    na.nft_id,
+                                    SUM(-LOG(2, na.rarity))             AS rarity
+                                FROM attributes na
+                                GROUP BY na.collection_id, na.nft_id
+                            ),
+                            nfts AS (
+                                SELECT 
+                                    n.id,
+                                    COALESCE(n.name, nm.name)                   AS name,
+                                    owner,
+                                    n.collection_id,
+                                    burned,
+                                    n.properties,
+                                    n.token_id,
+                                    COALESCE(n.description, nm.description)     AS description,
+                                    COALESCE(nm.image, n.uri)                   AS image_url,
+                                    nm.animation_url,
+                                    nm.avatar_url,
+                                    nm.youtube_url,
+                                    nm.external_url,
+                                    nm.background_color,
+                                    royalty,
+                                    version,
+                                    nr.rarity,
+                                    CASE
+                                        WHEN nr.rarity IS NOT NULL
+                                        THEN RANK () OVER (
+                                            PARTITION BY n.collection_id
+                                            ORDER BY nr.rarity DESC
+                                        )
+                                        END                                     AS ranking
+                                FROM nfts n
+                                    LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
+                                    LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
+                            )
+                            "#,
+                        );
+                    }
+                    _ => {
+                        // Not implemented
+                    }
+                }
+            }
+        }
+    }
+
+    builder.push(nested_order.sql());
+}
+
+pub fn handle_join(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<String, Value>) {
+    for (key, value) in object {
+        if let Value::Object(o) = value {
+            if !is_object_empty(o) {
+                match key.as_str() {
+                    "collection" => {
+                        builder.push(" LEFT JOIN collections c ON c.id = collection_id ");
+                    }
+                    "nft" => {
+                        builder.push(" LEFT JOIN nfts n ON n.id = nft_id ");
+                    }
+                    _ => {
+                        // Not implemented
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub fn handle_field_operators(
@@ -495,4 +602,17 @@ pub fn handle_is_null_operator(
             seperated.push(format!("{} IS NOT NULL", field));
         }
     }
+}
+
+pub fn is_object_empty(o: &Map<String, Value>) -> bool {
+    for (_, value) in o {
+        match value {
+            Value::Null => continue,
+            _ => {
+                return false;
+            }
+        }
+    }
+
+    true
 }

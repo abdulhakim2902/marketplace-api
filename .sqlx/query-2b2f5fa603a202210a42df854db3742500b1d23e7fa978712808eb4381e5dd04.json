@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                id,\n                slug,\n                supply,\n                title,\n                description,\n                cover_url,\n                verified,\n                website,\n                discord,\n                twitter,\n                royalty,\n                floor,\n                volume,\n                volume_usd\n            FROM collections\n            WHERE id = ANY($1)\n            ",
+  "query": "\n            SELECT * FROM collections\n            WHERE id = ANY($1)\n            ",
   "describe": {
     "columns": [
       {
@@ -25,32 +25,32 @@
       },
       {
         "ordinal": 4,
-        "name": "description",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 5,
-        "name": "cover_url",
+        "name": "twitter",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 6,
+        "ordinal": 5,
         "name": "verified",
         "type_info": "Bool"
       },
       {
-        "ordinal": 7,
+        "ordinal": 6,
         "name": "website",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 8,
+        "ordinal": 7,
         "name": "discord",
         "type_info": "Varchar"
       },
       {
+        "ordinal": 8,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
         "ordinal": 9,
-        "name": "twitter",
+        "name": "cover_url",
         "type_info": "Varchar"
       },
       {
@@ -65,13 +65,38 @@
       },
       {
         "ordinal": 12,
-        "name": "volume",
+        "name": "listed",
         "type_info": "Int8"
       },
       {
         "ordinal": 13,
+        "name": "volume",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 14,
         "name": "volume_usd",
         "type_info": "Numeric"
+      },
+      {
+        "ordinal": 15,
+        "name": "sales",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 16,
+        "name": "owners",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 17,
+        "name": "creator_address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 18,
+        "name": "table_handle",
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
@@ -93,8 +118,13 @@
       true,
       true,
       true,
+      true,
+      true,
+      true,
+      true,
+      true,
       true
     ]
   },
-  "hash": "e4f941f30375b9ac2f4a6e81b943d8179fd7c9d7aaa4b34aed52b9c57be95461"
+  "hash": "2b2f5fa603a202210a42df854db3742500b1d23e7fa978712808eb4381e5dd04"
 }

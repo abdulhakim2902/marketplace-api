@@ -7,7 +7,7 @@ use crate::models::{
     db::nft::{DbNft, DbNftUri},
     schema::nft::NftSchema,
 };
-use crate::utils::schema::{handle_order, handle_query};
+use crate::utils::schema::{handle_join, handle_nested_order, handle_order, handle_query};
 use crate::utils::structs;
 use anyhow::Context;
 use async_graphql::FieldError;
@@ -123,7 +123,7 @@ impl INfts for Nfts {
         query: QueryNftSchema,
         order: OrderNftSchema,
     ) -> anyhow::Result<Vec<NftSchema>> {
-        let mut query_builder = QueryBuilder::<Postgres>::new(
+        let mut builder = QueryBuilder::<Postgres>::new(
             r#"
             WITH
                 nft_rarities AS (
@@ -164,36 +164,52 @@ impl INfts for Nfts {
                         LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
                         LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
                 )
-            SELECT * FROM nfts
-            WHERE
             "#,
         );
 
+        let selection_builder = QueryBuilder::<Postgres>::new(" SELECT * FROM nfts ");
+        let mut join_builder = QueryBuilder::<Postgres>::new("");
+        let mut query_builder = QueryBuilder::<Postgres>::new("");
+        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
+
+        // Handle join
+        let order_map = structs::to_map(&order).ok().flatten();
+        if let Some(object) = order_map.as_ref() {
+            let mut nested_order_builder = QueryBuilder::<Postgres>::new(",");
+            handle_nested_order(&mut nested_order_builder, object);
+            if !nested_order_builder.sql().ends_with(",") {
+                builder.push(nested_order_builder.sql());
+                handle_join(&mut join_builder, object);
+            }
+        }
+
+        // Handle query
         if let Some(object) = structs::to_map(&query).ok().flatten() {
+            query_builder.push(" WHERE ");
             handle_query(&mut query_builder, &object, "AND", Schema::Nfts);
+            if query_builder.sql().trim().ends_with("WHERE") {
+                query_builder.reset();
+            }
         }
 
-        if query_builder.sql().trim().ends_with("WHERE") {
-            query_builder.push(" ");
-            query_builder.push_bind(true);
+        // Handle ordering
+        if let Some(object) = order_map.as_ref() {
+            order_by_builder.push(" ORDER BY ");
+            handle_order(&mut order_by_builder, object);
+            if order_by_builder.sql().trim().ends_with("ORDER BY") {
+                order_by_builder.reset();
+            }
         }
 
-        query_builder.push(" ORDER BY ");
+        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
 
-        if let Some(object) = structs::to_map(&order).ok().flatten() {
-            handle_order(&mut query_builder, &object);
-        }
+        builder.push(selection_builder.sql());
+        builder.push(join_builder.sql());
+        builder.push(query_builder.sql());
+        builder.push(order_by_builder.sql());
+        builder.push(pagination);
 
-        if query_builder.sql().trim().ends_with("ORDER BY") {
-            query_builder.push("token_id");
-        }
-
-        query_builder.push(" LIMIT ");
-        query_builder.push_bind(limit);
-        query_builder.push(" OFFSET ");
-        query_builder.push_bind(offset);
-
-        let res = query_builder
+        let res = builder
             .build_query_as::<NftSchema>()
             .fetch_all(&*self.pool)
             .await
