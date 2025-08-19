@@ -94,8 +94,13 @@ impl CollectionSchema {
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.collection_id = Some(operator);
 
         db.attributes()
             .fetch_attributes(limit, offset, query, order)
@@ -117,8 +122,13 @@ impl CollectionSchema {
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.collection_id = Some(operator);
 
         db.activities()
             .fetch_activities(limit, offset, query, order)
@@ -140,8 +150,13 @@ impl CollectionSchema {
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.collection_id = Some(operator);
 
         db.bids()
             .fetch_bids(limit, offset, query, order)
@@ -173,9 +188,9 @@ pub struct QueryCollectionSchema {
     pub floor: Option<OperatorSchema<i64>>,
     pub volume: Option<OperatorSchema<i64>>,
     pub volume_usd: Option<OperatorSchema<BigDecimal>>,
-    pub activities: Option<Arc<QueryActivitySchema>>,
-    pub attributes: Option<Arc<QueryAttributeSchema>>,
-    pub bids: Option<Arc<QueryBidSchema>>,
+    pub activity: Option<Arc<QueryActivitySchema>>,
+    pub attribute: Option<Arc<QueryAttributeSchema>>,
+    pub bid: Option<Arc<QueryBidSchema>>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]

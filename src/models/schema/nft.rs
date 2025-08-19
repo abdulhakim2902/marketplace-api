@@ -87,8 +87,13 @@ impl NftSchema {
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.nft_id = Some(operator);
 
         db.attributes()
             .fetch_attributes(limit, offset, query, order)
@@ -110,8 +115,13 @@ impl NftSchema {
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.nft_id = Some(operator);
 
         db.activities()
             .fetch_activities(limit, offset, query, order)
@@ -133,8 +143,13 @@ impl NftSchema {
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.nft_id = Some(operator);
 
         db.listings()
             .fetch_listings(limit, offset, query, order)
@@ -156,8 +171,13 @@ impl NftSchema {
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
         let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.nft_id = Some(operator);
 
         db.bids()
             .fetch_bids(limit, offset, query, order)
@@ -197,7 +217,7 @@ pub struct QueryNftSchema {
     pub collection: Option<Arc<QueryCollectionSchema>>,
     pub activity: Option<Arc<QueryActivitySchema>>,
     pub attribute: Option<Arc<QueryAttributeSchema>>,
-    pub listings: Option<Arc<QueryListingSchema>>,
+    pub listing: Option<Arc<QueryListingSchema>>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, InputObject)]
