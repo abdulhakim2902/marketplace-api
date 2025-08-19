@@ -168,17 +168,17 @@ impl ICollections for Collections {
             r#"
             ON CONFLICT (id) DO UPDATE SET
                 slug = EXCLUDED.slug,
-                title = EXCLUDED.title,
-                supply = EXCLUDED.supply,
-                twitter = EXCLUDED.twitter,
-                discord = EXCLUDED.discord,
-                website = EXCLUDED.website,
-                verified = EXCLUDED.verified,
-                description = EXCLUDED.description,
-                cover_url = EXCLUDED.cover_url,
-                royalty = EXCLUDED.royalty,
-                table_handle = EXCLUDED.table_handle,
-                creator_address = EXCLUDED.creator_address
+                title = COALESCE(EXCLUDED.title, collections.title),
+                supply = COALESCE(EXCLUDED.supply, collections.supply),
+                twitter = COALESCE(EXCLUDED.twitter, collections.twitter),
+                discord = COALESCE(EXCLUDED.discord, collections.discord),
+                website = COALESCE(EXCLUDED.website, collections.website),
+                verified = COALESCE(EXCLUDED.verified, collections.verified),
+                description = COALESCE(EXCLUDED.description, collections.description),
+                cover_url = COALESCE(EXCLUDED.cover_url, collections.cover_url),
+                royalty = COALESCE(EXCLUDED.royalty, collections.royalty),
+                table_handle = COALESCE(EXCLUDED.table_handle, collections.table_handle),
+                creator_address = COALESCE(EXCLUDED.creator_address, collections.creator_address)
             "#,
         )
         .build()

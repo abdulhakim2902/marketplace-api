@@ -1,8 +1,13 @@
 use std::sync::Arc;
 
 use crate::{
-    database::{IDatabase, activities::IActivities, bids::IBids, listings::IListings},
-    models::db::{activity::DbActivity, bid::DbBid, listing::DbListing},
+    database::{
+        IDatabase, activities::IActivities, bids::IBids, collections::ICollections,
+        listings::IListings, nfts::INfts,
+    },
+    models::db::{
+        activity::DbActivity, bid::DbBid, collection::DbCollection, listing::DbListing, nft::DbNft,
+    },
     utils::string_utils::capitalize,
 };
 use aptos_indexer_processor_sdk::{
@@ -30,7 +35,13 @@ impl<TDb: IDatabase> Processable for DBWritingStep<TDb>
 where
     TDb: IDatabase + Send + Sync,
 {
-    type Input = (Vec<DbActivity>, Vec<DbBid>, Vec<DbListing>);
+    type Input = (
+        Vec<DbActivity>,
+        Vec<DbBid>,
+        Vec<DbListing>,
+        Vec<DbCollection>,
+        Vec<DbNft>,
+    );
     type Output = ();
     type RunType = AsyncRunType;
 
@@ -38,7 +49,7 @@ where
         &mut self,
         input: TransactionContext<Self::Input>,
     ) -> Result<Option<TransactionContext<()>>, ProcessorError> {
-        let (activities, bids, listings) = input.data;
+        let (activities, bids, listings, collections, nfts) = input.data;
 
         let mut tx =
             self.db
@@ -68,6 +79,22 @@ where
         self.db
             .listings()
             .tx_insert_listings(&mut tx, listings)
+            .await
+            .map_err(|e| ProcessorError::ProcessError {
+                message: format!("{e:#}"),
+            })?;
+
+        self.db
+            .collections()
+            .tx_insert_collections(&mut tx, collections)
+            .await
+            .map_err(|e| ProcessorError::ProcessError {
+                message: format!("{e:#}"),
+            })?;
+
+        self.db
+            .nfts()
+            .tx_insert_nfts(&mut tx, nfts)
             .await
             .map_err(|e| ProcessorError::ProcessError {
                 message: format!("{e:#}"),

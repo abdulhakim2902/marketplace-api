@@ -1324,3 +1324,9 @@ nft_marketplace_configs:
           "$.collection.inner":
             - table: nft_marketplace_activities
               column: collection_addr
+      "0x4::token::TokenIdentifiers":
+        resource_fields:
+          "$.name.value":
+            - table: nft_marketplace_activities
+              column: token_name
+

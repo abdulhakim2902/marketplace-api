@@ -1,3 +1,5 @@
+use crate::models::db::collection::{DbCollection, get_collection_slug};
+use crate::models::db::nft::DbNft;
 use crate::utils::{
     generate_activity_id, generate_bid_id, generate_collection_id, generate_listing_id,
     generate_nft_id,
@@ -54,15 +56,12 @@ impl From<NftMarketplaceActivity> for DbActivity {
         Self {
             id: generate_activity_id(value.get_tx_index()),
             tx_index: value.get_tx_index(),
+            nft_id: value.get_nft_id(),
+            collection_id: value.get_collection_id(),
             price: Some(value.price),
             market_contract_id: value.contract_address,
             tx_id: value.txn_id,
-            nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             tx_type: Some(value.standard_event_type.to_string()),
-            collection_id: value
-                .collection_addr
-                .as_ref()
-                .map(|e| generate_collection_id(e)),
             sender: value.seller,
             receiver: value.buyer,
             block_time: Some(value.block_timestamp),
@@ -86,14 +85,11 @@ impl TryFrom<NftMarketplaceActivity> for DbBid {
             bid_type: value.get_bid_type(),
             status: value.get_bid_status(),
             expired_at: value.get_expiration_time(),
+            collection_id: value.get_collection_id(),
+            nft_id: value.get_nft_id(),
             price: Some(value.price),
             market_contract_id: value.contract_address,
             market_name: value.marketplace,
-            collection_id: value
-                .collection_addr
-                .as_ref()
-                .map(|e| generate_collection_id(e)),
-            nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             nonce: value.offer_id,
             bidder: value.buyer,
             remaining_count: value.token_amount,
@@ -110,18 +106,43 @@ impl TryFrom<NftMarketplaceActivity> for DbListing {
             id: value.get_listing_id().context("Invalid listing")?,
             tx_index: Some(value.get_tx_index()),
             listed: value.get_listing_status(),
+            collection_id: value.get_collection_id(),
+            nft_id: value.get_nft_id(),
             price: Some(value.price),
             market_contract_id: value.contract_address,
-            collection_id: value
-                .collection_addr
-                .as_ref()
-                .map(|e| generate_collection_id(e)),
-            nft_id: value.token_addr.as_ref().map(|e| generate_nft_id(e)),
             market_name: value.marketplace,
             seller: value.seller,
             block_time: Some(value.block_timestamp),
             nonce: value.listing_id,
             block_height: Some(value.block_height),
+        })
+    }
+}
+
+impl TryFrom<NftMarketplaceActivity> for DbCollection {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NftMarketplaceActivity) -> anyhow::Result<Self> {
+        Ok(Self {
+            id: value.get_collection_id().context("Invalid collection")?,
+            slug: value.get_slug(),
+            title: value.collection_name,
+            creator_address: value.creator_address,
+            ..Default::default()
+        })
+    }
+}
+
+impl TryFrom<NftMarketplaceActivity> for DbNft {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NftMarketplaceActivity) -> anyhow::Result<Self> {
+        Ok(Self {
+            id: value.get_nft_id().context("Invalid nft")?,
+            collection_id: value.get_collection_id(),
+            token_id: value.token_addr,
+            name: value.token_name,
+            ..Default::default()
         })
     }
 }
@@ -342,6 +363,34 @@ impl ListingModel for NftMarketplaceActivity {
     }
 }
 
+impl CollectionModel for NftMarketplaceActivity {
+    fn get_collection_id(&self) -> Option<Uuid> {
+        self.collection_addr
+            .as_ref()
+            .map(|e| generate_collection_id(e))
+    }
+
+    fn get_slug(&self) -> Option<String> {
+        let slug = self
+            .creator_address
+            .as_ref()
+            .zip(self.collection_name.as_ref())
+            .map(|(creator, name)| get_collection_slug(creator, name));
+
+        if slug.is_none() {
+            self.collection_addr.clone()
+        } else {
+            slug
+        }
+    }
+}
+
+impl NftModel for NftMarketplaceActivity {
+    fn get_nft_id(&self) -> Option<Uuid> {
+        self.token_addr.as_ref().map(|e| generate_nft_id(e))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Display, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum MarketplaceField {
@@ -392,4 +441,13 @@ pub trait BidModel {
 pub trait ListingModel {
     fn get_listing_id(&self) -> Option<Uuid>;
     fn get_listing_status(&self) -> Option<bool>;
+}
+
+pub trait CollectionModel {
+    fn get_collection_id(&self) -> Option<Uuid>;
+    fn get_slug(&self) -> Option<String>;
+}
+
+pub trait NftModel {
+    fn get_nft_id(&self) -> Option<Uuid>;
 }

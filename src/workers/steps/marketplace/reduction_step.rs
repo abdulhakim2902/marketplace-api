@@ -2,7 +2,10 @@ use crate::{
     cache::ICache,
     database::{IDatabase, token_prices::ITokenPrices},
     models::{
-        db::{activity::DbActivity, bid::DbBid, listing::DbListing},
+        db::{
+            activity::DbActivity, bid::DbBid, collection::DbCollection, listing::DbListing,
+            nft::DbNft,
+        },
         marketplace::{APT_DECIMAL, MarketplaceField, MarketplaceModel, NftMarketplaceActivity},
     },
     utils::string_utils::capitalize,
@@ -24,6 +27,8 @@ pub struct NFTAccumulator {
     activities: HashMap<Uuid, DbActivity>,
     bids: HashMap<Uuid, DbBid>,
     listings: HashMap<Uuid, DbListing>,
+    collections: HashMap<Uuid, DbCollection>,
+    nfts: HashMap<Uuid, DbNft>,
 }
 
 impl NFTAccumulator {
@@ -34,7 +39,8 @@ impl NFTAccumulator {
     }
 
     pub fn fold_bidding(&mut self, activity: &NftMarketplaceActivity) {
-        if let Ok(bid) = <NftMarketplaceActivity as TryInto<DbBid>>::try_into(activity.to_owned()) {
+        let result: Result<DbBid> = activity.to_owned().try_into();
+        if let Ok(bid) = result {
             self.bids
                 .entry(bid.id)
                 .and_modify(|existing: &mut DbBid| {
@@ -66,9 +72,8 @@ impl NFTAccumulator {
     }
 
     pub fn fold_listing(&mut self, activity: &NftMarketplaceActivity) {
-        if let Ok(listing) =
-            <NftMarketplaceActivity as TryInto<DbListing>>::try_into(activity.to_owned())
-        {
+        let result: Result<DbListing> = activity.to_owned().try_into();
+        if let Ok(listing) = result {
             self.listings
                 .entry(listing.id)
                 .and_modify(|existing: &mut DbListing| {
@@ -100,11 +105,35 @@ impl NFTAccumulator {
         }
     }
 
-    pub fn drain(&mut self) -> (Vec<DbActivity>, Vec<DbBid>, Vec<DbListing>) {
+    pub fn fold_collection(&mut self, activity: &NftMarketplaceActivity) {
+        let result: Result<DbCollection> = activity.to_owned().try_into();
+        if let Ok(collection) = result {
+            self.collections.insert(collection.id, collection);
+        }
+    }
+
+    pub fn fold_nfts(&mut self, activity: &NftMarketplaceActivity) {
+        let result: Result<DbNft> = activity.to_owned().try_into();
+        if let Ok(nft) = result {
+            self.nfts.insert(nft.id, nft);
+        }
+    }
+
+    pub fn drain(
+        &mut self,
+    ) -> (
+        Vec<DbActivity>,
+        Vec<DbBid>,
+        Vec<DbListing>,
+        Vec<DbCollection>,
+        Vec<DbNft>,
+    ) {
         (
             self.activities.drain().map(|(_, v)| v).collect(),
             self.bids.drain().map(|(_, v)| v).collect(),
             self.listings.drain().map(|(_, v)| v).collect(),
+            self.collections.drain().map(|(_, v)| v).collect(),
+            self.nfts.drain().map(|(_, v)| v).collect(),
         )
     }
 }
@@ -141,7 +170,13 @@ where
         Vec<NftMarketplaceActivity>,
         HashMap<String, HashMap<String, String>>,
     );
-    type Output = (Vec<DbActivity>, Vec<DbBid>, Vec<DbListing>);
+    type Output = (
+        Vec<DbActivity>,
+        Vec<DbBid>,
+        Vec<DbListing>,
+        Vec<DbCollection>,
+        Vec<DbNft>,
+    );
     type RunType = AsyncRunType;
 
     async fn process(
@@ -180,6 +215,8 @@ where
             self.accumulator.fold_activity(&activity);
             self.accumulator.fold_bidding(&activity);
             self.accumulator.fold_listing(&activity);
+            self.accumulator.fold_collection(&activity);
+            self.accumulator.fold_nfts(&activity);
         }
 
         let reduced_data = self.accumulator.drain();
