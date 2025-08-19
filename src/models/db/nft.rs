@@ -1,3 +1,4 @@
+use crate::models::db::collection::{DbCollection, get_collection_slug};
 use crate::utils::{generate_collection_id, generate_nft_id};
 use crate::{
     models::resources::{
@@ -84,7 +85,7 @@ impl DbNft {
         txn_version: i64,
         table_handle_to_owner: &AHashMap<String, TableMetadataForToken>,
         deposit_event_owner: &HashMap<Uuid, Option<String>>,
-    ) -> Result<Option<Self>> {
+    ) -> Result<(Option<Self>, Option<DbCollection>)> {
         if let Some(table_item_data) = table_item.data.as_ref() {
             let maybe_token_data = match TokenWriteSet::from_table_item_type(
                 &table_item_data.value_type,
@@ -123,6 +124,17 @@ impl DbNft {
                         }
                     };
 
+                    let collection = DbCollection {
+                        id: generate_collection_id(&token_data_id_struct.get_collection_addr()),
+                        creator_address: Some(token_data_id_struct.get_creator_address()),
+                        slug: Some(get_collection_slug(
+                            &token_data_id_struct.get_creator_address(),
+                            &token_data_id_struct.collection,
+                        )),
+                        title: Some(token_data_id_struct.collection.clone()),
+                        ..Default::default()
+                    };
+
                     let nft = DbNft {
                         id: nft_id,
                         owner: owner_address,
@@ -139,12 +151,12 @@ impl DbNft {
                         ..Default::default()
                     };
 
-                    return Ok(Some(nft));
+                    return Ok((Some(nft), Some(collection)));
                 }
             }
         }
 
-        Ok(None)
+        Ok((None, None))
     }
 }
 

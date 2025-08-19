@@ -263,38 +263,47 @@ where
                 }
 
                 for wsc in txn_info.changes.iter() {
-                    let (collection_result, nft_result) = match wsc.change.as_ref().unwrap() {
-                        Change::WriteTableItem(table_item) => {
-                            let collection_result = DbCollection::get_from_write_table_item(
-                                table_item,
-                                txn_version,
-                                &table_handler_to_owner,
-                                self.db.get_pool(),
-                            )
-                            .await;
+                    let (collection_result, nft_result, nft_collection_result) =
+                        match wsc.change.as_ref().unwrap() {
+                            Change::WriteTableItem(table_item) => {
+                                let collection_result = DbCollection::get_from_write_table_item(
+                                    table_item,
+                                    txn_version,
+                                    &table_handler_to_owner,
+                                    self.db.get_pool(),
+                                )
+                                .await;
 
-                            let nft_result = DbNft::get_from_write_table_item(
-                                table_item,
-                                txn_version,
-                                &table_handler_to_owner,
-                                &token_owner,
-                            );
+                                let result = DbNft::get_from_write_table_item(
+                                    table_item,
+                                    txn_version,
+                                    &table_handler_to_owner,
+                                    &token_owner,
+                                );
 
-                            (collection_result.unwrap(), nft_result.unwrap())
-                        }
-                        Change::WriteResource(resource) => {
-                            let collection_result = DbCollection::get_from_write_resource(
-                                resource,
-                                &token_metadata_helper,
-                            );
+                                let (nft_result, nft_collection_result) = result.unwrap();
 
-                            let nft_result =
-                                DbNft::get_from_write_resource(resource, &token_metadata_helper);
+                                (
+                                    collection_result.unwrap(),
+                                    nft_result,
+                                    nft_collection_result,
+                                )
+                            }
+                            Change::WriteResource(resource) => {
+                                let collection_result = DbCollection::get_from_write_resource(
+                                    resource,
+                                    &token_metadata_helper,
+                                );
 
-                            (collection_result.unwrap(), nft_result.unwrap())
-                        }
-                        _ => (None, None),
-                    };
+                                let nft_result = DbNft::get_from_write_resource(
+                                    resource,
+                                    &token_metadata_helper,
+                                );
+
+                                (collection_result.unwrap(), nft_result.unwrap(), None)
+                            }
+                            _ => (None, None, None),
+                        };
 
                     if let Some(collection) = collection_result {
                         self.current_collections
@@ -308,6 +317,13 @@ where
                             nft.owner = None;
                         }
                         self.current_nfts.insert(nft.id.clone(), nft);
+                    }
+
+                    if let Some(collection) = nft_collection_result {
+                        if self.current_collections.get(&collection.id).is_none() {
+                            self.current_collections
+                                .insert(collection.id.clone(), collection);
+                        }
                     }
                 }
             }

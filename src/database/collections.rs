@@ -143,7 +143,9 @@ impl ICollections for Collections {
                 verified,
                 description,
                 cover_url,
-                royalty
+                royalty,
+                table_handle,
+                creator_address
             )
             "#,
         )
@@ -159,6 +161,8 @@ impl ICollections for Collections {
             b.push_bind(item.description.clone());
             b.push_bind(item.cover_url.clone());
             b.push_bind(item.royalty.clone());
+            b.push_bind(item.table_handle.clone());
+            b.push_bind(item.creator_address.clone());
         })
         .push(
             r#"
@@ -172,7 +176,9 @@ impl ICollections for Collections {
                 verified = EXCLUDED.verified,
                 description = EXCLUDED.description,
                 cover_url = EXCLUDED.cover_url,
-                royalty = EXCLUDED.royalty
+                royalty = EXCLUDED.royalty,
+                table_handle = EXCLUDED.table_handle,
+                creator_address = EXCLUDED.creator_address
             "#,
         )
         .build()

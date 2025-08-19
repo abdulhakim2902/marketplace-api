@@ -11,7 +11,6 @@ use crate::{
 };
 use ahash::AHashMap;
 use anyhow::Result;
-use aptos_indexer_processor_sdk::utils::extract::hash_str;
 use aptos_indexer_processor_sdk::{
     aptos_protos::transaction::v1::{WriteResource, WriteTableItem},
     utils::convert::standardize_address,
@@ -145,15 +144,14 @@ impl DbCollection {
             TokenEvent::from_event(&event.type_str, &event.data.to_string(), txn_version)?
         {
             if let TokenEvent::CreateTokenDataEvent(inner) = token {
-                let creator_address = standardize_address(&inner.id.get_creator_address());
-                let collection = inner.id.collection;
-                let input = format!("{}::{}", &creator_address, &collection);
-                let hash_str = hash_str(&input);
-
                 let collection = DbCollection {
-                    id: generate_collection_id(&standardize_address(hash_str.as_str())),
-                    slug: Some(get_collection_slug(&creator_address, &collection)),
-                    title: Some(collection),
+                    id: generate_collection_id(&inner.id.get_collection_addr()),
+                    creator_address: Some(inner.id.get_creator_address()),
+                    slug: Some(get_collection_slug(
+                        &inner.id.get_collection_addr(),
+                        &inner.id.collection,
+                    )),
+                    title: Some(inner.id.collection),
                     ..Default::default()
                 };
 
@@ -204,7 +202,7 @@ impl DbCollection {
     }
 }
 
-fn get_collection_slug(creator: &str, collection: &str) -> String {
+pub fn get_collection_slug(creator: &str, collection: &str) -> String {
     let collection = collection
         .chars()
         .filter(|&c| c.is_alphanumeric() || c == ' ')
