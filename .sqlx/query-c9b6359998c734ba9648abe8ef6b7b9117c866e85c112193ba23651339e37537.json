@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH collection_attributes AS (\n                SELECT DISTINCT ON(collection_id, attr_type, value)\n                    collection_id,\n                    attr_type,\n                    value,\n                    rarity,\n                    score\n                FROM attributes\n                WHERE collection_id = $1\n            )\n            SELECT \n                ca.attr_type,\n                jsonb_agg(json_build_object('value', ca.value, 'rarity', ca.rarity, 'score', ca.score)) as json\n            FROM collection_attributes ca\n            GROUP BY ca.attr_type\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "attr_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "json",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "c9b6359998c734ba9648abe8ef6b7b9117c866e85c112193ba23651339e37537"
+}

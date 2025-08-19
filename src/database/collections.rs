@@ -559,12 +559,21 @@ impl ICollections for Collections {
         let res = sqlx::query_as!(
             CollectionAttributeSchema,
             r#"
+            WITH collection_attributes AS (
+                SELECT DISTINCT ON(collection_id, attr_type, value)
+                    collection_id,
+                    attr_type,
+                    value,
+                    rarity,
+                    score
+                FROM attributes
+                WHERE collection_id = $1
+            )
             SELECT 
                 ca.attr_type,
-                jsonb_agg(DISTINCT ca.value) AS values
-            FROM attributes ca
-            WHERE ca.collection_id = $1
-            GROUP BY ca.collection_id, ca.attr_type
+                jsonb_agg(json_build_object('value', ca.value, 'rarity', ca.rarity, 'score', ca.score)) as json
+            FROM collection_attributes ca
+            GROUP BY ca.attr_type
             "#,
             collection_id,
         )
