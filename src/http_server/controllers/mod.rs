@@ -46,11 +46,11 @@ pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
             .await
             .ok();
 
-        if let Some((id, hash)) = is_valid_api_key {
+        if let Some((id, user_id, hash)) = is_valid_api_key {
             let db = state.db.clone();
 
             tokio::spawn(async move {
-                if let Err(e) = db.request_logs().add_logs(&id).await {
+                if let Err(e) = db.request_logs().add_logs(&id, &user_id).await {
                     tracing::error!("Failed to add logs: {e:#}")
                 }
             });

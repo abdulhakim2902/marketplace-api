@@ -26,7 +26,7 @@ pub trait IApiKeys: Send + Sync {
         &self,
         username: &str,
         token: Option<String>,
-    ) -> anyhow::Result<(Uuid, String)>;
+    ) -> anyhow::Result<(Uuid, Uuid, String)>;
 }
 
 pub struct ApiKeys {
@@ -124,10 +124,10 @@ impl IApiKeys for ApiKeys {
         &self,
         username: &str,
         token: Option<String>,
-    ) -> anyhow::Result<(Uuid, String)> {
+    ) -> anyhow::Result<(Uuid, Uuid, String)> {
         let res = sqlx::query!(
             r#"
-            SELECT ak.id, ak.long_token_hash FROM users u
+            SELECT ak.id, ak.long_token_hash, ak.user_id FROM users u
               JOIN api_keys ak ON ak.user_id = u.id
             WHERE u.username = $1 AND ak.short_token = $2
             LIMIT 1
@@ -139,6 +139,6 @@ impl IApiKeys for ApiKeys {
         .await
         .context("Failed to fetch")?;
 
-        Ok((res.id, res.long_token_hash))
+        Ok((res.id, res.user_id, res.long_token_hash))
     }
 }

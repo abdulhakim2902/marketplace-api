@@ -9,7 +9,7 @@ use crate::utils::generate_request_log_id;
 
 #[async_trait::async_trait]
 pub trait IRequestLogs: Send + Sync {
-    async fn add_logs(&self, api_key_id: &Uuid) -> anyhow::Result<PgQueryResult>;
+    async fn add_logs(&self, api_key_id: &Uuid, user_id: &Uuid) -> anyhow::Result<PgQueryResult>;
 }
 
 pub struct RequestLogs {
@@ -24,7 +24,7 @@ impl RequestLogs {
 
 #[async_trait::async_trait]
 impl IRequestLogs for RequestLogs {
-    async fn add_logs(&self, api_key_id: &Uuid) -> anyhow::Result<PgQueryResult> {
+    async fn add_logs(&self, api_key_id: &Uuid, user_id: &Uuid) -> anyhow::Result<PgQueryResult> {
         let now = Utc::now();
         let rounded = Utc
             .with_ymd_and_hms(now.year(), now.month(), now.day(), now.hour(), 0, 0)
@@ -36,14 +36,15 @@ impl IRequestLogs for RequestLogs {
 
         let res = sqlx::query!(
             r#"
-            INSERT INTO request_logs (id, api_key_id, ts, count)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO request_logs (id, api_key_id, user_id, ts, count)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (id) 
             DO UPDATE SET
               count = EXCLUDED.count + request_logs.count;
             "#,
             id,
             api_key_id,
+            user_id,
             rounded,
             count,
         )
