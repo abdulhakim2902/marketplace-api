@@ -23,7 +23,9 @@ pub const REQUEST_LOG_TAG: &str = "request-log";
   path = "/users",
   tag = REQUEST_LOG_TAG,
   params(
-    TimeRange
+      ("startTime" = Option<i64>, Query),
+      ("endTime" = Option<i64>, Query),
+      ("interval" = Option<String>, Query)
   ),
   responses(
     (status = 200, description = "Returns a list of user logs", body = [DataPointSchema])
@@ -60,7 +62,9 @@ pub async fn fetch_user_logs<TDb: IDatabase, TCache: ICache>(
   tag = REQUEST_LOG_TAG,
   params(
       ("id" = String, Path, description = "Api key id"),
-      TimeRange
+      ("startTime" = Option<i64>, Query),
+      ("endTime" = Option<i64>, Query),
+      ("interval" = Option<String>, Query)
   ),
   responses(
     (status = 200, description = "Returns a list of user api key logs", body = [DataPointSchema])

@@ -1,22 +1,28 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
-use utoipa::ToSchema;
+use sqlx::postgres::types::PgInterval;
 use validator::{Validate, ValidationError, ValidationErrors};
 
-use crate::utils::{de_utils, string_utils::CustomInterval};
+use crate::utils::de_utils;
 
-#[derive(Deserialize, Validate, Debug, Clone, utoipa::IntoParams, ToSchema)]
+#[derive(Deserialize, Validate, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TimeRange {
-    #[serde(deserialize_with = "de_utils::deserialize_i64_to_datetime")]
-    #[schema(value_type = i64)]
+    #[serde(
+        deserialize_with = "de_utils::deserialize_i64_to_datetime",
+        default = "default_time"
+    )]
     pub start_time: DateTime<Utc>,
-    #[serde(deserialize_with = "de_utils::deserialize_i64_to_datetime")]
-    #[schema(value_type = i64)]
+    #[serde(
+        deserialize_with = "de_utils::deserialize_i64_to_datetime",
+        default = "default_time"
+    )]
     pub end_time: DateTime<Utc>,
-    #[serde(deserialize_with = "de_utils::deserialize_pg_interval")]
-    #[schema(value_type = String)]
-    pub interval: CustomInterval,
+    #[serde(
+        deserialize_with = "de_utils::deserialize_pg_interval",
+        default = "default_interval"
+    )]
+    pub interval: PgInterval,
 }
 
 impl TimeRange {
@@ -32,5 +38,18 @@ impl TimeRange {
         } else {
             Ok(())
         }
+    }
+}
+
+fn default_time() -> DateTime<Utc> {
+    Utc::now()
+}
+
+fn default_interval() -> PgInterval {
+    let duration = Duration::hours(1);
+    PgInterval {
+        months: 0,
+        days: duration.num_days() as i32,
+        microseconds: (duration.num_seconds() % 86400) * 1_000_000,
     }
 }

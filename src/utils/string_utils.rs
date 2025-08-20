@@ -1,14 +1,6 @@
 use anyhow::anyhow;
 use chrono::Duration;
 use sqlx::postgres::types::PgInterval;
-use utoipa::ToSchema;
-
-#[derive(Debug, Clone, ToSchema)]
-pub struct CustomInterval {
-    pub months: i32,
-    pub days: i32,
-    pub microseconds: i64,
-}
 
 pub fn str_to_pginterval_opt(interval_str: &str) -> anyhow::Result<Option<PgInterval>> {
     // Check if the input string is at least 2 characters long
@@ -40,7 +32,7 @@ pub fn str_to_pginterval_opt(interval_str: &str) -> anyhow::Result<Option<PgInte
     Ok(Some(pg_interval))
 }
 
-pub fn str_to_interval(interval_str: &str) -> anyhow::Result<CustomInterval> {
+pub fn str_to_interval(interval_str: &str) -> anyhow::Result<PgInterval> {
     // Check if the input string is at least 2 characters long
     if interval_str.len() < 2 {
         return Err(anyhow!("Invalid interval format"));
@@ -61,7 +53,7 @@ pub fn str_to_interval(interval_str: &str) -> anyhow::Result<CustomInterval> {
         _ => return Err(anyhow!("Invalid time unit")),
     };
 
-    let interval = CustomInterval {
+    let interval = PgInterval {
         months: 0,
         days: duration.num_days() as i32,
         microseconds: (duration.num_seconds() % 86400) * 1_000_000,

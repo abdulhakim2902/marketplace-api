@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer};
+use sqlx::postgres::types::PgInterval;
 
-use crate::utils::string_utils::{self, CustomInterval};
+use crate::utils::string_utils;
 
-pub fn deserialize_pg_interval<'de, D>(deserializer: D) -> Result<CustomInterval, D::Error>
+pub fn deserialize_pg_interval<'de, D>(deserializer: D) -> Result<PgInterval, D::Error>
 where
     D: Deserializer<'de>,
 {
