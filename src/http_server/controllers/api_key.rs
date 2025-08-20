@@ -10,8 +10,8 @@ use crate::{
     },
     models::{
         api::{
-            requests::create_api_key::CreateApiKey,
-            responses::api_key::{ApiKeyResponse, SuccessRemoveApiKeyResponse},
+            requests::{create_api_key::CreateApiKey, update_api_key::UpdateApiKey},
+            responses::api_key::{ApiKeyResponse, SuccessApiKeyResponse},
         },
         db::api_key::DbApiKey,
     },
@@ -85,6 +85,47 @@ pub async fn create_api_key<TDb: IDatabase, TCache: ICache>(
 }
 
 #[utoipa::path(
+    patch,
+    path = "/{id}",
+    tag = API_KEY_TAG,
+    params(
+        ("id" = String, Path, description = "Api key id")
+    ),
+    responses(
+        (status = 200, description = "Returns a successful message", body = SuccessApiKeyResponse)
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
+pub async fn update_api_key<TDb: IDatabase, TCache: ICache>(
+    State(state): InternalState<TDb, TCache>,
+    Path(id): Path<String>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<UpdateApiKey>,
+) -> Response {
+    match state
+        .db
+        .api_keys()
+        .update_api_key(&id, &claims.id, &req)
+        .await
+    {
+        Ok(res) => {
+            if res.rows_affected() <= 0 {
+                response_404_with_message("Api key not found")
+            } else {
+                Json(SuccessApiKeyResponse {
+                    id,
+                    message: "Successfully update api key".to_string(),
+                })
+                .into_response()
+            }
+        }
+        Err(e) => response_429_unhandled_err(e),
+    }
+}
+
+#[utoipa::path(
     delete,
     path = "/{id}",
     tag = API_KEY_TAG,
@@ -92,7 +133,7 @@ pub async fn create_api_key<TDb: IDatabase, TCache: ICache>(
         ("id" = String, Path, description = "Api key id")
     ),
     responses(
-        (status = 200, description = "Returns a successful message", body = SuccessRemoveApiKeyResponse)
+        (status = 200, description = "Returns a successful message", body = SuccessApiKeyResponse)
     ),
     security(
         ("BearerAuth" = [])
@@ -108,7 +149,7 @@ pub async fn remove_api_key<TDb: IDatabase, TCache: ICache>(
             if res.rows_affected() <= 0 {
                 response_404_with_message("Api key not found")
             } else {
-                Json(SuccessRemoveApiKeyResponse {
+                Json(SuccessApiKeyResponse {
                     id,
                     message: "Successfully remove api key".to_string(),
                 })

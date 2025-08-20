@@ -7,6 +7,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::models::api::requests::update_api_key::UpdateApiKey;
 use crate::models::db::api_key::DbApiKey;
 
 #[async_trait::async_trait]
@@ -19,6 +20,13 @@ pub trait IApiKeys: Send + Sync {
     ) -> anyhow::Result<(Uuid, String, DateTime<Utc>)>;
 
     async fn fetch_api_keys(&self, user_id: &str) -> anyhow::Result<Vec<DbApiKey>>;
+
+    async fn update_api_key(
+        &self,
+        id: &str,
+        user_id: &str,
+        data: &UpdateApiKey,
+    ) -> anyhow::Result<PgQueryResult>;
 
     async fn remove_api_key(&self, id: &str, user_id: &str) -> anyhow::Result<PgQueryResult>;
 
@@ -100,6 +108,37 @@ impl IApiKeys for ApiKeys {
         .fetch_all(&*self.pool)
         .await
         .context("Failed to fetch api keys")?;
+
+        Ok(res)
+    }
+
+    async fn update_api_key(
+        &self,
+        id: &str,
+        user_id: &str,
+        data: &UpdateApiKey,
+    ) -> anyhow::Result<PgQueryResult> {
+        let res = sqlx::query!(
+            r#"
+            UPDATE api_keys ak1
+            SET
+                name = COALESCE($3, ak2.name),
+                description = COALESCE($4, ak2.description),
+                updated_at = NOW()
+            FROM api_keys ak2
+            WHERE ak1.id = $1
+                AND ak1.user_id = $2
+                AND ak1.id = ak2.id
+                AND ak1.user_id = ak2.user_id
+            "#,
+            Uuid::from_str(id).ok(),
+            Uuid::from_str(user_id).ok(),
+            data.name,
+            data.description,
+        )
+        .execute(&*self.pool)
+        .await
+        .context("Failed to update api key")?;
 
         Ok(res)
     }

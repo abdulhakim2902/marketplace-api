@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE api_keys ak1\n            SET\n                name = COALESCE($3, ak2.name),\n                description = COALESCE($4, ak2.description),\n                updated_at = NOW()\n            FROM api_keys ak2\n            WHERE ak1.id = $1\n                AND ak1.user_id = $2\n                AND ak1.id = ak2.id\n                AND ak1.user_id = ak2.user_id\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "373cdc25e05cdd5d58cb14eea24cbd51af81635ee91c4c0caefbf1e7c8af98cd"
+}

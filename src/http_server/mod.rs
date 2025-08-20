@@ -58,6 +58,7 @@ struct UserApi;
 #[openapi(paths(
     api_key::fetch_api_keys,
     api_key::create_api_key,
+    api_key::update_api_key,
     api_key::remove_api_key
 ))]
 struct ApiKeyApi;
@@ -209,7 +210,10 @@ where
                                 "/",
                                 get(api_key::fetch_api_keys).post(api_key::create_api_key),
                             )
-                            .route("/{id}", delete(api_key::remove_api_key))
+                            .route(
+                                "/{id}",
+                                delete(api_key::remove_api_key).patch(api_key::update_api_key),
+                            )
                             .layer(middleware::from_fn(authorize::authorize_user)),
                     )
                     .layer(middleware::from_fn(move |req, next| {

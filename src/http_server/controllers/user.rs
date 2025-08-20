@@ -1,7 +1,6 @@
 use axum::{
     Json,
     extract::{Path, State},
-    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use validator::Validate;
@@ -15,7 +14,7 @@ use crate::{
     },
     models::api::{
         requests::{create_user::CreateUser, update_user::UpdateUser},
-        responses::user::UserResponse,
+        responses::{api_key::SuccessApiKeyResponse, user::UserResponse},
     },
 };
 use crate::{database::IDatabase, http_server::controllers::InternalState};
@@ -78,8 +77,11 @@ pub async fn create_user<TDb: IDatabase, TCache: ICache>(
     patch,
     path = "/{id}",
     tag = USER_TAG,
+        params(
+        ("id" = String, Path, description = "Api key id")
+    ),
     responses(
-        (status = 204)
+        (status = 200, description = "Returns a successful message", body = SuccessApiKeyResponse)
     ),
     security(
         ("BearerAuth" = [])
@@ -99,10 +101,11 @@ pub async fn update_user<TDb: IDatabase, TCache: ICache>(
             if res.rows_affected() <= 0 {
                 response_404_with_message("User not found")
             } else {
-                Response::builder()
-                    .status(StatusCode::NO_CONTENT)
-                    .body("OK".into())
-                    .unwrap()
+                Json(SuccessApiKeyResponse {
+                    id,
+                    message: "Successfully update user".to_string(),
+                })
+                .into_response()
             }
         }
         Err(e) => response_429_unhandled_err(e),

@@ -120,7 +120,7 @@ impl IUsers for Users {
                 active = COALESCE($4, u2.active),
                 updated_at = NOW()
             FROM users u2 
-            WHERE u1.id = $1::UUID 
+            WHERE u1.id = $1
                 AND u1.id = u2.id
                 AND u1.role = 'user';
             "#,

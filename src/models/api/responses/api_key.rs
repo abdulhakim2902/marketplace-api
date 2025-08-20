@@ -14,7 +14,16 @@ pub struct ApiKeyResponse {
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct SuccessRemoveApiKeyResponse {
+pub struct SuccessApiKeyResponse {
     pub id: String,
     pub message: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct ApiKeyUpdatedResponse {
+    pub id: Uuid,
+    pub user_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: DateTime<Utc>,
 }
