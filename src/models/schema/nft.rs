@@ -6,7 +6,7 @@ use crate::{
         collections::Collections, listings::IListings,
     },
     models::schema::{
-        OperatorSchema, OrderingType,
+        AggregateSchema, OperatorSchema, OrderingType,
         activity::{
             ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
         },
@@ -106,9 +106,49 @@ impl NftSchema {
         query.nft_id = Some(operator);
 
         db.attributes()
-            .fetch_attributes(distinct, limit, offset, query, order)
+            .fetch_attributes(&distinct, limit, offset, &query, &order)
             .await
             .expect("Failed to fetch attributes")
+    }
+
+    #[graphql(name = "attributes_aggregate")]
+    async fn attributes_aggregate(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
+    ) -> AggregateSchema<AttributeSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let distinct = distinct.unwrap_or_default();
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.nft_id = Some(operator);
+
+        let total = db
+            .attributes()
+            .fetch_total_attributes(&distinct, limit, offset, &query, &order)
+            .await
+            .expect("Failed to fetch total ttributes");
+
+        let nodes = db
+            .attributes()
+            .fetch_attributes(&distinct, limit, offset, &query, &order)
+            .await
+            .expect("Failed to fetch attributes");
+
+        AggregateSchema::new(total, nodes)
     }
 
     async fn activities(
@@ -136,9 +176,49 @@ impl NftSchema {
         query.nft_id = Some(operator);
 
         db.activities()
-            .fetch_activities(distinct, limit, offset, query, order)
+            .fetch_activities(&distinct, limit, offset, &query, &order)
             .await
             .expect("Failed to fetch activities")
+    }
+
+    #[graphql(name = "activities_aggregate")]
+    async fn activities_aggregate(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryActivitySchema>,
+        #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
+    ) -> AggregateSchema<ActivitySchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let distinct = distinct.unwrap_or_default();
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.nft_id = Some(operator);
+
+        let total = db
+            .activities()
+            .fetch_total_activities(&distinct, limit, offset, &query, &order)
+            .await
+            .expect("Failed to fetch total activities");
+
+        let nodes = db
+            .activities()
+            .fetch_activities(&distinct, limit, offset, &query, &order)
+            .await
+            .expect("Failed to fetch activities");
+
+        AggregateSchema::new(total, nodes)
     }
 
     async fn listings(
@@ -166,9 +246,49 @@ impl NftSchema {
         query.nft_id = Some(operator);
 
         db.listings()
-            .fetch_listings(distinct, limit, offset, query, order)
+            .fetch_listings(&distinct, limit, offset, &query, &order)
             .await
             .expect("Failed to fetch nfts")
+    }
+
+    #[graphql(name = "listings_aggregate")]
+    async fn listings_aggregate(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryListingSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderListingSchema>,
+    ) -> AggregateSchema<ListingSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let distinct = distinct.unwrap_or_default();
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.nft_id = Some(operator);
+
+        let total = db
+            .listings()
+            .fetch_total_listings(&distinct, limit, offset, &query, &order)
+            .await
+            .expect("Failed to fetch total listings");
+
+        let nodes = db
+            .listings()
+            .fetch_listings(&distinct, limit, offset, &query, &order)
+            .await
+            .expect("Failed to fetch listings");
+
+        AggregateSchema::new(total, nodes)
     }
 
     async fn bids(
@@ -196,9 +316,49 @@ impl NftSchema {
         query.nft_id = Some(operator);
 
         db.bids()
-            .fetch_bids(distinct, limit, offset, query, order)
+            .fetch_bids(&distinct, limit, offset, &query, &order)
             .await
             .expect("Failed to fetch bids")
+    }
+
+    #[graphql(name = "bids_aggregate")]
+    async fn bids_aggregate(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctBidSchema>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "where")] query: Option<QueryBidSchema>,
+        #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
+    ) -> AggregateSchema<BidSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let distinct = distinct.unwrap_or_default();
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+        let order = order.unwrap_or_default();
+
+        let mut query = query.unwrap_or_default();
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.nft_id = Some(operator);
+
+        let total = db
+            .bids()
+            .fetch_total_bids(&distinct, limit, offset, &query, &order)
+            .await
+            .expect("Failed to fetch total bids");
+
+        let nodes = db
+            .bids()
+            .fetch_bids(&distinct, limit, offset, &query, &order)
+            .await
+            .expect("Failed to fetch bids");
+
+        AggregateSchema::new(total, nodes)
     }
 }
 

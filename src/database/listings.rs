@@ -20,12 +20,21 @@ pub trait IListings: Send + Sync {
 
     async fn fetch_listings(
         &self,
-        distinct: DistinctListingSchema,
+        distinct: &DistinctListingSchema,
         limit: i64,
         offset: i64,
-        query: QueryListingSchema,
-        order: OrderListingSchema,
+        query: &QueryListingSchema,
+        order: &OrderListingSchema,
     ) -> anyhow::Result<Vec<ListingSchema>>;
+
+    async fn fetch_total_listings(
+        &self,
+        distinct: &DistinctListingSchema,
+        limit: i64,
+        offset: i64,
+        query: &QueryListingSchema,
+        order: &OrderListingSchema,
+    ) -> anyhow::Result<i64>;
 }
 
 pub struct Listings {
@@ -103,11 +112,11 @@ impl IListings for Listings {
 
     async fn fetch_listings(
         &self,
-        distinct: DistinctListingSchema,
+        distinct: &DistinctListingSchema,
         limit: i64,
         offset: i64,
-        query: QueryListingSchema,
-        order: OrderListingSchema,
+        query: &QueryListingSchema,
+        order: &OrderListingSchema,
     ) -> anyhow::Result<Vec<ListingSchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
@@ -121,7 +130,7 @@ impl IListings for Listings {
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");
 
         // Handle join
-        let order_map = structs::to_map(&order).ok().flatten();
+        let order_map = structs::to_map(order).ok().flatten();
         if let Some(object) = order_map.as_ref() {
             builder.push(" WITH ");
             handle_nested_order(&mut builder, object);
@@ -133,7 +142,7 @@ impl IListings for Listings {
         }
 
         // Handle query
-        if let Some(object) = structs::to_map(&query).ok().flatten() {
+        if let Some(object) = structs::to_map(query).ok().flatten() {
             query_builder.push(" WHERE ");
             handle_query(&mut query_builder, &object, "AND", Schema::Listings);
             if query_builder.sql().trim().ends_with("WHERE") {
@@ -162,8 +171,74 @@ impl IListings for Listings {
             .build_query_as::<ListingSchema>()
             .fetch_all(&*self.pool)
             .await
-            .context("Failed to fetch bids")?;
+            .context("Failed to fetch listings")?;
 
         Ok(res)
+    }
+
+    async fn fetch_total_listings(
+        &self,
+        distinct: &DistinctListingSchema,
+        limit: i64,
+        offset: i64,
+        query: &QueryListingSchema,
+        order: &OrderListingSchema,
+    ) -> anyhow::Result<i64> {
+        let mut builder = QueryBuilder::<Postgres>::new("");
+
+        let selection_builder: QueryBuilder<'_, Postgres> = QueryBuilder::<Postgres>::new(format!(
+            " SELECT COUNT(DISTINCT {}) FROM listings ",
+            distinct.to_string()
+        ));
+
+        let mut join_builder = QueryBuilder::<Postgres>::new("");
+        let mut query_builder = QueryBuilder::<Postgres>::new("");
+        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
+
+        // Handle join
+        let order_map = structs::to_map(order).ok().flatten();
+        if let Some(object) = order_map.as_ref() {
+            builder.push(" WITH ");
+            handle_nested_order(&mut builder, object);
+            if builder.sql().trim().ends_with("WITH") {
+                builder.reset();
+            } else {
+                handle_join(&mut join_builder, object);
+            }
+        }
+
+        // Handle query
+        if let Some(object) = structs::to_map(query).ok().flatten() {
+            query_builder.push(" WHERE ");
+            handle_query(&mut query_builder, &object, "AND", Schema::Listings);
+            if query_builder.sql().trim().ends_with("WHERE") {
+                query_builder.reset();
+            }
+        }
+
+        // Handle ordering
+        if let Some(object) = order_map.as_ref() {
+            order_by_builder.push(" ORDER BY ");
+            handle_order(&mut order_by_builder, object);
+            if order_by_builder.sql().trim().ends_with("ORDER BY") {
+                order_by_builder.reset();
+            }
+        }
+
+        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
+
+        builder.push(selection_builder.sql());
+        builder.push(join_builder.sql());
+        builder.push(query_builder.sql());
+        builder.push(order_by_builder.sql());
+        builder.push(pagination);
+
+        let res = builder
+            .build_query_scalar()
+            .fetch_optional(&*self.pool)
+            .await
+            .context("Failed to total listings")?;
+
+        Ok(res.unwrap_or_default())
     }
 }

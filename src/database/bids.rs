@@ -26,12 +26,21 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
-        distinct: DistinctBidSchema,
+        distinct: &DistinctBidSchema,
         limit: i64,
         offset: i64,
-        query: QueryBidSchema,
-        order: OrderBidSchema,
+        query: &QueryBidSchema,
+        order: &OrderBidSchema,
     ) -> anyhow::Result<Vec<BidSchema>>;
+
+    async fn fetch_total_bids(
+        &self,
+        distinct: &DistinctBidSchema,
+        limit: i64,
+        offset: i64,
+        query: &QueryBidSchema,
+        order: &OrderBidSchema,
+    ) -> anyhow::Result<i64>;
 
     async fn fetch_collection_top_offer(
         &self,
@@ -134,11 +143,11 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
-        distinct: DistinctBidSchema,
+        distinct: &DistinctBidSchema,
         limit: i64,
         offset: i64,
-        query: QueryBidSchema,
-        order: OrderBidSchema,
+        query: &QueryBidSchema,
+        order: &OrderBidSchema,
     ) -> anyhow::Result<Vec<BidSchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
@@ -152,7 +161,7 @@ impl IBids for Bids {
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");
 
         // Handle join
-        let order_map = structs::to_map(&order).ok().flatten();
+        let order_map = structs::to_map(order).ok().flatten();
         if let Some(object) = order_map.as_ref() {
             builder.push(" WITH ");
             handle_nested_order(&mut builder, object);
@@ -164,7 +173,7 @@ impl IBids for Bids {
         }
 
         // Handle query
-        if let Some(object) = structs::to_map(&query).ok().flatten() {
+        if let Some(object) = structs::to_map(query).ok().flatten() {
             query_builder.push(" WHERE ");
             handle_query(&mut query_builder, &object, "AND", Schema::Bids);
             if query_builder.sql().trim().ends_with("WHERE") {
@@ -196,6 +205,72 @@ impl IBids for Bids {
             .context("Failed to fetch bids")?;
 
         Ok(res)
+    }
+
+    async fn fetch_total_bids(
+        &self,
+        distinct: &DistinctBidSchema,
+        limit: i64,
+        offset: i64,
+        query: &QueryBidSchema,
+        order: &OrderBidSchema,
+    ) -> anyhow::Result<i64> {
+        let mut builder = QueryBuilder::<Postgres>::new("");
+
+        let selection_builder = QueryBuilder::<Postgres>::new(format!(
+            " SELECT COUNT(DISTINCT {}) FROM bids ",
+            distinct.to_string()
+        ));
+
+        let mut join_builder = QueryBuilder::<Postgres>::new("");
+        let mut query_builder = QueryBuilder::<Postgres>::new("");
+        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
+
+        // Handle join
+        let order_map = structs::to_map(order).ok().flatten();
+        if let Some(object) = order_map.as_ref() {
+            builder.push(" WITH ");
+            handle_nested_order(&mut builder, object);
+            if builder.sql().trim().ends_with("WITH") {
+                builder.reset();
+            } else {
+                handle_join(&mut join_builder, object);
+            }
+        }
+
+        // Handle query
+        if let Some(object) = structs::to_map(query).ok().flatten() {
+            query_builder.push(" WHERE ");
+            handle_query(&mut query_builder, &object, "AND", Schema::Bids);
+            if query_builder.sql().trim().ends_with("WHERE") {
+                query_builder.reset();
+            }
+        }
+
+        // Handle ordering
+        if let Some(object) = order_map.as_ref() {
+            order_by_builder.push(" ORDER BY ");
+            handle_order(&mut order_by_builder, object);
+            if order_by_builder.sql().trim().ends_with("ORDER BY") {
+                order_by_builder.reset();
+            }
+        }
+
+        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
+
+        builder.push(selection_builder.sql());
+        builder.push(join_builder.sql());
+        builder.push(query_builder.sql());
+        builder.push(order_by_builder.sql());
+        builder.push(pagination);
+
+        let res = builder
+            .build_query_scalar()
+            .fetch_optional(&*self.pool)
+            .await
+            .context("Failed to fetch total bids")?;
+
+        Ok(res.unwrap_or_default())
     }
 
     async fn fetch_collection_top_offer(

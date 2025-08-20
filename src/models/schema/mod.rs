@@ -1,8 +1,13 @@
-use crate::database::{
-    Database, IDatabase, attributes::IAttributes, bids::IBids, nfts::INfts,
-    token_prices::ITokenPrices,
+use crate::{
+    database::{
+        Database, IDatabase, attributes::IAttributes, bids::IBids, token_prices::ITokenPrices,
+    },
+    models::schema::{
+        activity::ActivitySchema, attribute::AttributeSchema, bid::BidSchema,
+        collection::CollectionSchema, listing::ListingSchema, nft::NftSchema,
+    },
 };
-use async_graphql::{Context, Enum, InputObject, InputType, OutputType};
+use async_graphql::{Context, Enum, InputObject, InputType, OutputType, SimpleObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -45,37 +50,37 @@ impl Default for OrderingType {
 #[graphql(
     name = "ComparisonOperator",
     concrete(
-        name = "OperatorSchemaTypeOutString",
-        input_name = "OperatorSchemaTypeInString",
+        name = "OperatorTypeOutString",
+        input_name = "OperatorTypeInString",
         params(String)
     ),
     concrete(
-        name = "OperatorSchemaTypeOutInt64",
-        input_name = "OperatorSchemaTypeInInt64",
+        name = "OperatorTypeOutInt64",
+        input_name = "OperatorTypeInInt64",
         params(i64)
     ),
     concrete(
-        name = "OperatorSchemaTypeOutBigDecimal",
-        input_name = "OperatorSchemaTypeInBigDecimal",
+        name = "OperatorTypeOutBigDecimal",
+        input_name = "OperatorTypeInBigDecimal",
         params(BigDecimal)
     ),
     concrete(
-        name = "OperatorSchemaTypeOutUuid",
-        input_name = "OperatorSchemaTypeInUuid",
+        name = "OperatorTypeOutUuid",
+        input_name = "OperatorTypeInUuid",
         params(Uuid)
     ),
     concrete(
-        name = "OperatorSchemaTypeOutDateTime",
-        input_name = "OperatorSchemaTypeInDateTime",
+        name = "OperatorTypeOutDateTime",
+        input_name = "OperatorTypeInDateTime",
         params(Date)
     ),
     concrete(
-        name = "OperatorSchemaTypeOutBool",
-        input_name = "OperatorSchemaTypeInBool",
+        name = "OperatorTypeOutBool",
+        input_name = "OperatorTypeInBool",
         params(bool)
     )
 )]
-pub struct OperatorSchema<T: InputType + OutputType> {
+pub struct OperatorSchema<T: InputType> {
     #[graphql(name = "_eq")]
     _eq: Option<T>,
     #[graphql(name = "_in")]
@@ -94,6 +99,67 @@ pub struct OperatorSchema<T: InputType + OutputType> {
     _neq: Option<T>,
     #[graphql(name = "_is_null")]
     _is_null: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug, SimpleObject)]
+#[graphql(name = "AggregateFields", rename_fields = "snake_case")]
+pub struct AggregateFieldsSchema {
+    pub count: i64,
+}
+
+impl AggregateFieldsSchema {
+    pub fn new(count: i64) -> Self {
+        Self { count }
+    }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug, SimpleObject)]
+#[graphql(
+    name = "Aggregate",
+    rename_fields = "snake_case",
+    concrete(
+        name = "AggregateTypeOutActivity",
+        input_name = "AggregateTypeInActivity",
+        params(ActivitySchema)
+    ),
+    concrete(
+        name = "AggregateTypeOutAttribute",
+        input_name = "AggregateTypeInAttribute",
+        params(AttributeSchema)
+    ),
+    concrete(
+        name = "AggregateTypeOutCollection",
+        input_name = "AggregateTypeInCollection",
+        params(CollectionSchema)
+    ),
+    concrete(
+        name = "AggregateTypeOutNft",
+        input_name = "AggregateTypeInNft",
+        params(NftSchema)
+    ),
+    concrete(
+        name = "AggregateTypeOutListing",
+        input_name = "AggregateTypeInListing",
+        params(ListingSchema)
+    ),
+    concrete(
+        name = "AggregateTypeOutBid",
+        input_name = "AggregateTypeInBid",
+        params(BidSchema)
+    )
+)]
+pub struct AggregateSchema<T: OutputType> {
+    pub aggregate: AggregateFieldsSchema,
+    pub nodes: Vec<T>,
+}
+
+impl<T: OutputType> AggregateSchema<T> {
+    pub fn new(total: i64, nodes: Vec<T>) -> Self {
+        Self {
+            aggregate: AggregateFieldsSchema { count: total },
+            nodes,
+        }
+    }
 }
 
 async fn fetch_total_collection_trait(
@@ -150,33 +216,6 @@ async fn fetch_nft_top_offer(ctx: &Context<'_>, nft_id: &str) -> Option<String> 
         .ok()
         .flatten()
         .map(|e| e.to_plain_string())
-}
-
-async fn fetch_total_nft(
-    ctx: &Context<'_>,
-    collection_id: Option<String>,
-    wallet_address: Option<String>,
-    default_amount: i64,
-) -> Option<i64> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    if wallet_address.is_none() {
-        return Some(default_amount);
-    }
-
-    let collection_id = collection_id.as_ref().unwrap();
-    let wallet_address = wallet_address.as_ref().unwrap();
-
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    db.nfts()
-        .fetch_total_nft(&wallet_address, collection_id)
-        .await
-        .ok()
 }
 
 async fn fetch_token_price(ctx: &Context<'_>) -> Option<BigDecimal> {

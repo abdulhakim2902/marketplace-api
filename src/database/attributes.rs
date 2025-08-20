@@ -22,12 +22,21 @@ pub trait IAttributes: Send + Sync {
 
     async fn fetch_attributes(
         &self,
-        distinct: DistinctAttributeSchema,
+        distinct: &DistinctAttributeSchema,
         limit: i64,
         offset: i64,
-        query: QueryAttributeSchema,
-        order: OrderAttributeSchema,
+        query: &QueryAttributeSchema,
+        order: &OrderAttributeSchema,
     ) -> anyhow::Result<Vec<AttributeSchema>>;
+
+    async fn fetch_total_attributes(
+        &self,
+        distinct: &DistinctAttributeSchema,
+        limit: i64,
+        offset: i64,
+        query: &QueryAttributeSchema,
+        order: &OrderAttributeSchema,
+    ) -> anyhow::Result<i64>;
 
     async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>>;
 
@@ -90,11 +99,11 @@ impl IAttributes for Attributes {
 
     async fn fetch_attributes(
         &self,
-        distinct: DistinctAttributeSchema,
+        distinct: &DistinctAttributeSchema,
         limit: i64,
         offset: i64,
-        query: QueryAttributeSchema,
-        order: OrderAttributeSchema,
+        query: &QueryAttributeSchema,
+        order: &OrderAttributeSchema,
     ) -> anyhow::Result<Vec<AttributeSchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
@@ -108,7 +117,7 @@ impl IAttributes for Attributes {
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");
 
         // Handle join
-        let order_map = structs::to_map(&order).ok().flatten();
+        let order_map = structs::to_map(order).ok().flatten();
         if let Some(object) = order_map.as_ref() {
             builder.push(" WITH ");
             handle_nested_order(&mut builder, object);
@@ -120,7 +129,7 @@ impl IAttributes for Attributes {
         }
 
         // Handle query
-        if let Some(object) = structs::to_map(&query).ok().flatten() {
+        if let Some(object) = structs::to_map(query).ok().flatten() {
             query_builder.push(" WHERE ");
             handle_query(&mut query_builder, &object, "AND", Schema::Attributes);
             if query_builder.sql().trim().ends_with("WHERE") {
@@ -152,6 +161,72 @@ impl IAttributes for Attributes {
             .context("Failed to fetch attributes")?;
 
         Ok(res)
+    }
+
+    async fn fetch_total_attributes(
+        &self,
+        distinct: &DistinctAttributeSchema,
+        limit: i64,
+        offset: i64,
+        query: &QueryAttributeSchema,
+        order: &OrderAttributeSchema,
+    ) -> anyhow::Result<i64> {
+        let mut builder = QueryBuilder::<Postgres>::new("");
+
+        let selection_builder = QueryBuilder::<Postgres>::new(format!(
+            " SELECT COUNT (DISTINCT {}) FROM attributes ",
+            distinct.to_string()
+        ));
+
+        let mut join_builder = QueryBuilder::<Postgres>::new("");
+        let mut query_builder = QueryBuilder::<Postgres>::new("");
+        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
+
+        // Handle join
+        let order_map = structs::to_map(order).ok().flatten();
+        if let Some(object) = order_map.as_ref() {
+            builder.push(" WITH ");
+            handle_nested_order(&mut builder, object);
+            if builder.sql().trim().ends_with("WITH") {
+                builder.reset();
+            } else {
+                handle_join(&mut join_builder, object);
+            }
+        }
+
+        // Handle query
+        if let Some(object) = structs::to_map(query).ok().flatten() {
+            query_builder.push(" WHERE ");
+            handle_query(&mut query_builder, &object, "AND", Schema::Attributes);
+            if query_builder.sql().trim().ends_with("WHERE") {
+                query_builder.reset();
+            }
+        }
+
+        // Handle ordering
+        if let Some(object) = order_map.as_ref() {
+            order_by_builder.push(" ORDER BY ");
+            handle_order(&mut order_by_builder, object);
+            if order_by_builder.sql().trim().ends_with("ORDER BY") {
+                order_by_builder.reset();
+            }
+        }
+
+        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
+
+        builder.push(selection_builder.sql());
+        builder.push(join_builder.sql());
+        builder.push(query_builder.sql());
+        builder.push(order_by_builder.sql());
+        builder.push(pagination);
+
+        let res = builder
+            .build_query_scalar()
+            .fetch_optional(&*self.pool)
+            .await
+            .context("Failed to fetch total attributes")?;
+
+        Ok(res.unwrap_or_default())
     }
 
     async fn collection_score(&self, collection_id: &str) -> anyhow::Result<Option<BigDecimal>> {

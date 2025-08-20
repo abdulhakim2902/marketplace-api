@@ -26,12 +26,21 @@ pub trait INfts: Send + Sync {
 
     async fn fetch_nfts(
         &self,
-        distinct: DistinctNftSchema,
+        distinct: &DistinctNftSchema,
         limit: i64,
         offset: i64,
-        query: QueryNftSchema,
-        order: OrderNftSchema,
+        query: &QueryNftSchema,
+        order: &OrderNftSchema,
     ) -> anyhow::Result<Vec<NftSchema>>;
+
+    async fn fetch_total_nfts(
+        &self,
+        distinct: &DistinctNftSchema,
+        limit: i64,
+        offset: i64,
+        query: &QueryNftSchema,
+        order: &OrderNftSchema,
+    ) -> anyhow::Result<i64>;
 
     async fn fetch_nft_uri(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNftUri>>;
 
@@ -119,11 +128,11 @@ impl INfts for Nfts {
 
     async fn fetch_nfts(
         &self,
-        distinct: DistinctNftSchema,
+        distinct: &DistinctNftSchema,
         limit: i64,
         offset: i64,
-        query: QueryNftSchema,
-        order: OrderNftSchema,
+        query: &QueryNftSchema,
+        order: &OrderNftSchema,
     ) -> anyhow::Result<Vec<NftSchema>> {
         let mut builder = QueryBuilder::<Postgres>::new(
             r#"
@@ -179,7 +188,7 @@ impl INfts for Nfts {
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");
 
         // Handle join
-        let order_map = structs::to_map(&order).ok().flatten();
+        let order_map = structs::to_map(order).ok().flatten();
         if let Some(object) = order_map.as_ref() {
             let mut nested_order_builder = QueryBuilder::<Postgres>::new(",");
             handle_nested_order(&mut nested_order_builder, object);
@@ -190,7 +199,7 @@ impl INfts for Nfts {
         }
 
         // Handle query
-        if let Some(object) = structs::to_map(&query).ok().flatten() {
+        if let Some(object) = structs::to_map(query).ok().flatten() {
             query_builder.push(" WHERE ");
             handle_query(&mut query_builder, &object, "AND", Schema::Nfts);
             if query_builder.sql().trim().ends_with("WHERE") {
@@ -222,6 +231,113 @@ impl INfts for Nfts {
             .context("Failed to fetch nfts")?;
 
         Ok(res)
+    }
+
+    async fn fetch_total_nfts(
+        &self,
+        distinct: &DistinctNftSchema,
+        limit: i64,
+        offset: i64,
+        query: &QueryNftSchema,
+        order: &OrderNftSchema,
+    ) -> anyhow::Result<i64> {
+        let mut builder = QueryBuilder::<Postgres>::new(
+            r#"
+            WITH
+                nft_rarities AS (
+                    SELECT
+                        na.collection_id,
+                        na.nft_id,
+                        SUM(-LOG(2, na.rarity))             AS rarity
+                    FROM attributes na
+                    GROUP BY na.collection_id, na.nft_id
+                ),
+                nfts AS (
+                    SELECT 
+                        n.id,
+                        COALESCE(n.name, nm.name)                   AS name,
+                        owner,
+                        n.collection_id,
+                        burned,
+                        n.properties,
+                        n.token_id,
+                        COALESCE(n.description, nm.description)     AS description,
+                        COALESCE(nm.image, n.uri)                   AS image_url,
+                        nm.animation_url,
+                        nm.avatar_url,
+                        nm.youtube_url,
+                        nm.external_url,
+                        nm.background_color,
+                        royalty,
+                        version,
+                        nr.rarity,
+                        CASE
+                            WHEN nr.rarity IS NOT NULL
+                            THEN RANK () OVER (
+                                PARTITION BY n.collection_id
+                                ORDER BY nr.rarity DESC
+                            )
+                            END                                     AS ranking
+                    FROM nfts n
+                        LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
+                        LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
+                )
+            "#,
+        );
+
+        let selection_builder = QueryBuilder::<Postgres>::new(format!(
+            " SELECT COUNT(DISTINCT {}) FROM nfts ",
+            distinct.to_string()
+        ));
+
+        let mut join_builder = QueryBuilder::<Postgres>::new("");
+        let mut query_builder = QueryBuilder::<Postgres>::new("");
+        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
+
+        // Handle join
+        let order_map = structs::to_map(order).ok().flatten();
+        if let Some(object) = order_map.as_ref() {
+            let mut nested_order_builder = QueryBuilder::<Postgres>::new(",");
+            handle_nested_order(&mut nested_order_builder, object);
+            if !nested_order_builder.sql().ends_with(",") {
+                builder.push(nested_order_builder.sql());
+                handle_join(&mut join_builder, object);
+            }
+        }
+
+        // Handle query
+        if let Some(object) = structs::to_map(query).ok().flatten() {
+            query_builder.push(" WHERE ");
+            handle_query(&mut query_builder, &object, "AND", Schema::Nfts);
+            if query_builder.sql().trim().ends_with("WHERE") {
+                query_builder.reset();
+            }
+        }
+
+        // Handle ordering
+        if let Some(object) = order_map.as_ref() {
+            order_by_builder.push(" ORDER BY ");
+            handle_order(&mut order_by_builder, object);
+            if order_by_builder.sql().trim().ends_with("ORDER BY") {
+                order_by_builder.reset();
+            }
+        }
+
+        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
+
+        builder.push(selection_builder.sql());
+        builder.push(join_builder.sql());
+        builder.push(query_builder.sql());
+        builder.push(order_by_builder.sql());
+        builder.push(pagination);
+
+        let res = builder
+            .build_query_scalar()
+            .fetch_optional(&*self.pool)
+            .await
+            .context("Failed to fetch total nfts")?;
+
+        Ok(res.unwrap_or_default())
     }
 
     async fn fetch_nft_uri(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNftUri>> {
