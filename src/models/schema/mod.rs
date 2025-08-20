@@ -107,12 +107,6 @@ pub struct AggregateFieldsSchema {
     pub count: i64,
 }
 
-impl AggregateFieldsSchema {
-    pub fn new(count: i64) -> Self {
-        Self { count }
-    }
-}
-
 #[derive(Serialize, Deserialize, Default, Clone, Debug, SimpleObject)]
 #[graphql(
     name = "Aggregate",

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM users\n            WHERE role = 'admin';\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "044a724bd92a88f1d0085efc39346816f8fb2cb87af77fc26ff0aebb273fa7f8"
+}

@@ -1,6 +1,7 @@
+use crate::models::api::requests::validate_billing_type;
 use serde::Deserialize;
 use utoipa::ToSchema;
-use validator::{Validate, ValidationError};
+use validator::Validate;
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct CreateUser {
@@ -23,16 +24,5 @@ impl CreateUser {
 impl CreateUser {
     pub fn password(&self) -> bcrypt::BcryptResult<String> {
         bcrypt::hash(&self.password, 10)
-    }
-}
-
-fn validate_billing_type(billing: &str) -> Result<(), ValidationError> {
-    let billing_types = ["per_call", "flat_fee"];
-    if billing_types.contains(&billing) {
-        Ok(())
-    } else {
-        Err(ValidationError::new(
-            "Invalid billing type. Only accept 'per_call' or 'flat_fee'",
-        ))
     }
 }

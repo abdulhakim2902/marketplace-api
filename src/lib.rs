@@ -118,6 +118,7 @@ async fn init_price(tapp_url: &str, db: Arc<Database>, cache: Arc<Cache>) -> any
 }
 
 async fn init_admin(db: Arc<Database>, user: &str, password: &str) -> anyhow::Result<()> {
+    db.users().clean_admin_user().await?;
     db.users().create_admin_user(&user, password).await?;
 
     Ok(())

@@ -1,6 +1,7 @@
 use axum::{
     Json,
-    extract::State,
+    extract::{Path, State},
+    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use validator::Validate;
@@ -9,9 +10,13 @@ use crate::{
     cache::ICache,
     database::users::IUsers,
     http_server::utils::err_handler::{
-        response_400_with_message, response_404_unhandled_err, response_429_unhandled_err,
+        response_400_with_message, response_404_unhandled_err, response_404_with_message,
+        response_429_unhandled_err,
     },
-    models::api::{requests::create_user::CreateUser, responses::user::UserResponse},
+    models::api::{
+        requests::{create_user::CreateUser, update_user::UpdateUser},
+        responses::user::UserResponse,
+    },
 };
 use crate::{database::IDatabase, http_server::controllers::InternalState};
 
@@ -65,6 +70,41 @@ pub async fn create_user<TDb: IDatabase, TCache: ICache>(
             created_at: created_at,
         })
         .into_response(),
+        Err(e) => response_429_unhandled_err(e),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/{id}",
+    tag = USER_TAG,
+    responses(
+        (status = 204)
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
+pub async fn update_user<TDb: IDatabase, TCache: ICache>(
+    State(state): InternalState<TDb, TCache>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateUser>,
+) -> Response {
+    if let Err(e) = req.validate() {
+        return response_400_with_message(&e.to_string());
+    }
+
+    match state.db.users().update_user(&id, &req).await {
+        Ok(res) => {
+            if res.rows_affected() <= 0 {
+                response_404_with_message("User not found")
+            } else {
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body("OK".into())
+                    .unwrap()
+            }
+        }
         Err(e) => response_429_unhandled_err(e),
     }
 }

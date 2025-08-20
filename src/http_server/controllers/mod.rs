@@ -19,6 +19,7 @@ pub struct ApiKey {
     pub user: String,
     pub key: String,
     pub token_hash: String,
+    pub active: bool,
 }
 
 pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
@@ -46,7 +47,7 @@ pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
             .await
             .ok();
 
-        if let Some((id, user_id, hash)) = is_valid_api_key {
+        if let Some((id, user_id, hash, active)) = is_valid_api_key {
             let db = state.db.clone();
 
             tokio::spawn(async move {
@@ -56,6 +57,7 @@ pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
             });
 
             req = req.data(ApiKey {
+                active,
                 user: api_user.to_owned(),
                 key: api_key.to_owned(),
                 token_hash: hash,

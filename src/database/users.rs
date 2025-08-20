@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     models::api::{
-        requests::create_user::CreateUser,
+        requests::{create_user::CreateUser, update_user::UpdateUser},
         responses::{auth_user::AuthUserResponse, user::UserResponse},
     },
     utils::generate_user_id,
@@ -20,6 +20,10 @@ pub trait IUsers: Send + Sync {
     async fn fetch_users(&self) -> anyhow::Result<Vec<UserResponse>>;
 
     async fn create_user(&self, data: &CreateUser) -> anyhow::Result<(Uuid, DateTime<Utc>)>;
+
+    async fn update_user(&self, id: &str, data: &UpdateUser) -> anyhow::Result<PgQueryResult>;
+
+    async fn clean_admin_user(&self) -> anyhow::Result<PgQueryResult>;
 
     async fn create_admin_user(
         &self,
@@ -103,6 +107,47 @@ impl IUsers for Users {
         .context("Failed to insert user")?;
 
         Ok((res.id, res.created_at))
+    }
+
+    async fn update_user(&self, id: &str, data: &UpdateUser) -> anyhow::Result<PgQueryResult> {
+        let password = data.password();
+        let res = sqlx::query!(
+            r#"
+            UPDATE users u1
+            SET
+                password = COALESCE($2, u2.password),
+                billing = COALESCE($3, u2.billing),
+                active = COALESCE($4, u2.active),
+                updated_at = NOW()
+            FROM users u2 
+            WHERE u1.id = $1::UUID 
+                AND u1.id = u2.id
+                AND u1.role = 'user';
+            "#,
+            Uuid::from_str(id).ok(),
+            password,
+            data.billing,
+            data.active,
+        )
+        .execute(&*self.pool)
+        .await
+        .context("Failed to update user")?;
+
+        Ok(res)
+    }
+
+    async fn clean_admin_user(&self) -> anyhow::Result<PgQueryResult> {
+        let res = sqlx::query!(
+            r#"
+            DELETE FROM users
+            WHERE role = 'admin';
+            "#,
+        )
+        .execute(&*self.pool)
+        .await
+        .context("Failed to clean admin user")?;
+
+        Ok(res)
     }
 
     async fn create_admin_user(

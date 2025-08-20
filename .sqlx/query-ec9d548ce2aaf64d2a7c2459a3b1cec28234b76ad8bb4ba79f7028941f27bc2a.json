@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE users u1\n            SET\n                password = COALESCE($2, u2.password),\n                billing = COALESCE($3, u2.billing),\n                active = COALESCE($4, u2.active),\n                updated_at = NOW()\n            FROM users u2 \n            WHERE u1.id = $1::UUID \n                AND u1.id = u2.id\n                AND u1.role = 'user';\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ec9d548ce2aaf64d2a7c2459a3b1cec28234b76ad8bb4ba79f7028941f27bc2a"
+}

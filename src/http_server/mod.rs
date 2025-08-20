@@ -24,7 +24,7 @@ use axum::{
     Router,
     extract::DefaultBodyLimit,
     middleware,
-    routing::{delete, get, post},
+    routing::{delete, get, patch, post},
 };
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
@@ -51,7 +51,7 @@ use utoipa_swagger_ui::SwaggerUi;
 struct AuthApi;
 
 #[derive(OpenApi)]
-#[openapi(paths(user::fetch_user, user::create_user))]
+#[openapi(paths(user::fetch_user, user::create_user, user::update_user))]
 struct UserApi;
 
 #[derive(OpenApi)]
@@ -190,11 +190,6 @@ where
         let db = Arc::clone(&self.db);
         let jwt_secret = self.config.jwt_config.secret.to_string();
 
-        // let mut api_doc = ApiDoc::openapi();
-        // let local_url = format!("http://localhost:{}/api/v1", self.config.server_config.port);
-
-        // api_doc.servers = Some(vec![Server::new(local_url)]);
-
         let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
             .route("/health", get(health::check))
             .nest(
@@ -202,12 +197,10 @@ where
                 OpenApiRouter::new()
                     .nest(
                         "/users",
-                        OpenApiRouter::new().route(
-                            "/",
-                            get(user::fetch_user)
-                                .post(user::create_user)
-                                .layer(middleware::from_fn(authorize::authorize)),
-                        ),
+                        OpenApiRouter::new()
+                            .route("/", get(user::fetch_user).post(user::create_user))
+                            .route("/{id}", patch(user::update_user))
+                            .layer(middleware::from_fn(authorize::authorize_admin)),
                     )
                     .nest(
                         "/api-keys",
@@ -216,7 +209,8 @@ where
                                 "/",
                                 get(api_key::fetch_api_keys).post(api_key::create_api_key),
                             )
-                            .route("/{id}", delete(api_key::remove_api_key)),
+                            .route("/{id}", delete(api_key::remove_api_key))
+                            .layer(middleware::from_fn(authorize::authorize_user)),
                     )
                     .layer(middleware::from_fn(move |req, next| {
                         authentication::authentication(
