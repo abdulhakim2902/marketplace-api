@@ -22,12 +22,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-pub const API_KEY_TAG: &str = "api-key";
+pub const USER_TAG: &str = "user";
 
 #[utoipa::path(
     get,
-    path = "",
-    tag = API_KEY_TAG,
+    path = "/api-keys",
+    tag = USER_TAG,
     responses(
         (status = 200, description = "Returns a list of user api keys", body = [DbApiKey])
     ),
@@ -47,8 +47,8 @@ pub async fn fetch_api_keys<TDb: IDatabase, TCache: ICache>(
 
 #[utoipa::path(
     post,
-    path = "",
-    tag = API_KEY_TAG,
+    path = "/api-keys",
+    tag = USER_TAG,
     responses(
         (status = 200, description = "Returns a new created api key", body = [ApiKeyResponse])
     ),
@@ -86,8 +86,8 @@ pub async fn create_api_key<TDb: IDatabase, TCache: ICache>(
 
 #[utoipa::path(
     patch,
-    path = "/{id}",
-    tag = API_KEY_TAG,
+    path = "/api-keys/{id}",
+    tag = USER_TAG,
     params(
         ("id" = String, Path, description = "Api key id")
     ),
@@ -127,8 +127,8 @@ pub async fn update_api_key<TDb: IDatabase, TCache: ICache>(
 
 #[utoipa::path(
     delete,
-    path = "/{id}",
-    tag = API_KEY_TAG,
+    path = "/api-keys/{id}",
+    tag = USER_TAG,
     params(
         ("id" = String, Path, description = "Api key id")
     ),

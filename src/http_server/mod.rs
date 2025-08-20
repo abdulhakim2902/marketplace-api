@@ -9,11 +9,10 @@ use crate::{
     database::IDatabase,
     http_server::{
         controllers::{
-            api_key::{self, API_KEY_TAG},
+            api_key::{self, USER_TAG},
             auth::{self, AUTH_TAG},
-            graphql_handler, health,
-            request_log::{self, REQUEST_LOG_TAG},
-            user::{self, USER_TAG},
+            graphql_handler, health, request_log,
+            user::{self, ADMIN_TAG},
         },
         graphql::{Query, graphql},
         middlewares::{authentication, authorize},
@@ -53,35 +52,30 @@ struct AuthApi;
 
 #[derive(OpenApi)]
 #[openapi(paths(user::fetch_user, user::create_user, user::update_user))]
-struct UserApi;
+struct AdminApi;
 
 #[derive(OpenApi)]
 #[openapi(paths(
     api_key::fetch_api_keys,
     api_key::create_api_key,
     api_key::update_api_key,
-    api_key::remove_api_key
+    api_key::remove_api_key,
+    request_log::fetch_user_logs
 ))]
-struct ApiKeyApi;
-
-#[derive(OpenApi)]
-#[openapi(paths(request_log::fetch_user_logs, request_log::fetch_api_key_logs))]
-struct RequestLogApi;
+struct UserApi;
 
 #[derive(OpenApi)]
 #[openapi(
     nest(
         (path = "/auth", api = AuthApi),
-        (path = "/users", api = UserApi),
-        (path = "/api-keys", api = ApiKeyApi),
-        (path = "/request-logs", api = RequestLogApi)
+        (path = "/admin", api = AdminApi),
+        (path = "/user", api = UserApi),
     ),
     modifiers(&SecurityAddon),
     tags(
         (name = AUTH_TAG, description = "Auth items management API"),
+        (name = ADMIN_TAG, description = "Admin items management API"),
         (name = USER_TAG, description = "User items management API"),
-        (name = API_KEY_TAG, description = "User api key items management API"),
-        (name = REQUEST_LOG_TAG, description = "Request log items management API")
     ),
     servers((url = "/api/v1"))
 )]
@@ -204,30 +198,37 @@ where
                 "/api/v1",
                 OpenApiRouter::new()
                     .nest(
-                        "/users",
+                        "/admin",
                         OpenApiRouter::new()
-                            .route("/", get(user::fetch_user).post(user::create_user))
-                            .route("/{id}", patch(user::update_user))
+                            .nest(
+                                "/user",
+                                OpenApiRouter::new()
+                                    .route("/", get(user::fetch_user).post(user::create_user))
+                                    .route("/{id}", patch(user::update_user)),
+                            )
                             .layer(middleware::from_fn(authorize::authorize_admin)),
                     )
                     .nest(
-                        "/api-keys",
+                        "/user",
                         OpenApiRouter::new()
-                            .route(
-                                "/",
-                                get(api_key::fetch_api_keys).post(api_key::create_api_key),
+                            .nest(
+                                "/api-keys",
+                                OpenApiRouter::new()
+                                    .route(
+                                        "/",
+                                        get(api_key::fetch_api_keys).post(api_key::create_api_key),
+                                    )
+                                    .route(
+                                        "/{id}",
+                                        delete(api_key::remove_api_key)
+                                            .patch(api_key::update_api_key),
+                                    ),
                             )
-                            .route(
-                                "/{id}",
-                                delete(api_key::remove_api_key).patch(api_key::update_api_key),
+                            .nest(
+                                "/logs",
+                                OpenApiRouter::new().route("/chart", get(request_log::fetch_user_logs)),
                             )
                             .layer(middleware::from_fn(authorize::authorize_user)),
-                    )
-                    .nest(
-                        "/request-logs",
-                        OpenApiRouter::new()
-                            .route("/users", get(request_log::fetch_user_logs))
-                            .route("/api-keys/{id}", get(request_log::fetch_api_key_logs)),
                     )
                     .layer(middleware::from_fn(move |req, next| {
                         authentication::authentication(

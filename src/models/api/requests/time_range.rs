@@ -23,6 +23,7 @@ pub struct TimeRange {
         default = "default_interval"
     )]
     pub interval: PgInterval,
+    pub api_key_id: Option<String>,
 }
 
 impl TimeRange {

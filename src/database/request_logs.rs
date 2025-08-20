@@ -17,6 +17,7 @@ pub trait IRequestLogs: Send + Sync {
     async fn fetch_user_logs(
         &self,
         user_id: &str,
+        api_key_id: Option<&str>,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
         interval: PgInterval,
@@ -85,31 +86,35 @@ impl IRequestLogs for RequestLogs {
     async fn fetch_user_logs(
         &self,
         user_id: &str,
+        api_key_id: Option<&str>,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
         interval: PgInterval,
     ) -> anyhow::Result<Vec<DataPointSchema>> {
+        println!("{:#?}", api_key_id);
         let res = sqlx::query_as!(
             DataPointSchema,
             r#"
             WITH 
                 time_series AS (
-                    SELECT GENERATE_SERIES($2::TIMESTAMPTZ, $3::TIMESTAMPTZ, $4::INTERVAL) AS time_bin
+                    SELECT GENERATE_SERIES($3::TIMESTAMPTZ, $4::TIMESTAMPTZ, $5::INTERVAL) AS time_bin
                 ),
                 user_logs AS (
                     SELECT rl.ts, SUM(rl.count) AS count FROM request_logs rl
-                    WHERE rl.user_id = $1
-                    GROUP BY rl.user_id, ts
+                    WHERE rl.user_id = $1 
+                        AND ($2::UUID IS NULL OR rl.api_key_id = $2)
+                    GROUP BY ts
                 )
             SELECT 
                 ts.time_bin                         AS x, 
                 COALESCE(SUM(ul.count), 0)::BIGINT  AS y
             FROM time_series ts
-                LEFT JOIN user_logs ul ON ul.ts >= ts.time_bin AND ul.ts < ts.time_bin + '1h'::INTERVAL
+                LEFT JOIN user_logs ul ON ul.ts >= ts.time_bin AND ul.ts < ts.time_bin + $5::INTERVAL
             GROUP BY ts.time_bin
             ORDER BY ts.time_bin
             "#,
             Uuid::from_str(user_id).ok(),
+            api_key_id.map(|id| Uuid::from_str(id).ok()).flatten(),
             start_time,
             end_time,
             interval,

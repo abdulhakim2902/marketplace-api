@@ -19,12 +19,12 @@ use crate::{
 };
 use crate::{database::IDatabase, http_server::controllers::InternalState};
 
-pub const USER_TAG: &str = "user";
+pub const ADMIN_TAG: &str = "admin";
 
 #[utoipa::path(
     get,
-    path = "",
-    tag = USER_TAG,
+    path = "/user",
+    tag = ADMIN_TAG,
     responses(
         (status = 200, description = "Returns a list of users", body = [UserResponse])
     ),
@@ -43,8 +43,8 @@ pub async fn fetch_user<TDb: IDatabase, TCache: ICache>(
 
 #[utoipa::path(
     post,
-    path = "",
-    tag = USER_TAG,
+    path = "/user",
+    tag = ADMIN_TAG,
     responses(
         (status = 200, description = "Returns a new created user", body = [UserResponse])
     ),
@@ -75,8 +75,8 @@ pub async fn create_user<TDb: IDatabase, TCache: ICache>(
 
 #[utoipa::path(
     patch,
-    path = "/{id}",
-    tag = USER_TAG,
+    path = "/user/{id}",
+    tag = ADMIN_TAG,
         params(
         ("id" = String, Path, description = "Api key id")
     ),
