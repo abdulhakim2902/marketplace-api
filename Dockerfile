@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     git \
     pkg-config \
     libssl-dev \
+    curl \
     cmake \
     build-essential \
     g++ \
