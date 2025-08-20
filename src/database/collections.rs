@@ -348,7 +348,7 @@ impl ICollections for Collections {
         offset: i64,
         order: OrderTrendingType,
     ) -> anyhow::Result<Vec<CollectionTrendingSchema>> {
-        let interval = string_utils::str_to_pginterval(interval).ok().flatten();
+        let interval = string_utils::str_to_pginterval_opt(interval).ok().flatten();
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             WITH 
@@ -538,7 +538,7 @@ impl ICollections for Collections {
         offset: i64,
         interval: Option<String>,
     ) -> anyhow::Result<Vec<NftChangeSchema>> {
-        let interval = string_utils::str_to_pginterval(&interval.clone().unwrap_or_default())?;
+        let interval = string_utils::str_to_pginterval_opt(&interval.clone().unwrap_or_default())?;
 
         let res = sqlx::query_as!(
             NftChangeSchema,
@@ -666,7 +666,7 @@ impl ICollections for Collections {
         limit: i64,
         interval: Option<String>,
     ) -> anyhow::Result<Vec<TopWalletSchema>> {
-        let interval = string_utils::str_to_pginterval(&interval.unwrap_or_default())
+        let interval = string_utils::str_to_pginterval_opt(&interval.unwrap_or_default())
             .expect("Invalid interval");
 
         let res = match type_ {
@@ -919,7 +919,7 @@ impl ICollections for Collections {
         end_time: i64,
         interval: &str,
     ) -> anyhow::Result<Vec<DataPointSchema>> {
-        let interval = string_utils::str_to_pginterval(interval)
+        let interval = string_utils::str_to_pginterval_opt(interval)
             .expect("Invalid interval")
             .expect("Invalid interval");
 

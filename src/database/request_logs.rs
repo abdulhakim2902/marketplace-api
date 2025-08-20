@@ -1,15 +1,35 @@
 use anyhow::Context;
-use chrono::{Datelike, TimeZone, Timelike, Utc};
-use std::sync::Arc;
+use chrono::{DateTime, Datelike, TimeZone, Timelike, Utc};
+use std::{str::FromStr, sync::Arc};
 use uuid::Uuid;
 
-use sqlx::{PgPool, postgres::PgQueryResult};
+use sqlx::{
+    PgPool,
+    postgres::{PgQueryResult, types::PgInterval},
+};
 
-use crate::utils::generate_request_log_id;
+use crate::{models::schema::data_point::DataPointSchema, utils::generate_request_log_id};
 
 #[async_trait::async_trait]
 pub trait IRequestLogs: Send + Sync {
     async fn add_logs(&self, api_key_id: &Uuid, user_id: &Uuid) -> anyhow::Result<PgQueryResult>;
+
+    async fn fetch_user_logs(
+        &self,
+        user_id: &str,
+        start_time: DateTime<Utc>,
+        end_time: DateTime<Utc>,
+        interval: PgInterval,
+    ) -> anyhow::Result<Vec<DataPointSchema>>;
+
+    async fn fetch_api_key_logs(
+        &self,
+        user_id: &str,
+        api_key_id: &str,
+        start_time: DateTime<Utc>,
+        end_time: DateTime<Utc>,
+        interval: PgInterval,
+    ) -> anyhow::Result<Vec<DataPointSchema>>;
 }
 
 pub struct RequestLogs {
@@ -27,7 +47,14 @@ impl IRequestLogs for RequestLogs {
     async fn add_logs(&self, api_key_id: &Uuid, user_id: &Uuid) -> anyhow::Result<PgQueryResult> {
         let now = Utc::now();
         let rounded = Utc
-            .with_ymd_and_hms(now.year(), now.month(), now.day(), now.hour(), 0, 0)
+            .with_ymd_and_hms(
+                now.year(),
+                now.month(),
+                now.day(),
+                now.hour(),
+                now.minute(),
+                0,
+            )
             .unwrap();
 
         let count = 1;
@@ -51,6 +78,86 @@ impl IRequestLogs for RequestLogs {
         .execute(&*self.pool)
         .await
         .context("Failed to add logs")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_user_logs(
+        &self,
+        user_id: &str,
+        start_time: DateTime<Utc>,
+        end_time: DateTime<Utc>,
+        interval: PgInterval,
+    ) -> anyhow::Result<Vec<DataPointSchema>> {
+        let res = sqlx::query_as!(
+            DataPointSchema,
+            r#"
+            WITH 
+                time_series AS (
+                    SELECT GENERATE_SERIES($2::TIMESTAMPTZ, $3::TIMESTAMPTZ, $4::INTERVAL) AS time_bin
+                ),
+                user_logs AS (
+                    SELECT rl.ts, SUM(rl.count) AS count FROM request_logs rl
+                    WHERE rl.user_id = $1
+                    GROUP BY rl.user_id, ts
+                )
+            SELECT 
+                ts.time_bin                         AS x, 
+                COALESCE(SUM(ul.count), 0)::BIGINT  AS y
+            FROM time_series ts
+                LEFT JOIN user_logs ul ON ul.ts >= ts.time_bin AND ul.ts < ts.time_bin + '1h'::INTERVAL
+            GROUP BY ts.time_bin
+            ORDER BY ts.time_bin
+            "#,
+            Uuid::from_str(user_id).ok(),
+            start_time,
+            end_time,
+            interval,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch user logs")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_api_key_logs(
+        &self,
+        user_id: &str,
+        api_key_id: &str,
+        start_time: DateTime<Utc>,
+        end_time: DateTime<Utc>,
+        interval: PgInterval,
+    ) -> anyhow::Result<Vec<DataPointSchema>> {
+        let res = sqlx::query_as!(
+            DataPointSchema,
+            r#"
+            WITH 
+                time_series AS (
+                    SELECT GENERATE_SERIES($3::TIMESTAMPTZ, $4::TIMESTAMPTZ, $5::INTERVAL) AS time_bin
+                ),
+                api_key_logs AS (
+                    SELECT rl.ts, SUM(rl.count) AS count FROM request_logs rl
+                    WHERE rl.user_id = $1 AND rl.api_key_id = $2
+                    GROUP BY rl.api_key_id, ts
+                )
+            SELECT 
+                ts.time_bin                         AS x, 
+                COALESCE(SUM(ul.count), 0)::BIGINT  AS y
+            FROM time_series ts
+                LEFT JOIN api_key_logs ul ON ul.ts >= ts.time_bin AND ul.ts < ts.time_bin + '1h'::INTERVAL
+            GROUP BY ts.time_bin
+            ORDER BY ts.time_bin
+            "#,
+            Uuid::from_str(user_id).ok(),
+            Uuid::from_str(api_key_id).ok(),
+            start_time,
+            end_time,
+            interval,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch api key logs")?;
 
         Ok(res)
     }

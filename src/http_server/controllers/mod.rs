@@ -10,6 +10,7 @@ use std::sync::Arc;
 pub mod api_key;
 pub mod auth;
 pub mod health;
+pub mod request_log;
 pub mod user;
 
 type InternalState<TDb, TCache> = State<Arc<HttpServer<TDb, TCache>>>;

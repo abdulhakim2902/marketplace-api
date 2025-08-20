@@ -1,6 +1,7 @@
 pub mod create_api_key;
 pub mod create_user;
 pub mod login;
+pub mod time_range;
 pub mod update_api_key;
 pub mod update_user;
 

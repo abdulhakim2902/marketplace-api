@@ -12,6 +12,11 @@ pub struct HttpResponseConstErr {
     pub msg: &'static str,
 }
 
+#[derive(Serialize)]
+pub struct HttpResponse<T> {
+    pub data: T,
+}
+
 pub const UNAUTHORIZED_ERR: HttpResponseConstErr = HttpResponseConstErr {
     code: "ERR_401",
     msg: "Unauthorized",

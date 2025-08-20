@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
 pub mod date_utils;
+pub mod de_utils;
 pub mod object_utils;
 pub mod schema;
 pub mod shutdown_utils;

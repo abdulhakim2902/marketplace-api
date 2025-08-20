@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH \n                time_series AS (\n                    SELECT GENERATE_SERIES($2::TIMESTAMPTZ, $3::TIMESTAMPTZ, $4::INTERVAL) AS time_bin\n                ),\n                user_logs AS (\n                    SELECT rl.ts, SUM(rl.count) AS count FROM request_logs rl\n                    WHERE rl.user_id = $1\n                    GROUP BY rl.user_id, ts\n                )\n            SELECT \n                ts.time_bin                         AS x, \n                COALESCE(SUM(ul.count), 0)::BIGINT  AS y\n            FROM time_series ts\n                LEFT JOIN user_logs ul ON ul.ts >= ts.time_bin AND ul.ts < ts.time_bin + '1h'::INTERVAL\n            GROUP BY ts.time_bin\n            ORDER BY ts.time_bin\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "x",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "y",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz",
+        "Interval"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "d68194a43a075ea20626402e20bbaff777abb106fb9fbff9eff88012bdad2f6d"
+}

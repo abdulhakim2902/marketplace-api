@@ -12,6 +12,7 @@ use crate::{
             api_key::{self, API_KEY_TAG},
             auth::{self, AUTH_TAG},
             graphql_handler, health,
+            request_log::{self, REQUEST_LOG_TAG},
             user::{self, USER_TAG},
         },
         graphql::{Query, graphql},
@@ -64,17 +65,23 @@ struct UserApi;
 struct ApiKeyApi;
 
 #[derive(OpenApi)]
+#[openapi(paths(request_log::fetch_user_logs, request_log::fetch_api_key_logs))]
+struct RequestLogApi;
+
+#[derive(OpenApi)]
 #[openapi(
     nest(
         (path = "/auth", api = AuthApi),
         (path = "/users", api = UserApi),
         (path = "/api-keys", api = ApiKeyApi),
+        (path = "/request-logs", api = RequestLogApi)
     ),
     modifiers(&SecurityAddon),
     tags(
         (name = AUTH_TAG, description = "Auth items management API"),
         (name = USER_TAG, description = "User items management API"),
-        (name = API_KEY_TAG, description = "User api key items management API")
+        (name = API_KEY_TAG, description = "User api key items management API"),
+        (name = REQUEST_LOG_TAG, description = "Request log items management API")
     ),
     servers((url = "/api/v1"))
 )]
@@ -215,6 +222,12 @@ where
                                 delete(api_key::remove_api_key).patch(api_key::update_api_key),
                             )
                             .layer(middleware::from_fn(authorize::authorize_user)),
+                    )
+                    .nest(
+                        "/request-logs",
+                        OpenApiRouter::new()
+                            .route("/users", get(request_log::fetch_user_logs))
+                            .route("/api-keys/{id}", get(request_log::fetch_api_key_logs)),
                     )
                     .layer(middleware::from_fn(move |req, next| {
                         authentication::authentication(
