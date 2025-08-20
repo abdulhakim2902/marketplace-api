@@ -51,7 +51,12 @@ use utoipa_swagger_ui::SwaggerUi;
 struct AuthApi;
 
 #[derive(OpenApi)]
-#[openapi(paths(user::fetch_user, user::create_user, user::update_user))]
+#[openapi(paths(
+    user::fetch_user,
+    user::create_user,
+    user::update_user,
+    user::fetch_user_summaries,
+))]
 struct AdminApi;
 
 #[derive(OpenApi)]
@@ -60,7 +65,8 @@ struct AdminApi;
     api_key::create_api_key,
     api_key::update_api_key,
     api_key::remove_api_key,
-    request_log::fetch_user_logs
+    request_log::fetch_logs,
+    request_log::fetch_summaries,
 ))]
 struct UserApi;
 
@@ -204,7 +210,15 @@ where
                                 "/user",
                                 OpenApiRouter::new()
                                     .route("/", get(user::fetch_user).post(user::create_user))
-                                    .route("/{id}", patch(user::update_user)),
+                                    .nest(
+                                        "/{id}",
+                                        OpenApiRouter::new()
+                                            .route("/", patch(user::update_user))
+                                            .route(
+                                                "/logs/summaries",
+                                                get(user::fetch_user_summaries),
+                                            ),
+                                    ),
                             )
                             .layer(middleware::from_fn(authorize::authorize_admin)),
                     )
@@ -226,7 +240,9 @@ where
                             )
                             .nest(
                                 "/logs",
-                                OpenApiRouter::new().route("/chart", get(request_log::fetch_user_logs)),
+                                OpenApiRouter::new()
+                                    .route("/chart", get(request_log::fetch_logs))
+                                    .route("/summaries", get(request_log::fetch_summaries)),
                             )
                             .layer(middleware::from_fn(authorize::authorize_user)),
                     )

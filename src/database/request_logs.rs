@@ -1,3 +1,4 @@
+use crate::models::api::responses::log::UserLogSummaryResponse;
 use anyhow::Context;
 use chrono::{DateTime, Datelike, TimeZone, Timelike, Utc};
 use std::{str::FromStr, sync::Arc};
@@ -14,7 +15,7 @@ use crate::{models::schema::data_point::DataPointSchema, utils::generate_request
 pub trait IRequestLogs: Send + Sync {
     async fn add_logs(&self, api_key_id: &Uuid, user_id: &Uuid) -> anyhow::Result<PgQueryResult>;
 
-    async fn fetch_user_logs(
+    async fn fetch_logs(
         &self,
         user_id: &str,
         api_key_id: Option<&str>,
@@ -23,14 +24,12 @@ pub trait IRequestLogs: Send + Sync {
         interval: PgInterval,
     ) -> anyhow::Result<Vec<DataPointSchema>>;
 
-    async fn fetch_api_key_logs(
+    async fn fetch_summaries(
         &self,
         user_id: &str,
-        api_key_id: &str,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
-        interval: PgInterval,
-    ) -> anyhow::Result<Vec<DataPointSchema>>;
+    ) -> anyhow::Result<Vec<UserLogSummaryResponse>>;
 }
 
 pub struct RequestLogs {
@@ -83,7 +82,7 @@ impl IRequestLogs for RequestLogs {
         Ok(res)
     }
 
-    async fn fetch_user_logs(
+    async fn fetch_logs(
         &self,
         user_id: &str,
         api_key_id: Option<&str>,
@@ -91,7 +90,6 @@ impl IRequestLogs for RequestLogs {
         end_time: DateTime<Utc>,
         interval: PgInterval,
     ) -> anyhow::Result<Vec<DataPointSchema>> {
-        println!("{:#?}", api_key_id);
         let res = sqlx::query_as!(
             DataPointSchema,
             r#"
@@ -126,43 +124,30 @@ impl IRequestLogs for RequestLogs {
         Ok(res)
     }
 
-    async fn fetch_api_key_logs(
+    async fn fetch_summaries(
         &self,
         user_id: &str,
-        api_key_id: &str,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
-        interval: PgInterval,
-    ) -> anyhow::Result<Vec<DataPointSchema>> {
+    ) -> anyhow::Result<Vec<UserLogSummaryResponse>> {
         let res = sqlx::query_as!(
-            DataPointSchema,
+            UserLogSummaryResponse,
             r#"
-            WITH 
-                time_series AS (
-                    SELECT GENERATE_SERIES($3::TIMESTAMPTZ, $4::TIMESTAMPTZ, $5::INTERVAL) AS time_bin
-                ),
-                api_key_logs AS (
-                    SELECT rl.ts, SUM(rl.count) AS count FROM request_logs rl
-                    WHERE rl.user_id = $1 AND rl.api_key_id = $2
-                    GROUP BY rl.api_key_id, ts
-                )
-            SELECT 
-                ts.time_bin                         AS x, 
-                COALESCE(SUM(ul.count), 0)::BIGINT  AS y
-            FROM time_series ts
-                LEFT JOIN api_key_logs ul ON ul.ts >= ts.time_bin AND ul.ts < ts.time_bin + '1h'::INTERVAL
-            GROUP BY ts.time_bin
-            ORDER BY ts.time_bin
+            SELECT
+                rl.api_key_id,
+                SUM(rl.count)::BIGINT     AS total 
+            FROM request_logs rl
+            WHERE rl.user_id = $1
+                AND rl.ts BETWEEN $2 AND $3
+            GROUP BY rl.user_id, rl.api_key_id
             "#,
             Uuid::from_str(user_id).ok(),
-            Uuid::from_str(api_key_id).ok(),
             start_time,
             end_time,
-            interval,
         )
         .fetch_all(&*self.pool)
         .await
-        .context("Failed to fetch api key logs")?;
+        .context("Failed to fetch user log summaries")?;
 
         Ok(res)
     }

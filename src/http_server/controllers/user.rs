@@ -7,17 +7,26 @@ use validator::Validate;
 
 use crate::{
     cache::ICache,
-    database::users::IUsers,
-    http_server::utils::err_handler::{
-        response_400_with_message, response_404_unhandled_err, response_404_with_message,
-        response_429_unhandled_err,
+    database::{IDatabase, request_logs::IRequestLogs, users::IUsers},
+    http_server::{
+        controllers::InternalState,
+        utils::{
+            err_handler::{
+                response_400_with_const, response_400_with_message, response_404_unhandled_err,
+                response_404_with_message, response_429_unhandled_err,
+            },
+            validator::QueryValidator,
+        },
     },
     models::api::{
-        requests::{create_user::CreateUser, update_user::UpdateUser},
-        responses::{api_key::SuccessApiKeyResponse, user::UserResponse},
+        requests::{
+            create_user::CreateUser, time_range::SummaryTimeRange, update_user::UpdateUser,
+        },
+        responses::{
+            api_key::SuccessApiKeyResponse, log::UserLogSummaryResponse, user::UserResponse,
+        },
     },
 };
-use crate::{database::IDatabase, http_server::controllers::InternalState};
 
 pub const ADMIN_TAG: &str = "admin";
 
@@ -109,5 +118,37 @@ pub async fn update_user<TDb: IDatabase, TCache: ICache>(
             }
         }
         Err(e) => response_429_unhandled_err(e),
+    }
+}
+
+#[utoipa::path(
+  get,
+  path = "/user/{id}/logs/summaries",
+  tag = ADMIN_TAG,
+  params(
+      ("id" = String, Path),
+      ("startTime" = Option<i64>, Query),
+      ("endTime" = Option<i64>, Query)
+  ),
+  responses(
+    (status = 200, description = "Returns a list of user log summary", body = [UserLogSummaryResponse])
+  ),
+  security(
+    ("BearerAuth" = [])
+  )
+)]
+pub async fn fetch_user_summaries<TDb: IDatabase, TCache: ICache>(
+    State(state): InternalState<TDb, TCache>,
+    Path(id): Path<String>,
+    QueryValidator(query): QueryValidator<SummaryTimeRange>,
+) -> Response {
+    match state
+        .db
+        .request_logs()
+        .fetch_summaries(&id, query.start_time, query.end_time)
+        .await
+    {
+        Ok(data) => Json(data).into_response(),
+        Err(_) => response_400_with_const(),
     }
 }

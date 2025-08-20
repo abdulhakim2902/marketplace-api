@@ -54,3 +54,22 @@ fn default_interval() -> PgInterval {
         microseconds: (duration.num_seconds() % 86400) * 1_000_000,
     }
 }
+
+#[derive(Deserialize, Validate, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SummaryTimeRange {
+    #[serde(
+        deserialize_with = "de_utils::deserialize_i64_to_datetime",
+        default = "default_start_time"
+    )]
+    pub start_time: DateTime<Utc>,
+    #[serde(
+        deserialize_with = "de_utils::deserialize_i64_to_datetime",
+        default = "default_time"
+    )]
+    pub end_time: DateTime<Utc>,
+}
+
+fn default_start_time() -> DateTime<Utc> {
+    DateTime::from_timestamp_millis(0).unwrap()
+}

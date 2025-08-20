@@ -1,6 +1,7 @@
 pub mod access_token;
 pub mod api_key;
 pub mod auth_user;
+pub mod log;
 pub mod user;
 
 use serde::Serialize;
