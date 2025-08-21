@@ -1,4 +1,5 @@
 pub mod attribute;
+pub mod holder;
 pub mod nft_change;
 pub mod nft_distribution;
 pub mod nft_holder;

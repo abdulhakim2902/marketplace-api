@@ -10,6 +10,7 @@ use crate::{
                 CollectionSchema, DistinctCollectionSchema, OrderCollectionSchema,
                 QueryCollectionSchema,
                 attribute::CollectionAttributeSchema,
+                holder::{CollectionHolderSchema, OrderHolderType},
                 nft_change::NftChangeSchema,
                 nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
                 nft_holder::NftHolderSchema,
@@ -120,6 +121,14 @@ pub trait ICollections: Send + Sync {
         &self,
         collection_id: Uuid,
     ) -> anyhow::Result<NftPeriodDistributionSchema>;
+
+    async fn fetch_holders(
+        &self,
+        collection_id: Uuid,
+        order: OrderHolderType,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<CollectionHolderSchema>>;
 
     async fn fetch_floor_charts(
         &self,
@@ -964,6 +973,91 @@ impl ICollections for Collections {
         .fetch_one(&*self.pool)
         .await
         .context("Failed to fetch nft period distribution")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_holders(
+        &self,
+        collection_id: Uuid,
+        order: OrderHolderType,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<CollectionHolderSchema>> {
+        let res = sqlx::query_as!(
+            CollectionHolderSchema,
+            r#"
+            WITH 
+                current_holders AS (
+                    SELECT collection_id, owner, COUNT(*) AS count
+                    FROM nfts
+                    WHERE collection_id = $1 AND (burned IS NULL OR NOT burned)
+                    GROUP BY collection_id, owner
+                ),
+                sale_activities AS (
+                    SELECT
+                        collection_id, 
+                        sender, 
+                        COUNT(*) AS sales, 
+                        SUM(price) AS volume
+                    FROM activities
+                    WHERE tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
+                        AND collection_id = $1
+                    GROUP BY collection_id, sender
+                ),
+                transfer_activities AS (
+                    SELECT
+                        collection_id, 
+                        receiver, 
+                        COUNT(DISTINCT nft_id) AS transfers
+                    FROM activities
+                    WHERE tx_type IN ('mint', 'transfer', 'buy', 'accept-bid', 'accept-collection-bid')
+                        AND collection_id = $1
+                    GROUP BY collection_id, receiver
+                ),
+                owner_holding_time AS (
+                	SELECT
+                        ra.collection_id,
+                        ra.receiver,
+                        COUNT(*),
+                        SUM(COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) 
+                            - EXTRACT(EPOCH FROM ra.block_time)) AS holding_time 
+                    FROM activities ra
+                        LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id
+                    WHERE ra.receiver IS NOT NULL AND ra.collection_id = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint', 'accept-bid', 'accept-collection-bid')
+                    GROUP BY ra.collection_id, ra.receiver
+                )
+            SELECT 
+                id                  AS collection_id,
+                ch.count            AS current_holdings,
+                ch.owner,
+                sa.sales            AS sold,
+                sa.volume           AS sold_volume,
+                ta.transfers        AS total_holdings,
+                oht.holding_time	AS total_holding_time
+            FROM collections
+                LEFT JOIN current_holders ch ON ch.collection_id = collections.id
+                LEFT JOIN sale_activities sa ON sa.collection_id = collections.id AND sa.sender = ch.owner
+                LEFT JOIN transfer_activities ta ON ta.collection_id = collections.id AND ta.receiver = ch.owner
+                LEFT JOIN owner_holding_time oht ON oht.collection_id = collections.id AND oht.receiver = ch.owner
+            WHERE id = $1
+            ORDER BY 
+                CASE $2
+                    WHEN 'curent_holdings' THEN ch.count
+                    WHEN 'sold' THEN sa.sales
+                    WHEN 'average_hold' THEN oht.holding_time / NULLIF(oht.count, 0)
+                    WHEN 'average_sold' THEN sa.volume / NULLIF(sa.sales, 0)
+                END DESC
+            LIMIT $3 OFFSET $4
+            "#,
+            collection_id,
+            order.to_string(),
+            limit,
+            offset,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection holders")?;
 
         Ok(res)
     }

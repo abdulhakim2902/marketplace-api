@@ -23,6 +23,7 @@ use crate::{
             CollectionSchema, DistinctCollectionSchema, OrderCollectionSchema,
             QueryCollectionSchema,
             attribute::CollectionAttributeSchema,
+            holder::{CollectionHolderSchema, OrderHolderType},
             nft_change::NftChangeSchema,
             nft_distribution::{NftAmountDistributionSchema, NftPeriodDistributionSchema},
             nft_holder::NftHolderSchema,
@@ -488,7 +489,7 @@ impl Query {
             desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
         )]
         period: Option<Wrapper<PgInterval>>,
-        #[graphql(name = "order_by")] order: Option<OrderTrendingType>,
+        #[graphql(name = "trending_by")] order: Option<OrderTrendingType>,
     ) -> Vec<CollectionTrendingSchema> {
         let db = ctx
             .data::<Arc<Database>>()
@@ -532,6 +533,29 @@ impl Query {
     // ================================================
 
     // ============= COLLECTION ANALYTICS =============
+    #[graphql(name = "collection_holders", guard = "UserGuard")]
+    async fn collection_holders(
+        &self,
+        ctx: &Context<'_>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        #[graphql(name = "trending_by")] order: Option<OrderHolderType>,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
+    ) -> Vec<CollectionHolderSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        let order = order.unwrap_or_default();
+        let limit = limit.unwrap_or(10);
+        let offset = offset.unwrap_or(0);
+
+        db.collections()
+            .fetch_holders(collection_id, order, limit, offset)
+            .await
+            .expect("Failed to fetch collection stats")
+    }
+
     #[graphql(name = "collection_stats", guard = "UserGuard")]
     async fn collection_stats(
         &self,

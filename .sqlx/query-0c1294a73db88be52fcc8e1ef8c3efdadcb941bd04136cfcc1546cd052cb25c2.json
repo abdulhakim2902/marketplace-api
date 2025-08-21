@@ -1,0 +1,61 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH \n                current_holders AS (\n                    SELECT collection_id, owner, COUNT(*) AS count\n                    FROM nfts\n                    WHERE collection_id = $1 AND (burned IS NULL OR NOT burned)\n                    GROUP BY collection_id, owner\n                ),\n                sale_activities AS (\n                    SELECT\n                        collection_id, \n                        sender, \n                        COUNT(*) AS sales, \n                        SUM(price) AS volume\n                    FROM activities\n                    WHERE tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')\n                        AND collection_id = $1\n                    GROUP BY collection_id, sender\n                ),\n                transfer_activities AS (\n                    SELECT\n                        collection_id, \n                        receiver, \n                        COUNT(DISTINCT nft_id) AS transfers\n                    FROM activities\n                    WHERE tx_type IN ('mint', 'transfer', 'buy', 'accept-bid', 'accept-collection-bid')\n                        AND collection_id = $1\n                    GROUP BY collection_id, receiver\n                ),\n                owner_holding_time AS (\n                \tSELECT\n                        ra.collection_id,\n                        ra.receiver,\n                        COUNT(*),\n                        SUM(COALESCE(EXTRACT(EPOCH FROM sa.block_time), EXTRACT(EPOCH FROM ra.block_time)) \n                            - EXTRACT(EPOCH FROM ra.block_time)) AS holding_time \n                    FROM activities ra\n                        LEFT JOIN activities sa ON ra.receiver = sa.sender AND ra.nft_id = sa.nft_id AND ra.collection_id = sa.collection_id\n                    WHERE ra.receiver IS NOT NULL AND ra.collection_id = $1 AND ra.tx_type IN ('transfer', 'buy', 'mint', 'accept-bid', 'accept-collection-bid')\n                    GROUP BY ra.collection_id, ra.receiver\n                )\n            SELECT \n                id                  AS collection_id,\n                ch.count            AS current_holdings,\n                ch.owner,\n                sa.sales            AS sold,\n                sa.volume           AS sold_volume,\n                ta.transfers        AS total_holdings,\n                oht.holding_time\tAS total_holding_time\n            FROM collections\n                LEFT JOIN current_holders ch ON ch.collection_id = collections.id\n                LEFT JOIN sale_activities sa ON sa.collection_id = collections.id AND sa.sender = ch.owner\n                LEFT JOIN transfer_activities ta ON ta.collection_id = collections.id AND ta.receiver = ch.owner\n                LEFT JOIN owner_holding_time oht ON oht.collection_id = collections.id AND oht.receiver = ch.owner\n            WHERE id = $1\n            ORDER BY \n                CASE $2\n                    WHEN 'curent_holdings' THEN ch.count\n                    WHEN 'sold' THEN sa.sales\n                    WHEN 'average_hold' THEN oht.holding_time / NULLIF(oht.count, 0)\n                    WHEN 'average_sold' THEN sa.volume / NULLIF(sa.sales, 0)\n                END DESC\n            LIMIT $3 OFFSET $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "collection_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "current_holdings",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "owner",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "sold",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "sold_volume",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "total_holdings",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "total_holding_time",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      true,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0c1294a73db88be52fcc8e1ef8c3efdadcb941bd04136cfcc1546cd052cb25c2"
+}
