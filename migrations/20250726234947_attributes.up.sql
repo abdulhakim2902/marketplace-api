@@ -59,7 +59,40 @@ END;
 $$
     LANGUAGE plpgsql;
 
-CREATE TRIGGER attributes_before_insert_update_rarity_and_score
+CREATE FUNCTION update_nft_score ()
+    RETURNS TRIGGER
+AS $$
+BEGIN
+    WITH nft_scores AS (
+        SELECT
+            attributes.nft_id, 
+            SUM(-LOG(2, attributes.rarity))     AS rarity
+        FROM attributes
+        WHERE attributes.nft_id IN (
+            SELECT attributes.nft_id FROM attributes
+            WHERE attributes.collection_id = NEW.collection_id
+                AND attributes.attr_type = NEW.attr_type
+                AND attributes.value = NEW.value
+        )
+        GROUP BY attributes.nft_id
+    )
+    INSERT INTO nfts (id, rarity)
+    SELECT nft_scores.nft_id, nft_scores.rarity
+    FROM nft_scores
+    ON CONFLICT (id)
+        DO UPDATE SET
+            rarity = EXCLUDED.rarity;
+    RETURN new;
+END;
+$$
+    LANGUAGE plpgsql;
+
+CREATE TRIGGER attributes_before_insert_rarity_and_score
     BEFORE INSERT ON attributes
     FOR EACH ROW
 EXECUTE FUNCTION update_rarity_and_score ();
+
+CREATE TRIGGER attributes_after_update_nft_score
+    AFTER UPDATE ON attributes
+    FOR EACH ROW
+EXECUTE FUNCTION update_nft_score();
