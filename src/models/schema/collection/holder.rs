@@ -1,8 +1,8 @@
 use async_graphql::{Enum, SimpleObject};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use strum::{Display, EnumString};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, SimpleObject)]
 #[graphql(name = "CollectionHolder", rename_fields = "snake_case")]

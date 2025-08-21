@@ -33,7 +33,7 @@ use crate::{
             trending::{CollectionTrendingSchema, OrderTrendingType},
             trending_nft::TrendingNftSchema,
         },
-        data_point::DataPointSchema,
+        data_point::{DataPointSchema, validate_data_set},
         listing::{DistinctListingSchema, ListingSchema, OrderListingSchema, QueryListingSchema},
         marketplace::MarketplaceSchema,
         nft::{DistinctNftSchema, NftSchema, OrderNftSchema, QueryNftSchema},
@@ -479,7 +479,7 @@ impl Query {
         AggregateSchema::new(total, nodes)
     }
 
-    #[graphql(name = "collection_trendings")]
+    #[graphql(name = "collection_trendings", guard = "UserGuard")]
     async fn collection_trendings(
         &self,
         ctx: &Context<'_>,
@@ -687,6 +687,10 @@ impl Query {
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
+        if !validate_data_set(&start_time.0, &end_time.0, &interval.0) {
+            panic!("Dataset too large");
+        }
+
         db.collections()
             .fetch_floor_charts(collection_id, start_time.0, end_time.0, interval.0)
             .await
@@ -717,6 +721,10 @@ impl Query {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
+
+        if !validate_data_set(&start_time.0, &end_time.0, &interval.0) {
+            panic!("Dataset too large");
+        }
 
         db.collections()
             .fetch_volume_charts(
