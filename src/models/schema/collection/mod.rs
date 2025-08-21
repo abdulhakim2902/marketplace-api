@@ -53,12 +53,6 @@ pub struct CollectionSchema {
     pub volume: Option<i64>,
     pub volume_usd: Option<BigDecimal>,
     #[graphql(visible = false)]
-    pub listed: Option<i64>,
-    #[graphql(visible = false)]
-    pub sales: Option<i64>,
-    #[graphql(visible = false)]
-    pub owners: Option<i64>,
-    #[graphql(visible = false)]
     pub creator_address: Option<String>,
     #[graphql(visible = false)]
     pub table_handle: Option<String>,

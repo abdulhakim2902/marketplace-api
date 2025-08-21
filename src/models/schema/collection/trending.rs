@@ -15,14 +15,16 @@ use crate::{
 #[graphql(complex, name = "CollectionTrending", rename_fields = "snake_case")]
 pub struct CollectionTrendingSchema {
     pub collection_id: Uuid,
+    pub current_volume: Option<i64>,
+    pub current_usd_volume: Option<BigDecimal>,
+    pub current_trades_count: Option<i64>,
+    pub previous_volume: Option<i64>,
+    pub previous_usd_volume: Option<BigDecimal>,
+    pub previous_trades_count: Option<i64>,
     pub floor: Option<i64>,
     pub owners: Option<i64>,
     pub listed: Option<i64>,
     pub supply: Option<i64>,
-    pub volume: Option<i64>,
-    pub volume_usd: Option<BigDecimal>,
-    pub sales: Option<i64>,
-    pub market_cap: Option<i64>,
 }
 
 #[ComplexObject]

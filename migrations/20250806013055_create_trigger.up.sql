@@ -30,8 +30,7 @@ BEGIN
                 SELECT
                     activities.collection_id,
                     SUM(activities.price)           AS volume,
-                    SUM(activities.usd_price)       AS volume_usd,
-                    COUNT(*)                        AS total
+                    SUM(activities.usd_price)       AS volume_usd
                 FROM activities
                 WHERE activities.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
                     AND activities.collection_id = NEW.collection_id
@@ -43,20 +42,18 @@ BEGIN
                     NEW.usd_price,
                     1
             )
-        INSERT INTO collections (id, slug, volume, volume_usd, sales)
+        INSERT INTO collections (id, slug, volume, volume_usd)
         SELECT
             sales.collection_id,
             sales.collection_id,
             SUM(sales.volume),
-            SUM(sales.volume_usd),
-            SUM(sales.total)
+            SUM(sales.volume_usd)
         FROM sales
         GROUP BY sales.collection_id
         ON CONFLICT (id)
             DO UPDATE SET
                 volume = EXCLUDED.volume,
-                volume_usd = EXCLUDED.volume_usd,
-                sales = EXCLUDED.sales;
+                volume_usd = EXCLUDED.volume_usd;
     END IF;
 
     RETURN NEW;
@@ -83,51 +80,20 @@ BEGIN
                 NULL,
                 0
         )
-    INSERT INTO collections (id, slug, floor, listed)
+    INSERT INTO collections (id, slug, floor)
     SELECT
         listings.collection_id,
         listings.collection_id,
-        listings.floor,
-        listings.total
+        listings.floor
     FROM listings
     LIMIT 1
     ON CONFLICT (id)
         DO UPDATE SET
-            floor = EXCLUDED.floor,
-            listed = EXCLUDED.listed;
+            floor = EXCLUDED.floor;
     RETURN NEW;
 END;
 $$
 LANGUAGE plpgsql;
-
-CREATE FUNCTION update_collection_owners ()
-    RETURNS TRIGGER
-AS $$
-BEGIN
-    WITH
-        nft_owners AS (
-            SELECT nfts.collection_id, COUNT(DISTINCT nfts.owner) AS total
-            FROM nfts
-            WHERE (nfts.burned IS NULL OR NOT nfts.burned)
-              AND nfts.collection_id = NEW.collection_id
-            GROUP BY nfts.collection_id
-        )
-    INSERT INTO collections (id, slug, owners)
-    SELECT
-        NEW.collection_id,
-        NEW.collection_id,
-        (
-            SELECT COUNT(DISTINCT nfts.owner) FROM nfts
-            WHERE (nfts.burned IS NULL OR NOT nfts.burned)
-              AND nfts.collection_id = NEW.collection_id
-            GROUP BY nfts.collection_id
-        )
-    ON CONFLICT (id)
-        DO UPDATE SET owners = EXCLUDED.owners;
-    RETURN new;
-END;
-$$
-    LANGUAGE plpgsql;
 
 CREATE TRIGGER bid_before_insert_add_collection_id
     BEFORE INSERT OR UPDATE ON bids
@@ -143,8 +109,3 @@ CREATE TRIGGER listings_after_insert_update_collection_listings
     AFTER INSERT OR UPDATE ON listings
     FOR EACH ROW
 EXECUTE FUNCTION update_collection_listings ();
-
-CREATE TRIGGER nfts_after_insert_update_collection_owners
-    AFTER INSERT OR UPDATE ON nfts
-    FOR EACH ROW
-EXECUTE FUNCTION update_collection_owners ();

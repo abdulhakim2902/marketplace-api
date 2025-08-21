@@ -116,7 +116,10 @@ impl INfts for Nfts {
                 properties = COALESCE(EXCLUDED.properties, nfts.properties),
                 royalty = COALESCE(EXCLUDED.royalty, nfts.royalty),
                 token_id = COALESCE(EXCLUDED.token_id, nfts.token_id),
-                owner = EXCLUDED.owner,
+                owner = CASE 
+                    WHEN EXCLUDED.burned THEN NULL
+                    ELSE COALESCE(EXCLUDED.owner, nfts.owner)
+                END,
                 burned = EXCLUDED.burned,
                 updated_at = EXCLUDED.updated_at,
                 media_url = EXCLUDED.media_url,

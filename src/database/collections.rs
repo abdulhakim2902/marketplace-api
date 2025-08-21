@@ -347,6 +347,18 @@ impl ICollections for Collections {
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             WITH 
+                nft_owners AS (
+                    SELECT collection_id, COUNT(DISTINCT owner) AS total
+                    FROM nfts
+                    WHERE burned IS NULL OR NOT burned
+                    GROUP BY collection_id 
+                ),
+                listings AS (
+                    SELECT collection_id, COUNT(*) total
+                    FROM listings
+                    WHERE listed
+                    GROUP BY collection_id
+                ),
                 sale_activities AS (
                     SELECT
                         collection_id,
@@ -367,19 +379,46 @@ impl ICollections for Collections {
 
         query_builder.push(
             r#"
+                previous_sale_activities AS (
+                    SELECT
+                        collection_id,
+                        SUM(price)::BIGINT              AS volume,
+                        SUM(usd_price)                  AS volume_usd,
+                        COUNT(*)                        AS sales
+                    FROM activities
+                    WHERE tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
+                        AND (
+            "#,
+        );
+
+        query_builder.push_bind(interval);
+        query_builder.push("::INTERVAL IS NULL OR (block_time >= NOW() - '24h'::INTERVAL - ");
+        query_builder.push_bind(interval);
+        query_builder.push("::INTERVAL AND block_time < NOW() - ");
+        query_builder.push_bind(interval);
+        query_builder.push("::INTERVAL))");
+        query_builder.push(" GROUP BY collection_id),");
+
+        query_builder.push(
+            r#"
                 collection_trendings AS (
                     SELECT 
                         c.id                    AS collection_id,
-                        c.floor,
-                        c.owners,
-                        c.listed,
+                        sa.volume               AS current_volume,
+                        sa.volume_usd           AS current_usd_volume,
+                        sa.sales                AS current_trades_count,
+                        psa.volume              AS previous_volume,
+                        psa.volume_usd          AS previous_usd_volume,
+                        psa.sales               AS previous_trades_count,
+                        no.total                AS owners,
+                        l.total                 AS listed,
                         c.supply,
-                        sa.volume,
-                        sa.volume_usd,
-                        sa.sales,
-                        c.floor * c.supply      AS market_cap
+                        c.floor
                     FROM collections c
                         LEFT JOIN sale_activities sa ON sa.collection_id = c.id
+                        LEFT JOIN previous_sale_activities psa ON psa.collection_id = c.id
+                        LEFT JOIN nft_owners no ON no.collection_id = c.id
+                        LEFT JOIN listings l ON l.collection_id = c.id
                 )
             SELECT * FROM collection_trendings
             "#,
@@ -387,7 +426,7 @@ impl ICollections for Collections {
 
         match order {
             OrderTrendingType::Volume => {
-                query_builder.push("ORDER BY volume DESC NULLS LAST");
+                query_builder.push("ORDER BY current_volume DESC NULLS LAST");
             }
             OrderTrendingType::Floor => {
                 query_builder.push("ORDER BY floor DESC NULLS LAST");
@@ -396,13 +435,13 @@ impl ICollections for Collections {
                 query_builder.push("ORDER BY listed DESC NULLS LAST");
             }
             OrderTrendingType::MarketCap => {
-                query_builder.push("ORDER BY market_cap DESC NULLS LAST");
+                query_builder.push("ORDER BY floor * supply DESC NULLS LAST");
             }
             OrderTrendingType::Owners => {
                 query_builder.push("ORDER BY owners DESC NULLS LAST");
             }
             OrderTrendingType::Sales => {
-                query_builder.push("ORDER BY sales DESC NULLS LAST");
+                query_builder.push("ORDER BY current_trades_count DESC NULLS LAST");
             }
         }
 
@@ -436,6 +475,16 @@ impl ICollections for Collections {
                         AND b.expired_at > NOW()
                     GROUP BY b.collection_id
                 ),
+                total_sale_activities AS (
+                    SELECT
+                        activities.collection_id,
+                        SUM(activities.price)::BIGINT   AS volume,
+                        COUNT(*)                        AS sales
+                    FROM activities
+                    WHERE activities.tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
+                        AND activities.collection_id = $1
+                    GROUP BY activities.collection_id
+                ),
                 sale_activities AS (
                     SELECT
                         activities.collection_id,
@@ -447,6 +496,20 @@ impl ICollections for Collections {
                         AND activities.collection_id = $1
                     GROUP BY activities.collection_id
                 ),
+                collection_listings AS (
+                    SELECT
+                        l.collection_id,
+                        COUNT(*) AS listed
+                    FROM listings l
+                    WHERE l.collection_id = $1 AND l.listed
+                    GROUP BY l.collection_id
+                ),
+                collection_owners AS (
+                    SELECT collection_id, COUNT(DISTINCT owner) FROM nfts
+                    WHERE collection_id = $1 
+                        AND (burned IS NULL OR NOT burned)
+                    GROUP BY collection_id
+                ),
                 collection_scores AS (
                     SELECT DISTINCT ON (ca.collection_id, ca.attr_type, ca.value)
                         ca.collection_id,
@@ -457,12 +520,12 @@ impl ICollections for Collections {
                 )
             SELECT
                 c.floor,
-                c.owners,
-                c.listed,
+                co.count                    AS owners,
+                cl.listed,
                 c.supply,
                 c.volume                    AS total_volume,
                 c.volume_usd                AS total_usd_volume,
-                c.sales                     AS total_sales,
+                tsa.sales                   AS total_sales,
                 sa.sales                    AS day_sales,
                 sa.volume                   AS day_volume,
                 tb.price                    AS top_offer,
@@ -470,7 +533,10 @@ impl ICollections for Collections {
             FROM collections c
                 LEFT JOIN top_bids tb ON tb.collection_id = c.id
                 LEFT JOIN sale_activities sa ON sa.collection_id = c.id
+                LEFT JOIN total_sale_activities tsa ON tsa.collection_id = c.id
                 LEFT JOIN collection_scores cs ON cs.collection_id = c.id
+                LEFT JOIN collection_listings cl ON cl.collection_id = c.id
+                LEFT JOIN collection_owners co ON co.collection_id = c.id
             WHERE c.id = $1
             "#,
             collection_id,

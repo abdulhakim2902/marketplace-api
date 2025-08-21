@@ -487,7 +487,7 @@ impl Query {
         #[graphql(
             desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
         )]
-        interval: Option<Wrapper<PgInterval>>,
+        period: Option<Wrapper<PgInterval>>,
         #[graphql(name = "order_by")] order: Option<OrderTrendingType>,
     ) -> Vec<CollectionTrendingSchema> {
         let db = ctx
@@ -499,7 +499,7 @@ impl Query {
         let order = order.unwrap_or_default();
 
         db.collections()
-            .fetch_trendings(limit, offset, order, interval.map(|w| w.0))
+            .fetch_trendings(limit, offset, order, period.map(|w| w.0))
             .await
             .expect("Failed to fetch collection trendings")
     }
