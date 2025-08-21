@@ -101,6 +101,7 @@ impl IRequestLogs for RequestLogs {
                     SELECT rl.ts, SUM(rl.count) AS count FROM request_logs rl
                     WHERE rl.user_id = $1 
                         AND ($2::UUID IS NULL OR rl.api_key_id = $2)
+                        AND rl.ts BETWEEN $3 AND $4
                     GROUP BY ts
                 )
             SELECT 

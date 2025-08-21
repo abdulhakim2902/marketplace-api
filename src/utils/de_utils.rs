@@ -9,7 +9,7 @@ where
     D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    string_utils::str_to_interval(&s).map_err(serde::de::Error::custom)
+    string_utils::str_to_pginterval(&s).map_err(serde::de::Error::custom)
 }
 
 pub fn deserialize_i64_to_datetime<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>

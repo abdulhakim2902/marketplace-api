@@ -32,7 +32,7 @@ pub fn str_to_pginterval_opt(interval_str: &str) -> anyhow::Result<Option<PgInte
     Ok(Some(pg_interval))
 }
 
-pub fn str_to_interval(interval_str: &str) -> anyhow::Result<PgInterval> {
+pub fn str_to_pginterval(interval_str: &str) -> anyhow::Result<PgInterval> {
     // Check if the input string is at least 2 characters long
     if interval_str.len() < 2 {
         return Err(anyhow!("Invalid interval format"));

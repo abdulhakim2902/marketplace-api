@@ -5,6 +5,7 @@ use crate::{
     models::{
         db::collection::DbCollection,
         schema::{
+            CoinType,
             collection::{
                 CollectionSchema, DistinctCollectionSchema, OrderCollectionSchema,
                 QueryCollectionSchema,
@@ -23,13 +24,16 @@ use crate::{
     },
     utils::{
         schema::{handle_join, handle_nested_order, handle_order, handle_query},
-        string_utils, structs,
+        structs,
     },
 };
 use anyhow::Context;
 use async_graphql::{FieldError, dataloader::Loader};
-use chrono::DateTime;
-use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+use chrono::{DateTime, Utc};
+use sqlx::{
+    PgPool, Postgres, QueryBuilder, Transaction,
+    postgres::{PgQueryResult, types::PgInterval},
+};
 use uuid::Uuid;
 
 #[async_trait::async_trait]
@@ -57,10 +61,10 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_trendings(
         &self,
-        interval: &str,
         limit: i64,
         offset: i64,
         order: OrderTrendingType,
+        interval: Option<PgInterval>,
     ) -> anyhow::Result<Vec<CollectionTrendingSchema>>;
 
     async fn fetch_stats(&self, collection_id: Uuid) -> anyhow::Result<CollectionStatSchema>;
@@ -77,7 +81,7 @@ pub trait ICollections: Send + Sync {
         collection_id: Uuid,
         limit: i64,
         offset: i64,
-        interval: Option<String>,
+        interval: Option<PgInterval>,
     ) -> anyhow::Result<Vec<NftChangeSchema>>;
 
     async fn fetch_profit_leaderboards(
@@ -97,7 +101,7 @@ pub trait ICollections: Send + Sync {
         collection_id: Uuid,
         type_: TopWalletType,
         limit: i64,
-        interval: Option<String>,
+        interval: Option<PgInterval>,
     ) -> anyhow::Result<Vec<TopWalletSchema>>;
 
     async fn fetch_nft_holders(
@@ -120,9 +124,18 @@ pub trait ICollections: Send + Sync {
     async fn fetch_floor_charts(
         &self,
         collection_id: Uuid,
-        start_time: i64,
-        end_time: i64,
-        interval: &str,
+        start_date: DateTime<Utc>,
+        end_date: DateTime<Utc>,
+        interval: PgInterval,
+    ) -> anyhow::Result<Vec<DataPointSchema>>;
+
+    async fn fetch_volume_charts(
+        &self,
+        collection_id: Uuid,
+        start_date: DateTime<Utc>,
+        end_date: DateTime<Utc>,
+        interval: PgInterval,
+        coin_type: CoinType,
     ) -> anyhow::Result<Vec<DataPointSchema>>;
 }
 
@@ -326,12 +339,11 @@ impl ICollections for Collections {
 
     async fn fetch_trendings(
         &self,
-        interval: &str,
         limit: i64,
         offset: i64,
         order: OrderTrendingType,
+        interval: Option<PgInterval>,
     ) -> anyhow::Result<Vec<CollectionTrendingSchema>> {
-        let interval = string_utils::str_to_pginterval_opt(interval).ok().flatten();
         let mut query_builder = QueryBuilder::<Postgres>::new(
             r#"
             WITH 
@@ -519,10 +531,8 @@ impl ICollections for Collections {
         collection_id: Uuid,
         limit: i64,
         offset: i64,
-        interval: Option<String>,
+        interval: Option<PgInterval>,
     ) -> anyhow::Result<Vec<NftChangeSchema>> {
-        let interval = string_utils::str_to_pginterval_opt(&interval.clone().unwrap_or_default())?;
-
         let res = sqlx::query_as!(
             NftChangeSchema,
             r#"
@@ -647,11 +657,8 @@ impl ICollections for Collections {
         collection_id: Uuid,
         type_: TopWalletType,
         limit: i64,
-        interval: Option<String>,
+        interval: Option<PgInterval>,
     ) -> anyhow::Result<Vec<TopWalletSchema>> {
-        let interval = string_utils::str_to_pginterval_opt(&interval.unwrap_or_default())
-            .expect("Invalid interval");
-
         let res = match type_ {
             TopWalletType::Buyer => sqlx::query_as!(
                 TopWalletSchema,
@@ -898,17 +905,10 @@ impl ICollections for Collections {
     async fn fetch_floor_charts(
         &self,
         collection_id: Uuid,
-        start_time: i64,
-        end_time: i64,
-        interval: &str,
+        start_date: DateTime<Utc>,
+        end_date: DateTime<Utc>,
+        interval: PgInterval,
     ) -> anyhow::Result<Vec<DataPointSchema>> {
-        let interval = string_utils::str_to_pginterval_opt(interval)
-            .expect("Invalid interval")
-            .expect("Invalid interval");
-
-        let start_date = DateTime::from_timestamp_millis(start_time).expect("Invalid start time");
-        let end_date = DateTime::from_timestamp_millis(end_time).expect("Invalid end time");
-
         let res = sqlx::query_as!(
             DataPointSchema,
             r#"
@@ -962,6 +962,55 @@ impl ICollections for Collections {
         .fetch_all(&*self.pool)
         .await
         .context("Failed to fetch collection floor chart")?;
+
+        Ok(res)
+    }
+
+    async fn fetch_volume_charts(
+        &self,
+        collection_id: Uuid,
+        start_date: DateTime<Utc>,
+        end_date: DateTime<Utc>,
+        interval: PgInterval,
+        coin_type: CoinType,
+    ) -> anyhow::Result<Vec<DataPointSchema>> {
+        let res = sqlx::query_as!(
+            DataPointSchema,
+            r#"
+            WITH 
+                time_series AS (
+                    SELECT GENERATE_SERIES($2::TIMESTAMPTZ, $3::TIMESTAMPTZ, $4::INTERVAL) AS time_bin
+                ),
+                collection_volumes AS (
+                    SELECT * FROM activities
+                    WHERE tx_type IN ('buy', 'accept-bid', 'accept-collection-bid', 'mint', 'transfer')
+                        AND collection_id = $1
+                        AND block_time BETWEEN $2 AND $3
+                        AND price > 0
+                )
+            SELECT 
+                ts.time_bin                             AS x,
+                COALESCE(SUM(
+                    CASE 
+                        WHEN $5 = 'apt' THEN cv.price
+                        WHEN $5 = 'usd' THEN cv.usd_price
+                        ELSE 0
+                    END
+                ), 0)::BIGINT      AS y
+            FROM time_series ts
+                LEFT JOIN collection_volumes cv ON cv.block_time >= ts.time_bin AND cv.block_time < ts.time_bin + $4::INTERVAL
+            GROUP BY ts.time_bin
+            ORDER BY ts.time_bin
+            "#,
+            collection_id,
+            start_date,
+            end_date,
+            interval,
+            coin_type.to_string()
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection volume chart")?;
 
         Ok(res)
     }

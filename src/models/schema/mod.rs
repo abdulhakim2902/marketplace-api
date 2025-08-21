@@ -46,6 +46,21 @@ impl Default for OrderingType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[graphql(name = "Coin", rename_items = "snake_case")]
+pub enum CoinType {
+    Apt,
+    Usd,
+}
+
+impl Default for CoinType {
+    fn default() -> Self {
+        Self::Apt
+    }
+}
+
 #[derive(Serialize, Deserialize, Default, Clone, Debug, InputObject)]
 #[graphql(
     name = "ComparisonOperator",

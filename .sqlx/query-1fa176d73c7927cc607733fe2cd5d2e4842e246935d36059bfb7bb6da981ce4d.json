@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH \n                time_series AS (\n                    SELECT GENERATE_SERIES($2::TIMESTAMPTZ, $3::TIMESTAMPTZ, $4::INTERVAL) AS time_bin\n                ),\n                collection_volumes AS (\n                    SELECT * FROM activities\n                    WHERE tx_type IN ('buy', 'accept-bid', 'accept-collection-bid', 'mint', 'transfer')\n                        AND collection_id = $1\n                        AND block_time BETWEEN $2 AND $3\n                        AND price > 0\n                )\n            SELECT \n                ts.time_bin                             AS x,\n                COALESCE(SUM(\n                    CASE \n                        WHEN $5 = 'apt' THEN cv.price\n                        WHEN $5 = 'usd' THEN cv.usd_price\n                        ELSE 0\n                    END\n                ), 0)::BIGINT      AS y\n            FROM time_series ts\n                LEFT JOIN collection_volumes cv ON cv.block_time >= ts.time_bin AND cv.block_time < ts.time_bin + $4::INTERVAL\n            GROUP BY ts.time_bin\n            ORDER BY ts.time_bin\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "x",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "y",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz",
+        "Interval",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "1fa176d73c7927cc607733fe2cd5d2e4842e246935d36059bfb7bb6da981ce4d"
+}

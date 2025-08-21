@@ -10,7 +10,7 @@ use crate::{
     },
     http_server::graphql::guard::UserGuard,
     models::schema::{
-        AggregateSchema,
+        AggregateSchema, CoinType,
         activity::{
             ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
             profit_loss::ProfitLossSchema,
@@ -38,13 +38,62 @@ use crate::{
         nft::{DistinctNftSchema, NftSchema, OrderNftSchema, QueryNftSchema},
         wallet::{nft_holding_period::NftHoldingPeriodSchema, stats::StatsSchema},
     },
+    utils::string_utils,
 };
-use async_graphql::{Context, Object, http::GraphiQLSource};
+use async_graphql::{
+    Context, InputValueError, InputValueResult, Object, Scalar, ScalarType, Value,
+    http::GraphiQLSource,
+};
 use axum::response::{Html, IntoResponse};
+use chrono::{DateTime, Utc};
+use sqlx::postgres::types::PgInterval;
 use uuid::Uuid;
 
 pub async fn graphql() -> impl IntoResponse {
     Html(GraphiQLSource::build().endpoint("/gql").finish())
+}
+
+#[derive(Debug, Clone)]
+pub struct Wrapper<T>(pub T);
+
+#[Scalar]
+impl ScalarType for Wrapper<PgInterval> {
+    fn parse(value: Value) -> InputValueResult<Self> {
+        if let Value::String(s) = &value {
+            let interval = string_utils::str_to_pginterval(&s)
+                .map_err(|_| InputValueError::expected_type(value))?;
+            Ok(Wrapper(interval))
+        } else {
+            Err(InputValueError::custom("Invalid PgInterval format"))
+        }
+    }
+
+    fn to_value(&self) -> Value {
+        let interval = &self.0;
+        Value::Number(interval.microseconds.into())
+    }
+}
+
+#[Scalar]
+impl ScalarType for Wrapper<DateTime<Utc>> {
+    fn parse(value: Value) -> InputValueResult<Self> {
+        if let Value::String(s) = &value {
+            let dt = DateTime::parse_from_rfc3339(s)
+                .map_err(|_| InputValueError::expected_type(value))?;
+            Ok(Wrapper(dt.with_timezone(&Utc)))
+        } else if let Value::Number(n) = &value {
+            n.as_i64()
+                .and_then(|ts| DateTime::from_timestamp_millis(ts))
+                .map(|dt| Wrapper(dt.with_timezone(&Utc)))
+                .ok_or_else(|| InputValueError::expected_type(value))
+        } else {
+            Err(InputValueError::custom("Invalid DateTime format"))
+        }
+    }
+
+    fn to_value(&self) -> Value {
+        Value::String(self.0.to_rfc3339())
+    }
 }
 
 pub struct Query;
@@ -435,20 +484,22 @@ impl Query {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
-        interval: Option<String>,
+        #[graphql(
+            desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
+        )]
+        interval: Option<Wrapper<PgInterval>>,
         #[graphql(name = "order_by")] order: Option<OrderTrendingType>,
     ) -> Vec<CollectionTrendingSchema> {
         let db = ctx
             .data::<Arc<Database>>()
             .expect("Missing database in the context");
 
-        let interval = interval.unwrap_or_default();
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
         let order = order.unwrap_or_default();
 
         db.collections()
-            .fetch_trendings(&interval, limit, offset, order)
+            .fetch_trendings(limit, offset, order, interval.map(|w| w.0))
             .await
             .expect("Failed to fetch collection trendings")
     }
@@ -524,7 +575,10 @@ impl Query {
         ctx: &Context<'_>,
         limit: Option<i64>,
         offset: Option<i64>,
-        interval: Option<String>,
+        #[graphql(
+            desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
+        )]
+        interval: Option<Wrapper<PgInterval>>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<NftChangeSchema> {
         let db = ctx
@@ -535,7 +589,7 @@ impl Query {
         let offset = offset.unwrap_or(0);
 
         db.collections()
-            .fetch_nft_changes(collection_id, limit, offset, interval)
+            .fetch_nft_changes(collection_id, limit, offset, interval.map(|w| w.0))
             .await
             .expect("Failed to fetch collection nft period distribution")
     }
@@ -566,7 +620,10 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         limit: Option<i64>,
-        interval: Option<String>,
+        #[graphql(
+            desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
+        )]
+        interval: Option<Wrapper<PgInterval>>,
         #[graphql(name = "type")] type_: TopWalletType,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<TopWalletSchema> {
@@ -577,7 +634,7 @@ impl Query {
         let limit = limit.unwrap_or(10);
 
         db.collections()
-            .fetch_top_wallets(collection_id, type_, limit, interval)
+            .fetch_top_wallets(collection_id, type_, limit, interval.map(|w| w.0))
             .await
             .expect("Failed to fetch collection top buyers")
     }
@@ -586,9 +643,20 @@ impl Query {
     async fn collection_floor_charts(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "start_time")] start_time: i64,
-        #[graphql(name = "end_time")] end_time: i64,
-        interval: String,
+        #[graphql(
+            name = "start_time",
+            desc = "The value can be a date string or unix in milliseconds"
+        )]
+        start_time: Wrapper<DateTime<Utc>>,
+        #[graphql(
+            name = "end_time",
+            desc = "The value can be a date string or unix in milliseconds"
+        )]
+        end_time: Wrapper<DateTime<Utc>>,
+        #[graphql(
+            desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
+        )]
+        interval: Wrapper<PgInterval>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> Vec<DataPointSchema> {
         let db = ctx
@@ -596,7 +664,44 @@ impl Query {
             .expect("Missing database in the context");
 
         db.collections()
-            .fetch_floor_charts(collection_id, start_time, end_time, &interval)
+            .fetch_floor_charts(collection_id, start_time.0, end_time.0, interval.0)
+            .await
+            .expect("Failed to fetch floor chart")
+    }
+
+    #[graphql(name = "collection_volume_charts", guard = "UserGuard")]
+    async fn collection_volume_charts(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(
+            name = "start_time",
+            desc = "The value can be a date string or unix in milliseconds"
+        )]
+        start_time: Wrapper<DateTime<Utc>>,
+        #[graphql(
+            name = "end_time",
+            desc = "The value can be a date string or unix in milliseconds"
+        )]
+        end_time: Wrapper<DateTime<Utc>>,
+        #[graphql(
+            desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
+        )]
+        interval: Wrapper<PgInterval>,
+        #[graphql(name = "collection_id")] collection_id: Uuid,
+        #[graphql(name = "type")] coin_type: CoinType,
+    ) -> Vec<DataPointSchema> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
+        db.collections()
+            .fetch_volume_charts(
+                collection_id,
+                start_time.0,
+                end_time.0,
+                interval.0,
+                coin_type,
+            )
             .await
             .expect("Failed to fetch floor chart")
     }
