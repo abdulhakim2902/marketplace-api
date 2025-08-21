@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::models::db::nft::DbNft;
 use crate::utils::generate_attribute_id;
 use crate::{
     database::{IDatabase, attributes::IAttributes, nft_metadata::INFTMetadata, nfts::INfts},
@@ -85,6 +86,7 @@ where
                 .collect::<Vec<(DbNFTMetadata, Vec<Uuid>)>>();
 
             let mut all_attributes = Vec::new();
+            let mut all_nfts = Vec::new();
             let mut all_nft_metadata = Vec::new();
 
             for (nft_metadata, nft_ids) in nft_metadata_vec.iter() {
@@ -94,6 +96,19 @@ where
                 });
 
                 for nft_id in nft_ids {
+                    let nft = DbNft {
+                        id: *nft_id,
+                        media_url: nft_metadata.image.clone(),
+                        animation_url: nft_metadata.animation_url.clone(),
+                        avatar_url: nft_metadata.avatar_url.clone(),
+                        youtube_url: nft_metadata.youtube_url.clone(),
+                        external_url: nft_metadata.external_url.clone(),
+                        background_color: nft_metadata.background_color.clone(),
+                        ..Default::default()
+                    };
+
+                    all_nfts.push(nft);
+
                     if let Some(nft_attributes) = nft_attributes.as_ref() {
                         for attribute in nft_attributes {
                             if let Some(collection_id) = nft_metadata.collection_id.as_ref() {
@@ -120,6 +135,8 @@ where
             }
 
             let mut tx = self.db.get_pool().begin().await?;
+
+            self.db.nfts().tx_insert_nfts(&mut tx, all_nfts).await?;
 
             self.db
                 .nft_metadata()

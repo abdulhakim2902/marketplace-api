@@ -111,7 +111,7 @@ impl Query {
 
         let total = db
             .attributes()
-            .fetch_total_attributes(&distinct, limit, offset, &query, &order)
+            .fetch_total_attributes(&distinct, &query)
             .await
             .expect("Failed to fetch total ttributes");
 
@@ -172,7 +172,7 @@ impl Query {
 
         let total = db
             .activities()
-            .fetch_total_activities(&distinct, limit, offset, &query, &order)
+            .fetch_total_activities(&distinct, &query)
             .await
             .expect("Failed to fetch total activities");
 
@@ -233,7 +233,7 @@ impl Query {
 
         let total = db
             .collections()
-            .fetch_total_collections(&distinct, limit, offset, &query, &order)
+            .fetch_total_collections(&distinct, &query)
             .await
             .expect("Failed to fetch total collections");
 
@@ -294,7 +294,7 @@ impl Query {
 
         let total = db
             .nfts()
-            .fetch_total_nfts(&distinct, limit, offset, &query, &order)
+            .fetch_total_nfts(&distinct, &query)
             .await
             .expect("Failed to fetch total nfts");
 
@@ -355,7 +355,7 @@ impl Query {
 
         let total = db
             .listings()
-            .fetch_total_listings(&distinct, limit, offset, &query, &order)
+            .fetch_total_listings(&distinct, &query)
             .await
             .expect("Failed to fetch total nfts");
 
@@ -416,7 +416,7 @@ impl Query {
 
         let total = db
             .bids()
-            .fetch_total_bids(&distinct, limit, offset, &query, &order)
+            .fetch_total_bids(&distinct, &query)
             .await
             .expect("Failed to fetch total bids");
 

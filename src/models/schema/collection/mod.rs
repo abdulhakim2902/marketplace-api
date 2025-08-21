@@ -133,7 +133,7 @@ impl CollectionSchema {
 
         let total = db
             .attributes()
-            .fetch_total_attributes(&distinct, limit, offset, &query, &order)
+            .fetch_total_attributes(&distinct, &query)
             .await
             .expect("Failed to fetch total ttributes");
 
@@ -203,7 +203,7 @@ impl CollectionSchema {
 
         let total = db
             .activities()
-            .fetch_total_activities(&distinct, limit, offset, &query, &order)
+            .fetch_total_activities(&distinct, &query)
             .await
             .expect("Failed to fetch total activities");
 
@@ -273,7 +273,7 @@ impl CollectionSchema {
 
         let total = db
             .bids()
-            .fetch_total_bids(&distinct, limit, offset, &query, &order)
+            .fetch_total_bids(&distinct, &query)
             .await
             .expect("Failed to fetch total bids");
 
@@ -343,7 +343,7 @@ impl CollectionSchema {
 
         let total = db
             .nfts()
-            .fetch_total_nfts(&distinct, limit, offset, &query, &order)
+            .fetch_total_nfts(&distinct, &query)
             .await
             .expect("Failed to fetch total nfts");
 
@@ -423,10 +423,12 @@ pub enum DistinctCollectionSchema {
     Floor,
     Volume,
     VolumeUsd,
+    #[graphql(visible = false)]
+    None,
 }
 
 impl Default for DistinctCollectionSchema {
     fn default() -> Self {
-        Self::Id
+        Self::None
     }
 }

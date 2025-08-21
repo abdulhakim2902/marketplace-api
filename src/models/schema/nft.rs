@@ -23,6 +23,7 @@ use async_graphql::{
     ComplexObject, Context, Enum, InputObject, SimpleObject, dataloader::DataLoader,
 };
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use strum::{Display, EnumString};
@@ -38,9 +39,9 @@ pub struct NftSchema {
     pub burned: Option<bool>,
     pub properties: Option<serde_json::Value>,
     pub description: Option<String>,
-    #[graphql(name = "media_url")]
-    pub image_url: Option<String>,
     pub token_id: Option<String>,
+    #[graphql(visible = false)]
+    pub media_url: Option<String>,
     pub animation_url: Option<String>,
     pub avatar_url: Option<String>,
     pub external_url: Option<String>,
@@ -51,6 +52,10 @@ pub struct NftSchema {
     pub version: Option<String>,
     pub ranking: Option<i64>,
     pub rarity: Option<BigDecimal>,
+    #[graphql(visible = false)]
+    pub uri: Option<String>,
+    #[graphql(visible = false)]
+    pub updated_at: DateTime<Utc>,
 }
 
 #[ComplexObject]
@@ -58,6 +63,15 @@ impl NftSchema {
     #[graphql(name = "top_offer")]
     async fn top_offer(&self, ctx: &Context<'_>) -> Option<String> {
         fetch_nft_top_offer(ctx, &self.id.to_string()).await
+    }
+
+    #[graphql(name = "image_url")]
+    async fn image_url(&self) -> Option<&str> {
+        if self.media_url.is_some() {
+            self.media_url.as_ref().map(|e| e.as_str())
+        } else {
+            self.uri.as_ref().map(|e| e.as_str())
+        }
     }
 
     async fn collection(&self, ctx: &Context<'_>) -> Option<CollectionSchema> {
@@ -138,7 +152,7 @@ impl NftSchema {
 
         let total = db
             .attributes()
-            .fetch_total_attributes(&distinct, limit, offset, &query, &order)
+            .fetch_total_attributes(&distinct, &query)
             .await
             .expect("Failed to fetch total ttributes");
 
@@ -208,7 +222,7 @@ impl NftSchema {
 
         let total = db
             .activities()
-            .fetch_total_activities(&distinct, limit, offset, &query, &order)
+            .fetch_total_activities(&distinct, &query)
             .await
             .expect("Failed to fetch total activities");
 
@@ -278,7 +292,7 @@ impl NftSchema {
 
         let total = db
             .listings()
-            .fetch_total_listings(&distinct, limit, offset, &query, &order)
+            .fetch_total_listings(&distinct, &query)
             .await
             .expect("Failed to fetch total listings");
 
@@ -348,7 +362,7 @@ impl NftSchema {
 
         let total = db
             .bids()
-            .fetch_total_bids(&distinct, limit, offset, &query, &order)
+            .fetch_total_bids(&distinct, &query)
             .await
             .expect("Failed to fetch total bids");
 
@@ -379,8 +393,7 @@ pub struct QueryNftSchema {
     #[graphql(visible = false)]
     pub properties: Option<serde_json::Value>,
     pub description: Option<OperatorSchema<String>>,
-    #[graphql(name = "media_url")]
-    pub image_url: Option<OperatorSchema<String>>,
+    pub media_url: Option<OperatorSchema<String>>,
     pub token_id: Option<OperatorSchema<String>>,
     pub animation_url: Option<OperatorSchema<String>>,
     pub avatar_url: Option<OperatorSchema<String>>,
@@ -409,8 +422,7 @@ pub struct OrderNftSchema {
     #[graphql(visible = false)]
     pub properties: Option<serde_json::Value>,
     pub description: Option<OrderingType>,
-    #[graphql(name = "media_url")]
-    pub image_url: Option<OrderingType>,
+    pub media_url: Option<OrderingType>,
     pub token_id: Option<OrderingType>,
     pub animation_url: Option<OrderingType>,
     pub avatar_url: Option<OrderingType>,
@@ -436,8 +448,7 @@ pub enum DistinctNftSchema {
     CollectionId,
     Burned,
     Description,
-    #[graphql(name = "media_url")]
-    ImageUrl,
+    MediaUrl,
     TokenId,
     AnimationUrl,
     AvatarUrl,
@@ -448,10 +459,12 @@ pub enum DistinctNftSchema {
     Version,
     Ranking,
     Rarity,
+    #[graphql(visible = false)]
+    None,
 }
 
 impl Default for DistinctNftSchema {
     fn default() -> Self {
-        Self::Id
+        Self::None
     }
 }

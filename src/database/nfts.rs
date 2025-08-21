@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use crate::database::Schema;
 use crate::models::schema::nft::{DistinctNftSchema, OrderNftSchema, QueryNftSchema};
@@ -36,19 +36,10 @@ pub trait INfts: Send + Sync {
     async fn fetch_total_nfts(
         &self,
         distinct: &DistinctNftSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryNftSchema,
-        order: &OrderNftSchema,
     ) -> anyhow::Result<i64>;
 
     async fn fetch_nft_uri(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNftUri>>;
-
-    async fn fetch_total_nft(
-        &self,
-        wallet_address: &str,
-        collection_id: &str,
-    ) -> anyhow::Result<i64>;
 }
 
 pub struct Nfts {
@@ -86,23 +77,35 @@ impl INfts for Nfts {
                 royalty,
                 updated_at,
                 uri,
-                token_id
+                token_id,
+                media_url,
+                animation_url,
+                avatar_url,
+                youtube_url,
+                external_url,
+                background_color
             )
             "#,
         )
         .push_values(items, |mut b, item| {
-            b.push_bind(item.id.clone());
-            b.push_bind(item.name.clone());
-            b.push_bind(item.owner.clone());
-            b.push_bind(item.collection_id.clone());
-            b.push_bind(item.properties.clone());
-            b.push_bind(item.description.clone());
+            b.push_bind(item.id);
+            b.push_bind(item.name);
+            b.push_bind(item.owner);
+            b.push_bind(item.collection_id);
+            b.push_bind(item.properties);
+            b.push_bind(item.description);
             b.push_bind(item.burned);
-            b.push_bind(item.version.clone());
-            b.push_bind(item.royalty.clone());
+            b.push_bind(item.version);
+            b.push_bind(item.royalty);
             b.push_bind(Utc::now());
-            b.push_bind(item.uri.clone());
+            b.push_bind(item.uri);
             b.push_bind(item.token_id);
+            b.push_bind(item.media_url);
+            b.push_bind(item.animation_url);
+            b.push_bind(item.avatar_url);
+            b.push_bind(item.youtube_url);
+            b.push_bind(item.external_url);
+            b.push_bind(item.background_color);
         })
         .push(
             r#"
@@ -115,7 +118,12 @@ impl INfts for Nfts {
                 token_id = COALESCE(EXCLUDED.token_id, nfts.token_id),
                 owner = EXCLUDED.owner,
                 burned = EXCLUDED.burned,
-                updated_at = EXCLUDED.updated_at
+                updated_at = EXCLUDED.updated_at,
+                media_url = EXCLUDED.media_url,
+                avatar_url = EXCLUDED.avatar_url,
+                youtube_url = EXCLUDED.youtube_url,
+                external_url = EXCLUDED.external_url,
+                background_color = EXCLUDED.background_color
             "#,
         )
         .build()
@@ -134,66 +142,55 @@ impl INfts for Nfts {
         query: &QueryNftSchema,
         order: &OrderNftSchema,
     ) -> anyhow::Result<Vec<NftSchema>> {
-        let mut builder = QueryBuilder::<Postgres>::new(
-            r#"
-            WITH
-                nft_rarities AS (
-                    SELECT
-                        na.collection_id,
-                        na.nft_id,
-                        SUM(-LOG(2, na.rarity))             AS rarity
-                    FROM attributes na
-                    GROUP BY na.collection_id, na.nft_id
-                ),
-                nfts AS (
-                    SELECT 
-                        n.id,
-                        COALESCE(n.name, nm.name)                   AS name,
-                        owner,
-                        n.collection_id,
-                        burned,
-                        n.properties,
-                        n.token_id,
-                        COALESCE(n.description, nm.description)     AS description,
-                        COALESCE(nm.image, n.uri)                   AS image_url,
-                        nm.animation_url,
-                        nm.avatar_url,
-                        nm.youtube_url,
-                        nm.external_url,
-                        nm.background_color,
-                        royalty,
-                        version,
-                        nr.rarity,
-                        CASE
-                            WHEN nr.rarity IS NOT NULL
-                            THEN RANK () OVER (
-                                PARTITION BY n.collection_id
-                                ORDER BY nr.rarity DESC
-                            )
-                            END                                     AS ranking
-                    FROM nfts n
-                        LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
-                        LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
-                )
-            "#,
-        );
+        let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(format!(
-            " SELECT DISTINCT ON ({}) * FROM nfts ",
-            distinct.to_string()
-        ));
-
+        let mut selection_builder = QueryBuilder::<Postgres>::new("");
         let mut join_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");
 
+        // Handle selection
+        if let DistinctNftSchema::None = distinct {
+            selection_builder.push(
+                r#"
+                SELECT
+                    nfts.*,
+                    CASE
+                        WHEN rarity IS NOT NULL
+                        THEN RANK () OVER (
+                            PARTITION BY collection_id
+                            ORDER BY rarity DESC
+                        )
+                    END                                 AS ranking
+                FROM nfts
+                "#,
+            );
+        } else {
+            selection_builder.push(format!(
+                r#"
+                SELECT DISTINCT ON ({}) 
+                    nfts.*,
+                    CASE
+                        WHEN rarity IS NOT NULL
+                        THEN RANK () OVER (
+                            PARTITION BY collection_id
+                            ORDER BY rarity DESC
+                        )
+                    END                                 AS ranking
+                FROM nfts
+                "#,
+                distinct.to_string(),
+            ));
+        };
+
         // Handle join
         let order_map = structs::to_map(order).ok().flatten();
         if let Some(object) = order_map.as_ref() {
-            let mut nested_order_builder = QueryBuilder::<Postgres>::new(",");
-            handle_nested_order(&mut nested_order_builder, object);
-            if !nested_order_builder.sql().ends_with(",") {
-                builder.push(nested_order_builder.sql());
+            builder.push(" WITH ");
+            handle_nested_order(&mut builder, object);
+            if builder.sql().trim().ends_with("WITH") {
+                builder.reset();
+            } else {
                 handle_join(&mut join_builder, object);
             }
         }
@@ -209,7 +206,12 @@ impl INfts for Nfts {
 
         // Handle ordering
         if let Some(object) = order_map.as_ref() {
-            order_by_builder.push(" ORDER BY ");
+            if let DistinctNftSchema::None = distinct {
+                order_by_builder.push(" ORDER BY ");
+            } else {
+                order_by_builder.push(format!(" ORDER BY {}, ", distinct.to_string()));
+            }
+
             handle_order(&mut order_by_builder, object);
             if order_by_builder.sql().trim().ends_with("ORDER BY") {
                 order_by_builder.reset();
@@ -221,7 +223,7 @@ impl INfts for Nfts {
         builder.push(selection_builder.sql());
         builder.push(join_builder.sql());
         builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql());
+        builder.push(order_by_builder.sql().trim().trim_end_matches(","));
         builder.push(pagination);
 
         let res = builder
@@ -236,74 +238,46 @@ impl INfts for Nfts {
     async fn fetch_total_nfts(
         &self,
         distinct: &DistinctNftSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryNftSchema,
-        order: &OrderNftSchema,
     ) -> anyhow::Result<i64> {
-        let mut builder = QueryBuilder::<Postgres>::new(
-            r#"
-            WITH
-                nft_rarities AS (
-                    SELECT
-                        na.collection_id,
-                        na.nft_id,
-                        SUM(-LOG(2, na.rarity))             AS rarity
-                    FROM attributes na
-                    GROUP BY na.collection_id, na.nft_id
-                ),
-                nfts AS (
-                    SELECT 
-                        n.id,
-                        COALESCE(n.name, nm.name)                   AS name,
-                        owner,
-                        n.collection_id,
-                        burned,
-                        n.properties,
-                        n.token_id,
-                        COALESCE(n.description, nm.description)     AS description,
-                        COALESCE(nm.image, n.uri)                   AS image_url,
-                        nm.animation_url,
-                        nm.avatar_url,
-                        nm.youtube_url,
-                        nm.external_url,
-                        nm.background_color,
-                        royalty,
-                        version,
-                        nr.rarity,
-                        CASE
-                            WHEN nr.rarity IS NOT NULL
-                            THEN RANK () OVER (
-                                PARTITION BY n.collection_id
-                                ORDER BY nr.rarity DESC
-                            )
-                            END                                     AS ranking
-                    FROM nfts n
-                        LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
-                        LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
-                )
-            "#,
-        );
+        let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(format!(
-            " SELECT COUNT(DISTINCT {}) FROM nfts ",
-            distinct.to_string()
-        ));
-
-        let mut join_builder = QueryBuilder::<Postgres>::new("");
+        let mut selection_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
-        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
 
-        // Handle join
-        let order_map = structs::to_map(order).ok().flatten();
-        if let Some(object) = order_map.as_ref() {
-            let mut nested_order_builder = QueryBuilder::<Postgres>::new(",");
-            handle_nested_order(&mut nested_order_builder, object);
-            if !nested_order_builder.sql().ends_with(",") {
-                builder.push(nested_order_builder.sql());
-                handle_join(&mut join_builder, object);
-            }
-        }
+        // Handle selection
+        if let DistinctNftSchema::None = distinct {
+            selection_builder.push(
+                r#"
+                SELECT
+                    nfts.*,
+                    CASE
+                        WHEN rarity IS NOT NULL
+                        THEN RANK () OVER (
+                            PARTITION BY collection_id
+                            ORDER BY rarity DESC
+                        )
+                    END                                 AS ranking
+                FROM nfts
+                "#,
+            );
+        } else {
+            selection_builder.push(format!(
+                r#"
+                SELECT DISTINCT ON ({}) 
+                    nfts.*,
+                    CASE
+                        WHEN rarity IS NOT NULL
+                        THEN RANK () OVER (
+                            PARTITION BY collection_id
+                            ORDER BY rarity DESC
+                        )
+                    END                                 AS ranking
+                FROM nfts
+                "#,
+                distinct.to_string(),
+            ));
+        };
 
         // Handle query
         if let Some(object) = structs::to_map(query).ok().flatten() {
@@ -314,22 +288,8 @@ impl INfts for Nfts {
             }
         }
 
-        // Handle ordering
-        if let Some(object) = order_map.as_ref() {
-            order_by_builder.push(" ORDER BY ");
-            handle_order(&mut order_by_builder, object);
-            if order_by_builder.sql().trim().ends_with("ORDER BY") {
-                order_by_builder.reset();
-            }
-        }
-
-        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
-
         builder.push(selection_builder.sql());
-        builder.push(join_builder.sql());
         builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql());
-        builder.push(pagination);
 
         let res = builder
             .build_query_scalar()
@@ -365,27 +325,6 @@ impl INfts for Nfts {
 
         Ok(res)
     }
-
-    async fn fetch_total_nft(
-        &self,
-        wallet_address: &str,
-        collection_id: &str,
-    ) -> anyhow::Result<i64> {
-        let collection_id = Uuid::from_str(collection_id).ok();
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) FROM nfts n
-            WHERE n.owner = $1 AND n.collection_id = $2
-            "#,
-            wallet_address,
-            collection_id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count total nft")?;
-
-        Ok(res.unwrap_or_default())
-    }
 }
 
 impl Loader<Uuid> for Nfts {
@@ -396,44 +335,17 @@ impl Loader<Uuid> for Nfts {
         let res = sqlx::query_as!(
             NftSchema,
             r#"
-             WITH
-                nft_rarities AS (
-                    SELECT
-                        na.collection_id,
-                        na.nft_id,
-                        SUM(-LOG(2, na.rarity))             AS rarity
-                    FROM attributes na
-                    GROUP BY na.collection_id, na.nft_id
-                )
             SELECT 
-                n.id,
-                COALESCE(n.name, nm.name)                   AS name,
-                owner,
-                n.collection_id,
-                burned,
-                n.properties,
-                n.token_id,
-                COALESCE(n.description, nm.description)     AS description,
-                COALESCE(nm.image, n.uri)                   AS image_url,
-                nm.animation_url,
-                nm.avatar_url,
-                nm.youtube_url,
-                nm.external_url,
-                nm.background_color,
-                royalty,
-                version,
-                nr.rarity,
+                nfts.*,
                 CASE
-                    WHEN nr.rarity IS NOT NULL
+                    WHEN rarity IS NOT NULL
                     THEN RANK () OVER (
-                        PARTITION BY n.collection_id
-                        ORDER BY nr.rarity DESC
+                        PARTITION BY collection_id
+                        ORDER BY rarity DESC
                     )
-                    END                                     AS ranking
-            FROM nfts n
-                LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
-                LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
-            WHERE n.id = ANY($1)
+                END                                 AS ranking
+            FROM nfts
+            WHERE id = ANY($1)
             "#,
             keys
         )

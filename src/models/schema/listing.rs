@@ -120,10 +120,12 @@ pub enum DistinctListingSchema {
     Price,
     Seller,
     TxIndex,
+    #[graphql(visible = false)]
+    None,
 }
 
 impl Default for DistinctListingSchema {
     fn default() -> Self {
-        Self::Id
+        Self::None
     }
 }

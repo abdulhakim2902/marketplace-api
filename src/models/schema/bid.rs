@@ -167,10 +167,12 @@ pub enum DistinctBidSchema {
     Status,
     #[graphql(name = "type")]
     BidType,
+    #[graphql(visible = false)]
+    None,
 }
 
 impl Default for DistinctBidSchema {
     fn default() -> Self {
-        Self::Id
+        Self::None
     }
 }

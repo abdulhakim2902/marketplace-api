@@ -105,46 +105,18 @@ pub fn handle_query(
     let mut nft_builder = QueryBuilder::<Postgres>::new(
         r#"
         nft_id IN (
-            WITH
-                nft_rarities AS (
-                    SELECT
-                        na.collection_id,
-                        na.nft_id,
-                        SUM(-LOG(2, na.rarity))             AS rarity
-                    FROM attributes na
-                    GROUP BY na.collection_id, na.nft_id
-                ),
-                nfts AS (
-                    SELECT 
-                        n.id,
-                        COALESCE(n.name, nm.name)                   AS name,
-                        owner,
-                        n.collection_id,
-                        burned,
-                        n.properties,
-                        n.token_id,
-                        COALESCE(n.description, nm.description)     AS description,
-                        COALESCE(nm.image, n.uri)                   AS image_url,
-                        nm.animation_url,
-                        nm.avatar_url,
-                        nm.youtube_url,
-                        nm.external_url,
-                        nm.background_color,
-                        royalty,
-                        version,
-                        nr.rarity,
-                        CASE
-                            WHEN nr.rarity IS NOT NULL
-                            THEN RANK () OVER (
-                                PARTITION BY n.collection_id
-                                ORDER BY nr.rarity DESC
-                            )
-                            END                                     AS ranking
-                    FROM nfts n
-                        LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
-                        LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
-                )
-            SELECT id FROM nfts
+            SELECT id FROM (
+                SELECT 
+                    nfts.*,
+                    CASE
+                        WHEN rarity IS NOT NULL
+                        THEN RANK () OVER (
+                            PARTITION BY collection_id
+                            ORDER BY rarity DESC
+                        )
+                        END                                 AS ranking
+                FROM nfts
+            )
             WHERE
         "#,
     );
@@ -317,44 +289,18 @@ pub fn handle_nested_order(builder: &mut QueryBuilder<'_, Postgres>, object: &Ma
                     }
                     "nft" => {
                         nested_order_seperated_builder.push(
-                        r#"
-                            nft_rarities AS (
-                                SELECT
-                                    na.collection_id,
-                                    na.nft_id,
-                                    SUM(-LOG(2, na.rarity))             AS rarity
-                                FROM attributes na
-                                GROUP BY na.collection_id, na.nft_id
-                            ),
+                            r#"
                             nfts AS (
                                 SELECT 
-                                    n.id,
-                                    COALESCE(n.name, nm.name)                   AS name,
-                                    owner,
-                                    n.collection_id,
-                                    burned,
-                                    n.properties,
-                                    n.token_id,
-                                    COALESCE(n.description, nm.description)     AS description,
-                                    COALESCE(nm.image, n.uri)                   AS image_url,
-                                    nm.animation_url,
-                                    nm.avatar_url,
-                                    nm.youtube_url,
-                                    nm.external_url,
-                                    nm.background_color,
-                                    royalty,
-                                    version,
-                                    nr.rarity,
+                                    nfts.*,
                                     CASE
-                                        WHEN nr.rarity IS NOT NULL
+                                        WHEN rarity IS NOT NULL
                                         THEN RANK () OVER (
-                                            PARTITION BY n.collection_id
-                                            ORDER BY nr.rarity DESC
+                                            PARTITION BY collection_id
+                                            ORDER BY rarity DESC
                                         )
-                                        END                                     AS ranking
-                                FROM nfts n
-                                    LEFT JOIN nft_metadata nm ON nm.uri = n.uri AND nm.collection_id = n.collection_id
-                                    LEFT JOIN nft_rarities nr ON nr.nft_id = n.id AND nr.collection_id = n.collection_id
+                                        END                                 AS ranking
+                                FROM nfts
                             )
                             "#,
                         );

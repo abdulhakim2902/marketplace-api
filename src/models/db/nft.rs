@@ -32,6 +32,13 @@ pub struct DbNft {
     pub royalty: Option<BigDecimal>,
     pub version: Option<String>,
     pub updated_at: Option<DateTime<Utc>>,
+    // FROM NFT METADATA
+    pub media_url: Option<String>,
+    pub animation_url: Option<String>,
+    pub avatar_url: Option<String>,
+    pub youtube_url: Option<String>,
+    pub external_url: Option<String>,
+    pub background_color: Option<String>,
 }
 
 impl DbNft {

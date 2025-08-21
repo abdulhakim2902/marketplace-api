@@ -44,10 +44,7 @@ pub trait IActivities: Send + Sync {
     async fn fetch_total_activities(
         &self,
         distinct: &DistinctActivitySchema,
-        limit: i64,
-        offset: i64,
         query: &QueryActivitySchema,
-        order: &OrderActivitySchema,
     ) -> anyhow::Result<i64>;
 
     async fn fetch_past_floor(
@@ -151,14 +148,20 @@ impl IActivities for Activities {
     ) -> anyhow::Result<Vec<ActivitySchema>> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(format!(
-            " SELECT DISTINCT ON ({}) * FROM activities ",
-            distinct.to_string()
-        ));
-
+        let mut selection_builder = QueryBuilder::<Postgres>::new("");
         let mut join_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
         let mut order_by_builder = QueryBuilder::<Postgres>::new("");
+
+        // Handle selection
+        if let DistinctActivitySchema::None = distinct {
+            selection_builder.push(" SELECT * FROM activities ");
+        } else {
+            selection_builder.push(format!(
+                " SELECT DISTINCT ON ({}) * FROM activities ",
+                distinct.to_string()
+            ));
+        }
 
         // Handle join
         let order_map = structs::to_map(order).ok().flatten();
@@ -183,7 +186,12 @@ impl IActivities for Activities {
 
         // Handle ordering
         if let Some(object) = order_map.as_ref() {
-            order_by_builder.push(" ORDER BY ");
+            if let DistinctActivitySchema::None = distinct {
+                order_by_builder.push(" ORDER BY ");
+            } else {
+                order_by_builder.push(format!(" ORDER BY {}, ", distinct.to_string()));
+            }
+
             handle_order(&mut order_by_builder, object);
             if order_by_builder.sql().trim().ends_with("ORDER BY") {
                 order_by_builder.reset();
@@ -195,7 +203,7 @@ impl IActivities for Activities {
         builder.push(selection_builder.sql());
         builder.push(join_builder.sql());
         builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql());
+        builder.push(order_by_builder.sql().trim_end_matches(","));
         builder.push(pagination);
 
         let res = builder
@@ -210,32 +218,21 @@ impl IActivities for Activities {
     async fn fetch_total_activities(
         &self,
         distinct: &DistinctActivitySchema,
-        limit: i64,
-        offset: i64,
         query: &QueryActivitySchema,
-        order: &OrderActivitySchema,
     ) -> anyhow::Result<i64> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
-        let selection_builder = QueryBuilder::<Postgres>::new(format!(
-            " SELECT COUNT(DISTINCT {}) FROM activities ",
-            distinct.to_string()
-        ));
-
-        let mut join_builder = QueryBuilder::<Postgres>::new("");
+        let mut selection_builder = QueryBuilder::<Postgres>::new("");
         let mut query_builder = QueryBuilder::<Postgres>::new("");
-        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
 
-        // Handle join
-        let order_map = structs::to_map(order).ok().flatten();
-        if let Some(object) = order_map.as_ref() {
-            builder.push(" WITH ");
-            handle_nested_order(&mut builder, object);
-            if builder.sql().trim().ends_with("WITH") {
-                builder.reset();
-            } else {
-                handle_join(&mut join_builder, object);
-            }
+        // Handle selection
+        if let DistinctActivitySchema::None = distinct {
+            selection_builder.push(" SELECT * FROM activities ");
+        } else {
+            selection_builder.push(format!(
+                " SELECT DISTINCT ON ({}) * FROM activities ",
+                distinct.to_string()
+            ));
         }
 
         // Handle query
@@ -247,22 +244,8 @@ impl IActivities for Activities {
             }
         }
 
-        // Handle ordering
-        if let Some(object) = order_map.as_ref() {
-            order_by_builder.push(" ORDER BY ");
-            handle_order(&mut order_by_builder, object);
-            if order_by_builder.sql().trim().ends_with("ORDER BY") {
-                order_by_builder.reset();
-            }
-        }
-
-        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
-
         builder.push(selection_builder.sql());
-        builder.push(join_builder.sql());
         builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql());
-        builder.push(pagination);
 
         let res = builder
             .build_query_scalar()
