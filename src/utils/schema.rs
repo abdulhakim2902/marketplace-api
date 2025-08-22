@@ -29,6 +29,7 @@ pub fn handle_query(
     conn: &str,
     schema: Schema,
 ) {
+    let conn = format!(" {} ", conn);
     let mut seperated = builder.separated(" AND ");
 
     let mut and_operator_builder = QueryBuilder::<Postgres>::new("");
@@ -131,7 +132,7 @@ pub fn handle_query(
     );
 
     let mut field_operator_builder = QueryBuilder::<Postgres>::new("(");
-    let mut field_seperated = field_operator_builder.separated(conn);
+    let mut field_seperated = field_operator_builder.separated(conn.as_str());
 
     for (key, value) in object {
         match key.as_str() {
