@@ -32,7 +32,7 @@ use tower::ServiceBuilder;
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use tower_http::{
     compression::{CompressionLayer, CompressionLevel},
-    cors::{self, AllowOrigin, CorsLayer},
+    cors::{self, CorsLayer},
     limit::RequestBodyLimitLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     timeout::{RequestBodyTimeoutLayer, TimeoutLayer},
@@ -181,13 +181,7 @@ where
         let cors = CorsLayer::new()
             .allow_headers(cors::Any)
             .allow_methods(cors::Any)
-            .allow_origin(AllowOrigin::list(
-                self.config
-                    .server_config
-                    .allowed_origins
-                    .iter()
-                    .map(|origin| origin.parse().expect("Invalid CORS origin")),
-            ))
+            .allow_origin(cors::Any)
             .expose_headers(cors::Any)
             .max_age(Duration::from_secs(24 * 3600));
 
