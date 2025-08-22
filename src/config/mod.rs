@@ -21,6 +21,7 @@ pub struct Config {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ServerConfig {
     pub port: u16,
+    pub allowed_origins: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

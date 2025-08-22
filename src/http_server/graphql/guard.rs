@@ -1,4 +1,4 @@
-use crate::http_server::controllers::ApiKey;
+use crate::http_server::controllers::{ApiKey, Origin};
 use async_graphql::*;
 use prefixed_api_key::{PrefixedApiKey, PrefixedApiKeyController};
 
@@ -20,10 +20,16 @@ impl Guard for UserGuard {
             let is_authorize = controller.check_hash(&prefixed_api_key, &api_key.token_hash);
 
             if is_authorize {
+                tracing::info!("User {} is authorized", api_key.user);
+
                 Ok(())
             } else {
                 Err("Api key is invalid".into())
             }
+        } else if let Some(origin) = ctx.data_opt::<Origin>() {
+            tracing::info!("Origin is allowed: {}", origin.0);
+
+            Ok(())
         } else {
             Err("Api key not found".into())
         }

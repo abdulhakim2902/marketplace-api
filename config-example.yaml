@@ -4,6 +4,8 @@ admin_config:
   password: admin
 server_config:
   port: 8080
+  allowed_origins:
+  - "http://localhost:8080"
 jwt_config:
   secret: secret
   expires_in: 1d

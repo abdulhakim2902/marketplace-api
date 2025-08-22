@@ -23,6 +23,9 @@ pub struct ApiKey {
     pub active: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct Origin(pub String);
+
 pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
     State(state): InternalState<TDb, TCache>,
     headers: HeaderMap,
@@ -63,6 +66,19 @@ pub async fn graphql_handler<TDb: IDatabase, TCache: ICache>(
                 key: api_key.to_owned(),
                 token_hash: hash,
             });
+        }
+    } else if let Some(origin) = headers.get("origin") {
+        for allowed_origin in state.config.server_config.allowed_origins.iter() {
+            let origin = origin
+                .to_str()
+                .ok()
+                .filter(|o| o == allowed_origin)
+                .map(|o| Origin(o.to_string()));
+
+            if let Some(origin) = origin {
+                req = req.data(origin);
+                break;
+            }
         }
     }
 

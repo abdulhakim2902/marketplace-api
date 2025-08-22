@@ -32,7 +32,7 @@ use tower::ServiceBuilder;
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use tower_http::{
     compression::{CompressionLayer, CompressionLevel},
-    cors::{self, CorsLayer},
+    cors::{self, AllowOrigin, CorsLayer},
     limit::RequestBodyLimitLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     timeout::{RequestBodyTimeoutLayer, TimeoutLayer},
@@ -181,6 +181,13 @@ where
         let cors = CorsLayer::new()
             .allow_headers(cors::Any)
             .allow_methods(cors::Any)
+            .allow_origin(AllowOrigin::list(
+                self.config
+                    .server_config
+                    .allowed_origins
+                    .iter()
+                    .map(|origin| origin.parse().expect("Invalid CORS origin")),
+            ))
             .expose_headers(cors::Any)
             .max_age(Duration::from_secs(24 * 3600));
 
@@ -199,6 +206,7 @@ where
         let jwt_secret = self.config.jwt_config.secret.to_string();
 
         let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+            .route("/", get(graphql).post(graphql_handler))
             .route("/health", get(health::check))
             .nest(
                 "/api/v1",
@@ -260,7 +268,6 @@ where
                     )
                     .layer(api_middleware),
             )
-            .route("/gql", get(graphql).post(graphql_handler))
             .layer(DefaultBodyLimit::max(8 * 1024 * 1024))
             .layer(RequestBodyLimitLayer::new(8 * 1024 * 1024))
             .layer(cors)
