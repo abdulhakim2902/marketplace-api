@@ -1,7 +1,117 @@
+use serde::Serialize;
 use serde_json::{Map, Value};
 use sqlx::{Postgres, QueryBuilder, query_builder::Separated};
 
-use crate::database::Schema;
+use crate::{database::Schema, utils::structs};
+
+pub fn create_query_builder<T: Serialize, V: Serialize, U: std::fmt::Display>(
+    table: &str,
+    schema: Schema,
+    query: &T,
+    order: &V,
+    distinct: Option<&U>,
+    limit: i64,
+    offset: i64,
+) -> QueryBuilder<'static, Postgres> {
+    let mut builder = QueryBuilder::<Postgres>::new("");
+
+    let mut selection_builder = QueryBuilder::<Postgres>::new("");
+    let mut join_builder = QueryBuilder::<Postgres>::new("");
+    let mut query_builder = QueryBuilder::<Postgres>::new("");
+    let mut order_by_builder = QueryBuilder::<Postgres>::new("");
+
+    // Handle selection
+    if let Some(distinct) = distinct {
+        selection_builder.push(format!(
+            " SELECT DISTINCT ON ({}) * FROM {} ",
+            distinct.to_string(),
+            table,
+        ));
+    } else {
+        selection_builder.push(format!(" SELECT * FROM {} ", table));
+    }
+
+    let order_map = structs::to_map(order).ok().flatten();
+    if let Some(object) = order_map.as_ref() {
+        builder.push(" WITH ");
+        handle_nested_order(&mut builder, object);
+        if builder.sql().trim().ends_with("WITH") {
+            builder.reset();
+        } else {
+            handle_join(&mut join_builder, object);
+        }
+    }
+
+    // Handle query
+    if let Some(object) = structs::to_map(query).ok().flatten() {
+        query_builder.push(" WHERE ");
+        handle_query(&mut query_builder, &object, "AND", schema);
+        if query_builder.sql().trim().ends_with("WHERE") {
+            query_builder.reset();
+        }
+    }
+
+    // Handle ordering
+    if let Some(object) = order_map.as_ref() {
+        if let Some(distinct) = distinct {
+            order_by_builder.push(format!(" ORDER BY {}, ", distinct.to_string()));
+        } else {
+            order_by_builder.push(" ORDER BY ");
+        }
+
+        handle_order(&mut order_by_builder, object);
+        if order_by_builder.sql().trim().ends_with("ORDER BY") {
+            order_by_builder.reset();
+        }
+    }
+
+    let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
+
+    builder.push(selection_builder.sql());
+    builder.push(join_builder.sql());
+    builder.push(query_builder.sql());
+    builder.push(order_by_builder.sql().trim().trim_end_matches(","));
+    builder.push(pagination);
+
+    builder
+}
+
+pub fn create_count_query_builder<T: Serialize, V: std::fmt::Display>(
+    table: &str,
+    schema: Schema,
+    query: &T,
+    distinct: Option<&V>,
+) -> QueryBuilder<'static, Postgres> {
+    let mut builder = QueryBuilder::<Postgres>::new("");
+
+    let mut selection_builder = QueryBuilder::<Postgres>::new("");
+    let mut query_builder = QueryBuilder::<Postgres>::new("");
+
+    // Handle selection
+    if let Some(distinct) = distinct {
+        selection_builder.push(format!(
+            " SELECT COUNT(DISTINCT {}) FROM {} ",
+            distinct.to_string(),
+            table
+        ));
+    } else {
+        selection_builder.push(format!(" SELECT COUNT(*) FROM {} ", table));
+    }
+
+    // Handle query
+    if let Some(object) = structs::to_map(query).ok().flatten() {
+        query_builder.push(" WHERE ");
+        handle_query(&mut query_builder, &object, "AND", schema);
+        if query_builder.sql().trim().ends_with("WHERE") {
+            query_builder.reset();
+        }
+    }
+
+    builder.push(selection_builder.sql());
+    builder.push(query_builder.sql());
+
+    builder
+}
 
 pub fn handle_join(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<String, Value>) {
     for (key, value) in object {

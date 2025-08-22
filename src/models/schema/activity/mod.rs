@@ -152,12 +152,4 @@ pub enum DistinctActivitySchema {
     BlockTime,
     BlockHeight,
     Amount,
-    #[graphql(visible = false)]
-    None,
-}
-
-impl Default for DistinctActivitySchema {
-    fn default() -> Self {
-        Self::None
-    }
 }

@@ -23,10 +23,7 @@ use crate::{
             data_point::DataPointSchema,
         },
     },
-    utils::{
-        schema::{handle_join, handle_nested_order, handle_order, handle_query},
-        structs,
-    },
+    utils::schema::{create_count_query_builder, create_query_builder},
 };
 use anyhow::Context;
 use async_graphql::{FieldError, dataloader::Loader};
@@ -47,17 +44,17 @@ pub trait ICollections: Send + Sync {
 
     async fn fetch_collections(
         &self,
-        distinct: &DistinctCollectionSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryCollectionSchema,
         order: &OrderCollectionSchema,
+        distinct: Option<&DistinctCollectionSchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
 
     async fn fetch_total_collections(
         &self,
-        distinct: &DistinctCollectionSchema,
         query: &QueryCollectionSchema,
+        distinct: Option<&DistinctCollectionSchema>,
     ) -> anyhow::Result<i64>;
 
     async fn fetch_trendings(
@@ -230,114 +227,33 @@ impl ICollections for Collections {
 
     async fn fetch_collections(
         &self,
-        distinct: &DistinctCollectionSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryCollectionSchema,
         order: &OrderCollectionSchema,
+        distinct: Option<&DistinctCollectionSchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut join_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctCollectionSchema::None = distinct {
-            selection_builder.push(" SELECT * FROM collections ");
-        } else {
-            selection_builder.push(format!(
-                " SELECT DISTINCT ON ({}) * FROM collections ",
-                distinct.to_string()
-            ));
-        }
-
-        // Handle join
-        let order_map = structs::to_map(order).ok().flatten();
-        if let Some(object) = order_map.as_ref() {
-            builder.push(" WITH ");
-            handle_nested_order(&mut builder, object);
-            if builder.sql().trim().ends_with("WITH") {
-                builder.reset();
-            } else {
-                handle_join(&mut join_builder, object);
-            }
-        }
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Collections);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        // Handle ordering
-        if let Some(object) = order_map.as_ref() {
-            if let DistinctCollectionSchema::None = distinct {
-                order_by_builder.push(" ORDER BY ");
-            } else {
-                order_by_builder.push(format!(" ORDER BY {}, ", distinct.to_string()));
-            }
-
-            handle_order(&mut order_by_builder, object);
-            if order_by_builder.sql().trim().ends_with("ORDER BY") {
-                order_by_builder.reset();
-            }
-        }
-
-        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
-
-        builder.push(selection_builder.sql());
-        builder.push(join_builder.sql());
-        builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql().trim().trim_end_matches(","));
-        builder.push(pagination);
-
-        let res = builder
-            .build_query_as::<CollectionSchema>()
-            .fetch_all(&*self.pool)
-            .await
-            .context("Failed to fetch collections")?;
-
-        Ok(res)
+        create_query_builder(
+            "collections",
+            Schema::Collections,
+            query,
+            order,
+            distinct,
+            limit,
+            offset,
+        )
+        .build_query_as::<CollectionSchema>()
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collections")
     }
 
     async fn fetch_total_collections(
         &self,
-        distinct: &DistinctCollectionSchema,
         query: &QueryCollectionSchema,
+        distinct: Option<&DistinctCollectionSchema>,
     ) -> anyhow::Result<i64> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctCollectionSchema::None = distinct {
-            selection_builder.push(" SELECT * FROM collections ");
-        } else {
-            selection_builder.push(format!(
-                " SELECT DISTINCT ON ({}) * FROM collections ",
-                distinct.to_string()
-            ));
-        }
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Collections);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        builder.push(selection_builder.sql());
-        builder.push(query_builder.sql());
-
-        let res = builder
+        let res = create_count_query_builder("collections", Schema::Collections, query, distinct)
             .build_query_scalar()
             .fetch_optional(&*self.pool)
             .await

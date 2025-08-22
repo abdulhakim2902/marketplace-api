@@ -109,11 +109,9 @@ pub struct Query;
 impl Query {
     #[graphql(guard = "UserGuard")]
     async fn marketplaces(&self, ctx: &Context<'_>) -> FieldResult<Vec<MarketplaceSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        db.marketplaces()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .marketplaces()
             .fetch_marketplaces()
             .await
             .map_err(|e| FieldError::from(e))
@@ -124,23 +122,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryAttributeSchema,
+        #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
     ) -> FieldResult<Vec<AttributeSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
-        db.attributes()
-            .fetch_attributes(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .attributes()
+            .fetch_attributes(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
     }
@@ -150,30 +140,24 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryAttributeSchema,
+        #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
     ) -> FieldResult<AggregateSchema<AttributeSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
         let total = db
             .attributes()
-            .fetch_total_attributes(&distinct, &query)
+            .fetch_total_attributes(&query, distinct.as_ref())
             .await
             .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .attributes()
-            .fetch_attributes(&distinct, limit, offset, &query, &order)
+            .fetch_attributes(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))?;
 
@@ -185,23 +169,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryActivitySchema>,
-        #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryActivitySchema,
+        #[graphql(default, name = "order_by")] order: OrderActivitySchema,
     ) -> FieldResult<Vec<ActivitySchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
-        db.activities()
-            .fetch_activities(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .activities()
+            .fetch_activities(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
     }
@@ -211,30 +187,24 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryActivitySchema>,
-        #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryActivitySchema,
+        #[graphql(default, name = "order_by")] order: OrderActivitySchema,
     ) -> FieldResult<AggregateSchema<ActivitySchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
         let total = db
             .activities()
-            .fetch_total_activities(&distinct, &query)
+            .fetch_total_activities(&query, distinct.as_ref())
             .await
             .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .activities()
-            .fetch_activities(&distinct, limit, offset, &query, &order)
+            .fetch_activities(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))?;
 
@@ -246,23 +216,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctCollectionSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryCollectionSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderCollectionSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryCollectionSchema,
+        #[graphql(default, name = "order_by")] order: OrderCollectionSchema,
     ) -> FieldResult<Vec<CollectionSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
-        db.collections()
-            .fetch_collections(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
+            .fetch_collections(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
     }
@@ -272,30 +234,24 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctCollectionSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryCollectionSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderCollectionSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryCollectionSchema,
+        #[graphql(default, name = "order_by")] order: OrderCollectionSchema,
     ) -> FieldResult<AggregateSchema<CollectionSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
         let total = db
             .collections()
-            .fetch_total_collections(&distinct, &query)
+            .fetch_total_collections(&query, distinct.as_ref())
             .await
             .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .collections()
-            .fetch_collections(&distinct, limit, offset, &query, &order)
+            .fetch_collections(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))?;
 
@@ -307,23 +263,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryNftSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderNftSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryNftSchema,
+        #[graphql(default, name = "order_by")] order: OrderNftSchema,
     ) -> FieldResult<Vec<NftSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
-        db.nfts()
-            .fetch_nfts(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .nfts()
+            .fetch_nfts(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
     }
@@ -333,30 +281,24 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryNftSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderNftSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryNftSchema,
+        #[graphql(default, name = "order_by")] order: OrderNftSchema,
     ) -> FieldResult<AggregateSchema<NftSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
         let total = db
             .nfts()
-            .fetch_total_nfts(&distinct, &query)
+            .fetch_total_nfts(&query, distinct.as_ref())
             .await
             .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .nfts()
-            .fetch_nfts(&distinct, limit, offset, &query, &order)
+            .fetch_nfts(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))?;
 
@@ -368,23 +310,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryListingSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderListingSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryListingSchema,
+        #[graphql(default, name = "order_by")] order: OrderListingSchema,
     ) -> FieldResult<Vec<ListingSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
-        db.listings()
-            .fetch_listings(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .listings()
+            .fetch_listings(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
     }
@@ -394,30 +328,24 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryListingSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderListingSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryListingSchema,
+        #[graphql(default, name = "order_by")] order: OrderListingSchema,
     ) -> FieldResult<AggregateSchema<ListingSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
         let total = db
             .listings()
-            .fetch_total_listings(&distinct, &query)
+            .fetch_total_listings(&query, distinct.as_ref())
             .await
             .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .listings()
-            .fetch_listings(&distinct, limit, offset, &query, &order)
+            .fetch_listings(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))?;
 
@@ -429,23 +357,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctBidSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryBidSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryBidSchema,
+        #[graphql(default, name = "order_by")] order: OrderBidSchema,
     ) -> FieldResult<Vec<BidSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
-        db.bids()
-            .fetch_bids(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .bids()
+            .fetch_bids(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
     }
@@ -455,30 +375,24 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctBidSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryBidSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryBidSchema,
+        #[graphql(default, name = "order_by")] order: OrderBidSchema,
     ) -> FieldResult<AggregateSchema<BidSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let query = query.unwrap_or_default();
-        let order = order.unwrap_or_default();
-
         let total = db
             .bids()
-            .fetch_total_bids(&distinct, &query)
+            .fetch_total_bids(&query, distinct.as_ref())
             .await
             .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .bids()
-            .fetch_bids(&distinct, limit, offset, &query, &order)
+            .fetch_bids(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))?;
 
@@ -489,23 +403,18 @@ impl Query {
     async fn collection_trendings(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
         #[graphql(
             desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
         )]
         period: Option<Wrapper<PgInterval>>,
-        #[graphql(name = "trending_by")] order: Option<OrderTrendingType>,
+        #[graphql(default_with = "OrderTrendingType::default()", name = "trending_by")]
+        order: OrderTrendingType,
     ) -> FieldResult<Vec<CollectionTrendingSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_trendings(limit, offset, order, period.map(|w| w.0))
             .await
             .map_err(|e| FieldError::from(e))
@@ -514,11 +423,9 @@ impl Query {
     // ==================== WALLET ====================
     #[graphql(name = "wallet_stats", guard = "UserGuard")]
     async fn wallet_stats(&self, ctx: &Context<'_>, address: String) -> FieldResult<StatsSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        db.wallets()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .wallets()
             .fetch_stats(&address)
             .await
             .map_err(|e| FieldError::from(e))
@@ -530,11 +437,9 @@ impl Query {
         ctx: &Context<'_>,
         address: String,
     ) -> FieldResult<Vec<NftHoldingPeriodSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        db.wallets()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .wallets()
             .fetch_nft_holding_periods(&address)
             .await
             .map_err(|e| FieldError::from(e))
@@ -546,20 +451,15 @@ impl Query {
     async fn collection_holders(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "trending_by")] order: Option<OrderHolderType>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default_with = "OrderHolderType::default()", name = "trending_by")]
+        order: OrderHolderType,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<Vec<CollectionHolderSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let order = order.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_holders(collection_id, order, limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
@@ -571,11 +471,9 @@ impl Query {
         ctx: &Context<'_>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<CollectionStatSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_stats(collection_id)
             .await
             .map_err(|e| FieldError::from(e))
@@ -585,18 +483,13 @@ impl Query {
     async fn collection_trending_nfts(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<Vec<TrendingNftSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_trending_nfts(collection_id, limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
@@ -606,22 +499,17 @@ impl Query {
     async fn collection_nft_changes(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
         #[graphql(
             desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
         )]
         interval: Option<Wrapper<PgInterval>>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<Vec<NftChangeSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_nft_changes(collection_id, limit, offset, interval.map(|w| w.0))
             .await
             .map_err(|e| FieldError::from(e))
@@ -631,18 +519,13 @@ impl Query {
     async fn collection_profit_leaderboards(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<Vec<ProfitLeaderboardSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_profit_leaderboards(collection_id, limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
@@ -652,7 +535,7 @@ impl Query {
     async fn collection_top_wallets(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
+        #[graphql(default = 10)] limit: i64,
         #[graphql(
             desc = "The available unit is `d (days)`, `h (hours)`, `m (minutes)`, and `s (seconds)`"
         )]
@@ -660,13 +543,9 @@ impl Query {
         #[graphql(name = "type")] type_: TopWalletType,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<Vec<TopWalletSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let limit = limit.unwrap_or(10);
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_top_wallets(collection_id, type_, limit, interval.map(|w| w.0))
             .await
             .map_err(|e| FieldError::from(e))
@@ -692,17 +571,15 @@ impl Query {
         interval: Wrapper<PgInterval>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<Vec<DataPointSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
         if !validate_data_set(&start_time.0, &end_time.0, &interval.0) {
             return Err(FieldError::new(
                 "The requested dataset is too large to process. Please reduce the time range or interval.",
             ));
         }
 
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_floor_charts(collection_id, start_time.0, end_time.0, interval.0)
             .await
             .map_err(|e| FieldError::from(e))
@@ -729,17 +606,15 @@ impl Query {
         #[graphql(name = "collection_id")] collection_id: Uuid,
         #[graphql(name = "type")] coin_type: CoinType,
     ) -> FieldResult<Vec<DataPointSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
         if !validate_data_set(&start_time.0, &end_time.0, &interval.0) {
             return Err(FieldError::new(
                 "The requested dataset is too large to process. Please reduce the time range or interval.",
             ));
         }
 
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_volume_charts(
                 collection_id,
                 start_time.0,
@@ -755,18 +630,13 @@ impl Query {
     async fn collection_nft_holders(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<Vec<NftHolderSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_nft_holders(collection_id, limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
@@ -778,11 +648,9 @@ impl Query {
         ctx: &Context<'_>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<Vec<CollectionAttributeSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_attributes(collection_id)
             .await
             .map_err(|e| FieldError::from(e))
@@ -794,11 +662,9 @@ impl Query {
         ctx: &Context<'_>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<NftAmountDistributionSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_nft_amount_distribution(collection_id)
             .await
             .map_err(|e| FieldError::from(e))
@@ -810,11 +676,9 @@ impl Query {
         ctx: &Context<'_>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
     ) -> FieldResult<NftPeriodDistributionSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        db.collections()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
             .fetch_nft_period_distribution(collection_id)
             .await
             .map_err(|e| FieldError::from(e))
@@ -827,18 +691,13 @@ impl Query {
     async fn activity_profit_losses(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
         #[graphql(name = "wallet_address")] wallet_address: String,
     ) -> FieldResult<Vec<ProfitLossSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-
-        db.activities()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .activities()
             .fetch_profit_and_loss(&wallet_address, limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
@@ -850,11 +709,9 @@ impl Query {
         ctx: &Context<'_>,
         #[graphql(name = "wallet_address")] wallet_address: String,
     ) -> FieldResult<Vec<DataPointSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        db.activities()
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .activities()
             .fetch_contribution_chart(&wallet_address)
             .await
             .map_err(|e| FieldError::from(e))

@@ -1,7 +1,5 @@
 use crate::{
-    database::{
-        Database, IDatabase, attributes::IAttributes, bids::IBids, token_prices::ITokenPrices,
-    },
+    database::{Database, IDatabase, bids::IBids, token_prices::ITokenPrices},
     models::schema::{
         activity::ActivitySchema, attribute::AttributeSchema, bid::BidSchema,
         collection::CollectionSchema, listing::ListingSchema, nft::NftSchema,
@@ -171,26 +169,6 @@ impl<T: OutputType> AggregateSchema<T> {
     }
 }
 
-async fn fetch_total_collection_trait(
-    ctx: &Context<'_>,
-    collection_id: Option<String>,
-) -> Option<i64> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    let collection_id = collection_id.as_ref().unwrap();
-
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    db.attributes()
-        .total_collection_trait(collection_id)
-        .await
-        .ok()
-}
-
 async fn fetch_total_collection_offer(
     ctx: &Context<'_>,
     collection_id: Option<String>,
@@ -212,19 +190,6 @@ async fn fetch_total_collection_offer(
     }
 
     res.unwrap().as_ref().map(|e| e.to_plain_string())
-}
-
-async fn fetch_nft_top_offer(ctx: &Context<'_>, nft_id: &str) -> Option<String> {
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    db.bids()
-        .fetch_nft_top_offer(nft_id)
-        .await
-        .ok()
-        .flatten()
-        .map(|e| e.to_plain_string())
 }
 
 async fn fetch_token_price(ctx: &Context<'_>) -> Option<BigDecimal> {

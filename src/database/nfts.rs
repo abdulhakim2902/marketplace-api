@@ -7,8 +7,7 @@ use crate::models::{
     db::nft::{DbNft, DbNftUri},
     schema::nft::NftSchema,
 };
-use crate::utils::schema::{handle_join, handle_nested_order, handle_order, handle_query};
-use crate::utils::structs;
+use crate::utils::schema::{create_count_query_builder, create_query_builder};
 use anyhow::Context;
 use async_graphql::FieldError;
 use async_graphql::dataloader::Loader;
@@ -26,17 +25,17 @@ pub trait INfts: Send + Sync {
 
     async fn fetch_nfts(
         &self,
-        distinct: &DistinctNftSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryNftSchema,
         order: &OrderNftSchema,
+        distinct: Option<&DistinctNftSchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>>;
 
     async fn fetch_total_nfts(
         &self,
-        distinct: &DistinctNftSchema,
         query: &QueryNftSchema,
+        distinct: Option<&DistinctNftSchema>,
     ) -> anyhow::Result<i64>;
 
     async fn fetch_nft_uri(&self, offset: i64, limit: i64) -> anyhow::Result<Vec<DbNftUri>>;
@@ -139,23 +138,15 @@ impl INfts for Nfts {
 
     async fn fetch_nfts(
         &self,
-        distinct: &DistinctNftSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryNftSchema,
         order: &OrderNftSchema,
+        distinct: Option<&DistinctNftSchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<NftSchema>> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut join_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctNftSchema::None = distinct {
-            selection_builder.push(
-                r#"
+        create_query_builder(
+            r#"
+            (
                 SELECT
                     nfts.*,
                     CASE
@@ -166,92 +157,29 @@ impl INfts for Nfts {
                         )
                     END                                 AS ranking
                 FROM nfts
-                "#,
-            );
-        } else {
-            selection_builder.push(format!(
-                r#"
-                SELECT DISTINCT ON ({}) 
-                    nfts.*,
-                    CASE
-                        WHEN rarity IS NOT NULL
-                        THEN RANK () OVER (
-                            PARTITION BY collection_id
-                            ORDER BY rarity DESC
-                        )
-                    END                                 AS ranking
-                FROM nfts
-                "#,
-                distinct.to_string(),
-            ));
-        };
-
-        // Handle join
-        let order_map = structs::to_map(order).ok().flatten();
-        if let Some(object) = order_map.as_ref() {
-            builder.push(" WITH ");
-            handle_nested_order(&mut builder, object);
-            if builder.sql().trim().ends_with("WITH") {
-                builder.reset();
-            } else {
-                handle_join(&mut join_builder, object);
-            }
-        }
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Nfts);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        // Handle ordering
-        if let Some(object) = order_map.as_ref() {
-            if let DistinctNftSchema::None = distinct {
-                order_by_builder.push(" ORDER BY ");
-            } else {
-                order_by_builder.push(format!(" ORDER BY {}, ", distinct.to_string()));
-            }
-
-            handle_order(&mut order_by_builder, object);
-            if order_by_builder.sql().trim().ends_with("ORDER BY") {
-                order_by_builder.reset();
-            }
-        }
-
-        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
-
-        builder.push(selection_builder.sql());
-        builder.push(join_builder.sql());
-        builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql().trim().trim_end_matches(","));
-        builder.push(pagination);
-
-        let res = builder
-            .build_query_as::<NftSchema>()
-            .fetch_all(&*self.pool)
-            .await
-            .context("Failed to fetch nfts")?;
-
-        Ok(res)
+            )
+            "#,
+            Schema::Nfts,
+            query,
+            order,
+            distinct,
+            limit,
+            offset,
+        )
+        .build_query_as::<NftSchema>()
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch nfts")
     }
 
     async fn fetch_total_nfts(
         &self,
-        distinct: &DistinctNftSchema,
         query: &QueryNftSchema,
+        distinct: Option<&DistinctNftSchema>,
     ) -> anyhow::Result<i64> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctNftSchema::None = distinct {
-            selection_builder.push(
-                r#"
+        let res = create_count_query_builder(
+            r#"
+            (
                 SELECT
                     nfts.*,
                     CASE
@@ -262,43 +190,16 @@ impl INfts for Nfts {
                         )
                     END                                 AS ranking
                 FROM nfts
-                "#,
-            );
-        } else {
-            selection_builder.push(format!(
-                r#"
-                SELECT DISTINCT ON ({}) 
-                    nfts.*,
-                    CASE
-                        WHEN rarity IS NOT NULL
-                        THEN RANK () OVER (
-                            PARTITION BY collection_id
-                            ORDER BY rarity DESC
-                        )
-                    END                                 AS ranking
-                FROM nfts
-                "#,
-                distinct.to_string(),
-            ));
-        };
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Nfts);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        builder.push(selection_builder.sql());
-        builder.push(query_builder.sql());
-
-        let res = builder
-            .build_query_scalar()
-            .fetch_optional(&*self.pool)
-            .await
-            .context("Failed to fetch total nfts")?;
+            )
+            "#,
+            Schema::Nfts,
+            query,
+            distinct,
+        )
+        .build_query_scalar()
+        .fetch_optional(&*self.pool)
+        .await
+        .context("Failed to fetch total nfts")?;
 
         Ok(res.unwrap_or_default())
     }

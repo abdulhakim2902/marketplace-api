@@ -113,12 +113,4 @@ pub enum DistinctAttributeSchema {
     Value,
     Rarity,
     Score,
-    #[graphql(visible = false)]
-    None,
-}
-
-impl Default for DistinctAttributeSchema {
-    fn default() -> Self {
-        Self::None
-    }
 }

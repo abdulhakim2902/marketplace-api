@@ -25,11 +25,13 @@ use crate::{
             AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
         },
         bid::{BidSchema, DistinctBidSchema, OrderBidSchema, QueryBidSchema},
-        fetch_total_collection_offer, fetch_total_collection_trait,
+        fetch_total_collection_offer,
         nft::{DistinctNftSchema, NftSchema, OrderNftSchema, QueryNftSchema},
     },
 };
-use async_graphql::{ComplexObject, Context, Enum, InputObject, SimpleObject};
+use async_graphql::{
+    ComplexObject, Context, Enum, FieldError, FieldResult, InputObject, SimpleObject,
+};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
@@ -61,11 +63,6 @@ pub struct CollectionSchema {
 
 #[ComplexObject]
 impl CollectionSchema {
-    #[graphql(name = "total_trait")]
-    async fn total_trait(&self, ctx: &Context<'_>) -> Option<i64> {
-        fetch_total_collection_trait(ctx, Some(self.id.to_string())).await
-    }
-
     #[graphql(name = "total_offer")]
     async fn total_offer(&self, ctx: &Context<'_>) -> Option<String> {
         fetch_total_collection_offer(ctx, Some(self.id.to_string())).await
@@ -74,31 +71,24 @@ impl CollectionSchema {
     async fn attributes(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
-        #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
-    ) -> Vec<AttributeSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        let mut query = query.unwrap_or_default();
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryAttributeSchema,
+        #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
+    ) -> FieldResult<Vec<AttributeSchema>> {
+        let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
         operator._eq = Some(self.id);
         query.collection_id = Some(operator);
 
-        db.attributes()
-            .fetch_attributes(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .attributes()
+            .fetch_attributes(&query, &order, distinct.as_ref(), limit, offset)
             .await
-            .expect("Failed to fetch attributes")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "attributes_aggregate")]
@@ -106,69 +96,57 @@ impl CollectionSchema {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
-    ) -> AggregateSchema<AttributeSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        let mut query = query.unwrap_or_default();
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryAttributeSchema,
+        #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
+    ) -> FieldResult<AggregateSchema<AttributeSchema>> {
+        let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
         operator._eq = Some(self.id);
         query.collection_id = Some(operator);
 
+        let db = ctx
+            .data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?;
+
         let total = db
             .attributes()
-            .fetch_total_attributes(&distinct, &query)
+            .fetch_total_attributes(&query, distinct.as_ref())
             .await
-            .expect("Failed to fetch total ttributes");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .attributes()
-            .fetch_attributes(&distinct, limit, offset, &query, &order)
+            .fetch_attributes(&query, &order, distinct.as_ref(), limit, offset)
             .await
-            .expect("Failed to fetch attributes");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     async fn activities(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
-        #[graphql(name = "where")] query: Option<QueryActivitySchema>,
-        #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
-    ) -> Vec<ActivitySchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        let mut query = query.unwrap_or_default();
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryActivitySchema,
+        #[graphql(default, name = "order_by")] order: OrderActivitySchema,
+    ) -> FieldResult<Vec<ActivitySchema>> {
+        let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
         operator._eq = Some(self.id);
         query.collection_id = Some(operator);
 
-        db.activities()
-            .fetch_activities(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .activities()
+            .fetch_activities(&query, &order, distinct.as_ref(), limit, offset)
             .await
-            .expect("Failed to fetch activities")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "activities_aggregate")]
@@ -176,69 +154,57 @@ impl CollectionSchema {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryActivitySchema>,
-        #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
-    ) -> AggregateSchema<ActivitySchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        let mut query = query.unwrap_or_default();
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryActivitySchema,
+        #[graphql(default, name = "order_by")] order: OrderActivitySchema,
+    ) -> FieldResult<AggregateSchema<ActivitySchema>> {
+        let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
         operator._eq = Some(self.id);
         query.collection_id = Some(operator);
 
+        let db = ctx
+            .data::<Arc<Database>>()
+            .expect("Missing database in the context");
+
         let total = db
             .activities()
-            .fetch_total_activities(&distinct, &query)
+            .fetch_total_activities(&query, distinct.as_ref())
             .await
-            .expect("Failed to fetch total activities");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .activities()
-            .fetch_activities(&distinct, limit, offset, &query, &order)
+            .fetch_activities(&query, &order, distinct.as_ref(), limit, offset)
             .await
-            .expect("Failed to fetch activities");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     async fn bids(
         &self,
         ctx: &Context<'_>,
-        limit: Option<i64>,
-        offset: Option<i64>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctBidSchema>,
-        #[graphql(name = "where")] query: Option<QueryBidSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
-    ) -> Vec<BidSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        let mut query = query.unwrap_or_default();
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryBidSchema,
+        #[graphql(default, name = "order_by")] order: OrderBidSchema,
+    ) -> FieldResult<Vec<BidSchema>> {
+        let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
         operator._eq = Some(self.id);
         query.collection_id = Some(operator);
 
-        db.bids()
-            .fetch_bids(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .bids()
+            .fetch_bids(&query, &order, distinct.as_ref(), limit, offset)
             .await
-            .expect("Failed to fetch bids")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "bids_aggregate")]
@@ -246,69 +212,57 @@ impl CollectionSchema {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctBidSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryBidSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
-    ) -> AggregateSchema<BidSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        let mut query = query.unwrap_or_default();
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryBidSchema,
+        #[graphql(default, name = "order_by")] order: OrderBidSchema,
+    ) -> FieldResult<AggregateSchema<BidSchema>> {
+        let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
         operator._eq = Some(self.id);
         query.collection_id = Some(operator);
 
+        let db = ctx
+            .data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?;
+
         let total = db
             .bids()
-            .fetch_total_bids(&distinct, &query)
+            .fetch_total_bids(&query, distinct.as_ref())
             .await
-            .expect("Failed to fetch total bids");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .bids()
-            .fetch_bids(&distinct, limit, offset, &query, &order)
+            .fetch_bids(&query, &order, distinct.as_ref(), limit, offset)
             .await
-            .expect("Failed to fetch bids");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     async fn nfts(
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryNftSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderNftSchema>,
-    ) -> Vec<NftSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        let mut query = query.unwrap_or_default();
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryNftSchema,
+        #[graphql(default, name = "order_by")] order: OrderNftSchema,
+    ) -> FieldResult<Vec<NftSchema>> {
+        let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
         operator._eq = Some(self.id);
         query.collection_id = Some(operator);
 
-        db.nfts()
-            .fetch_nfts(&distinct, limit, offset, &query, &order)
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .nfts()
+            .fetch_nfts(&query, &order, distinct.as_ref(), limit, offset)
             .await
-            .expect("Failed to fetch nfts")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "nfts_aggregate")]
@@ -316,39 +270,34 @@ impl CollectionSchema {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
-        limit: Option<i64>,
-        offset: Option<i64>,
-        #[graphql(name = "where")] query: Option<QueryNftSchema>,
-        #[graphql(name = "order_by")] order: Option<OrderNftSchema>,
-    ) -> AggregateSchema<NftSchema> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let distinct = distinct.unwrap_or_default();
-        let limit = limit.unwrap_or(10);
-        let offset = offset.unwrap_or(0);
-        let order = order.unwrap_or_default();
-
-        let mut query = query.unwrap_or_default();
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryNftSchema,
+        #[graphql(default, name = "order_by")] order: OrderNftSchema,
+    ) -> FieldResult<AggregateSchema<NftSchema>> {
+        let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
         operator._eq = Some(self.id);
         query.collection_id = Some(operator);
 
+        let db = ctx
+            .data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?;
+
         let total = db
             .nfts()
-            .fetch_total_nfts(&distinct, &query)
+            .fetch_total_nfts(&query, distinct.as_ref())
             .await
-            .expect("Failed to fetch total nfts");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .nfts()
-            .fetch_nfts(&distinct, limit, offset, &query, &order)
+            .fetch_nfts(&query, &order, distinct.as_ref(), limit, offset)
             .await
-            .expect("Failed to fetch nfts");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 }
 
@@ -418,12 +367,4 @@ pub enum DistinctCollectionSchema {
     Floor,
     Volume,
     VolumeUsd,
-    #[graphql(visible = false)]
-    None,
-}
-
-impl Default for DistinctCollectionSchema {
-    fn default() -> Self {
-        Self::None
-    }
 }

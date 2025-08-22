@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     database::Schema,
@@ -13,17 +13,12 @@ use crate::{
         },
     },
     utils::{
-        schema::{handle_join, handle_nested_order, handle_order, handle_query},
+        schema::{create_count_query_builder, create_query_builder, handle_query},
         structs,
     },
 };
 use anyhow::Context;
-use sqlx::{
-    PgPool, Postgres, QueryBuilder, Transaction,
-    postgres::{PgQueryResult, types::PgInterval},
-};
-use uuid::Uuid;
-
+use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 #[async_trait::async_trait]
 pub trait IActivities: Send + Sync {
     async fn tx_insert_activities(
@@ -34,23 +29,17 @@ pub trait IActivities: Send + Sync {
 
     async fn fetch_activities(
         &self,
-        distinct: &DistinctActivitySchema,
-        limit: i64,
-        offset: i64,
         query: &QueryActivitySchema,
         order: &OrderActivitySchema,
+        distinct: Option<&DistinctActivitySchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<ActivitySchema>>;
 
     async fn fetch_total_activities(
         &self,
-        distinct: &DistinctActivitySchema,
         query: &QueryActivitySchema,
-    ) -> anyhow::Result<i64>;
-
-    async fn fetch_past_floor(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
+        distinct: Option<&DistinctActivitySchema>,
     ) -> anyhow::Result<i64>;
 
     async fn fetch_contribution_chart(
@@ -140,85 +129,31 @@ impl IActivities for Activities {
 
     async fn fetch_activities(
         &self,
-        distinct: &DistinctActivitySchema,
-        limit: i64,
-        offset: i64,
         query: &QueryActivitySchema,
         order: &OrderActivitySchema,
+        distinct: Option<&DistinctActivitySchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<ActivitySchema>> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut join_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctActivitySchema::None = distinct {
-            selection_builder.push(" SELECT * FROM activities ");
-        } else {
-            selection_builder.push(format!(
-                " SELECT DISTINCT ON ({}) * FROM activities ",
-                distinct.to_string()
-            ));
-        }
-
-        // Handle join
-        let order_map = structs::to_map(order).ok().flatten();
-        if let Some(object) = order_map.as_ref() {
-            builder.push(" WITH ");
-            handle_nested_order(&mut builder, object);
-            if builder.sql().trim().ends_with("WITH") {
-                builder.reset();
-            } else {
-                handle_join(&mut join_builder, object);
-            }
-        }
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Activities);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        // Handle ordering
-        if let Some(object) = order_map.as_ref() {
-            if let DistinctActivitySchema::None = distinct {
-                order_by_builder.push(" ORDER BY ");
-            } else {
-                order_by_builder.push(format!(" ORDER BY {}, ", distinct.to_string()));
-            }
-
-            handle_order(&mut order_by_builder, object);
-            if order_by_builder.sql().trim().ends_with("ORDER BY") {
-                order_by_builder.reset();
-            }
-        }
-
-        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
-
-        builder.push(selection_builder.sql());
-        builder.push(join_builder.sql());
-        builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql().trim_end_matches(","));
-        builder.push(pagination);
-
-        let res = builder
-            .build_query_as::<ActivitySchema>()
-            .fetch_all(&*self.pool)
-            .await
-            .context("Failed to fetch activities")?;
-
-        Ok(res)
+        create_query_builder(
+            "activities",
+            Schema::Activities,
+            query,
+            order,
+            distinct,
+            limit,
+            offset,
+        )
+        .build_query_as::<ActivitySchema>()
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch activities")
     }
 
     async fn fetch_total_activities(
         &self,
-        distinct: &DistinctActivitySchema,
         query: &QueryActivitySchema,
+        distinct: Option<&DistinctActivitySchema>,
     ) -> anyhow::Result<i64> {
         let mut builder = QueryBuilder::<Postgres>::new("");
 
@@ -226,13 +161,13 @@ impl IActivities for Activities {
         let mut query_builder = QueryBuilder::<Postgres>::new("");
 
         // Handle selection
-        if let DistinctActivitySchema::None = distinct {
-            selection_builder.push(" SELECT * FROM activities ");
-        } else {
+        if let Some(distinct) = distinct {
             selection_builder.push(format!(
-                " SELECT DISTINCT ON ({}) * FROM activities ",
+                " SELECT COUNT(DISTINCT {}) FROM activities ",
                 distinct.to_string()
             ));
+        } else {
+            selection_builder.push(" SELECT COUNT(*) FROM activities ");
         }
 
         // Handle query
@@ -247,35 +182,11 @@ impl IActivities for Activities {
         builder.push(selection_builder.sql());
         builder.push(query_builder.sql());
 
-        let res = builder
+        let res = create_count_query_builder("activities", Schema::Activities, query, distinct)
             .build_query_scalar()
             .fetch_optional(&*self.pool)
             .await
             .context("Failed to fetch total activities")?;
-
-        Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_past_floor(
-        &self,
-        collection_id: &str,
-        interval: Option<PgInterval>,
-    ) -> anyhow::Result<i64> {
-        let collection_id = Uuid::from_str(collection_id).ok();
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT MIN(a.price) FROM activities a
-            WHERE a.tx_type = 'list' 
-                AND a.collection_id = $1
-                AND ($2::INTERVAL IS NULL OR a.block_time >= NOW() - $2::INTERVAL)
-            GROUP BY a.collection_id
-            "#,
-            collection_id,
-            interval,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch volume")?;
 
         Ok(res.unwrap_or_default())
     }

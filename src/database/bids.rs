@@ -1,8 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use crate::models::schema::bid::DistinctBidSchema;
-use crate::utils::schema::{handle_join, handle_nested_order, handle_order, handle_query};
-use crate::utils::structs;
+use crate::utils::schema::{create_count_query_builder, create_query_builder};
 use crate::{
     database::Schema,
     models::{
@@ -26,25 +25,18 @@ pub trait IBids: Send + Sync {
 
     async fn fetch_bids(
         &self,
-        distinct: &DistinctBidSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryBidSchema,
         order: &OrderBidSchema,
+        distinct: Option<&DistinctBidSchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>>;
 
     async fn fetch_total_bids(
         &self,
-        distinct: &DistinctBidSchema,
         query: &QueryBidSchema,
+        distinct: Option<&DistinctBidSchema>,
     ) -> anyhow::Result<i64>;
-
-    async fn fetch_collection_top_offer(
-        &self,
-        collection_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>>;
-
-    async fn fetch_nft_top_offer(&self, nft_id: &str) -> anyhow::Result<Option<BigDecimal>>;
 
     async fn fetch_total_collection_offer(
         &self,
@@ -140,165 +132,31 @@ impl IBids for Bids {
 
     async fn fetch_bids(
         &self,
-        distinct: &DistinctBidSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryBidSchema,
         order: &OrderBidSchema,
+        distinct: Option<&DistinctBidSchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut join_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctBidSchema::None = distinct {
-            selection_builder.push(" SELECT * FROM bids ");
-        } else {
-            selection_builder.push(format!(
-                " SELECT DISTINCT ON ({}) * FROM bids ",
-                distinct.to_string()
-            ));
-        }
-
-        // Handle join
-        let order_map = structs::to_map(order).ok().flatten();
-        if let Some(object) = order_map.as_ref() {
-            builder.push(" WITH ");
-            handle_nested_order(&mut builder, object);
-            if builder.sql().trim().ends_with("WITH") {
-                builder.reset();
-            } else {
-                handle_join(&mut join_builder, object);
-            }
-        }
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Bids);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        // Handle ordering
-        if let Some(object) = order_map.as_ref() {
-            if let DistinctBidSchema::None = distinct {
-                order_by_builder.push(" ORDER BY ");
-            } else {
-                order_by_builder.push(format!(" ORDER BY {}, ", distinct.to_string()));
-            }
-
-            handle_order(&mut order_by_builder, object);
-            if order_by_builder.sql().trim().ends_with("ORDER BY") {
-                order_by_builder.reset();
-            }
-        }
-
-        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
-
-        builder.push(selection_builder.sql());
-        builder.push(join_builder.sql());
-        builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql().trim().trim_end_matches(","));
-        builder.push(pagination);
-
-        let res = builder
+        create_query_builder("bids", Schema::Bids, query, order, distinct, limit, offset)
             .build_query_as::<BidSchema>()
             .fetch_all(&*self.pool)
             .await
-            .context("Failed to fetch bids")?;
-
-        Ok(res)
+            .context("Failed to fetch bids")
     }
 
     async fn fetch_total_bids(
         &self,
-        distinct: &DistinctBidSchema,
         query: &QueryBidSchema,
+        distinct: Option<&DistinctBidSchema>,
     ) -> anyhow::Result<i64> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctBidSchema::None = distinct {
-            selection_builder.push(" SELECT * FROM bids ");
-        } else {
-            selection_builder.push(format!(
-                " SELECT DISTINCT ON ({}) * FROM bids ",
-                distinct.to_string()
-            ));
-        }
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Bids);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        builder.push(selection_builder.sql());
-        builder.push(query_builder.sql());
-
-        let res = builder
+        let res = create_count_query_builder("bids", Schema::Bids, query, distinct)
             .build_query_scalar()
             .fetch_optional(&*self.pool)
             .await
             .context("Failed to fetch total bids")?;
 
         Ok(res.unwrap_or_default())
-    }
-
-    async fn fetch_collection_top_offer(
-        &self,
-        collection_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>> {
-        let collection_id = Uuid::from_str(collection_id).ok();
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT MAX(b.price)
-            FROM bids b
-            WHERE b.collection_id = $1
-                AND b.status = 'active'
-                AND b.bid_type = 'solo'
-                AND b.expired_at > NOW()
-            GROUP BY b.collection_id
-            "#,
-            collection_id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered collections")?;
-
-        Ok(res.map(|e| BigDecimal::from(e)))
-    }
-
-    async fn fetch_nft_top_offer(&self, nft_id: &str) -> anyhow::Result<Option<BigDecimal>> {
-        let nft_id = Uuid::from_str(nft_id).ok();
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT MAX(b.price)
-            FROM bids b
-            WHERE b.nft_id = $1
-                AND b.status = 'active'
-                AND b.bid_type = 'solo'
-                AND b.expired_at > NOW()
-            GROUP BY b.nft_id
-            "#,
-            nft_id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered collections")?;
-
-        Ok(res.map(|e| BigDecimal::from(e)))
     }
 
     async fn fetch_total_collection_offer(

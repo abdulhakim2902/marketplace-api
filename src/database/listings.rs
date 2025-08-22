@@ -5,8 +5,7 @@ use crate::models::schema::listing::{
     DistinctListingSchema, OrderListingSchema, QueryListingSchema,
 };
 use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
-use crate::utils::schema::{handle_join, handle_nested_order, handle_order, handle_query};
-use crate::utils::structs;
+use crate::utils::schema::{create_count_query_builder, create_query_builder};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -20,17 +19,17 @@ pub trait IListings: Send + Sync {
 
     async fn fetch_listings(
         &self,
-        distinct: &DistinctListingSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryListingSchema,
         order: &OrderListingSchema,
+        distinct: Option<&DistinctListingSchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<ListingSchema>>;
 
     async fn fetch_total_listings(
         &self,
-        distinct: &DistinctListingSchema,
         query: &QueryListingSchema,
+        distinct: Option<&DistinctListingSchema>,
     ) -> anyhow::Result<i64>;
 }
 
@@ -109,113 +108,33 @@ impl IListings for Listings {
 
     async fn fetch_listings(
         &self,
-        distinct: &DistinctListingSchema,
-        limit: i64,
-        offset: i64,
         query: &QueryListingSchema,
         order: &OrderListingSchema,
+        distinct: Option<&DistinctListingSchema>,
+        limit: i64,
+        offset: i64,
     ) -> anyhow::Result<Vec<ListingSchema>> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut join_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-        let mut order_by_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctListingSchema::None = distinct {
-            selection_builder.push(" SELECT * FROM listings ");
-        } else {
-            selection_builder.push(format!(
-                " SELECT DISTINCT ON ({}) * FROM listings ",
-                distinct.to_string()
-            ));
-        }
-
-        // Handle join
-        let order_map = structs::to_map(order).ok().flatten();
-        if let Some(object) = order_map.as_ref() {
-            builder.push(" WITH ");
-            handle_nested_order(&mut builder, object);
-            if builder.sql().trim().ends_with("WITH") {
-                builder.reset();
-            } else {
-                handle_join(&mut join_builder, object);
-            }
-        }
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Listings);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        // Handle ordering
-        if let Some(object) = order_map.as_ref() {
-            if let DistinctListingSchema::None = distinct {
-                order_by_builder.push(" ORDER BY ");
-            } else {
-                order_by_builder.push(format!(" ORDER BY {}, ", distinct.to_string()));
-            }
-
-            handle_order(&mut order_by_builder, object);
-            if order_by_builder.sql().trim().ends_with("ORDER BY") {
-                order_by_builder.reset();
-            }
-        }
-
-        let pagination = format!(" LIMIT {} OFFSET {}", limit, offset);
-
-        builder.push(selection_builder.sql());
-        builder.push(join_builder.sql());
-        builder.push(query_builder.sql());
-        builder.push(order_by_builder.sql().trim().trim_end_matches(","));
-        builder.push(pagination);
-
-        let res = builder
-            .build_query_as::<ListingSchema>()
-            .fetch_all(&*self.pool)
-            .await
-            .context("Failed to fetch listings")?;
-
-        Ok(res)
+        create_query_builder(
+            "listings",
+            Schema::Listings,
+            query,
+            order,
+            distinct,
+            limit,
+            offset,
+        )
+        .build_query_as::<ListingSchema>()
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch listings")
     }
 
     async fn fetch_total_listings(
         &self,
-        distinct: &DistinctListingSchema,
         query: &QueryListingSchema,
+        distinct: Option<&DistinctListingSchema>,
     ) -> anyhow::Result<i64> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
-
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let DistinctListingSchema::None = distinct {
-            selection_builder.push(" SELECT * FROM listings ");
-        } else {
-            selection_builder.push(format!(
-                " SELECT DISTINCT ON ({}) * FROM listings ",
-                distinct.to_string()
-            ));
-        }
-
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Listings);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
-
-        builder.push(selection_builder.sql());
-        builder.push(query_builder.sql());
-        let res = builder
+        let res = create_count_query_builder("listings", Schema::Listings, query, distinct)
             .build_query_scalar()
             .fetch_optional(&*self.pool)
             .await
