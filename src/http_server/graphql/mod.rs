@@ -51,7 +51,12 @@ use sqlx::postgres::types::PgInterval;
 use uuid::Uuid;
 
 pub async fn graphql() -> impl IntoResponse {
-    Html(GraphiQLSource::build().endpoint("/gql").finish())
+    Html(
+        GraphiQLSource::build()
+            .title("NFT Aggregator GraphQL API")
+            .endpoint("/")
+            .finish(),
+    )
 }
 
 #[derive(Debug, Clone)]
