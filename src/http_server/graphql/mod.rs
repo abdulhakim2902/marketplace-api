@@ -42,8 +42,8 @@ use crate::{
     utils::string_utils,
 };
 use async_graphql::{
-    Context, InputValueError, InputValueResult, Object, Scalar, ScalarType, Value,
-    http::GraphiQLSource,
+    Context, FieldError, FieldResult, InputValueError, InputValueResult, Object, Scalar,
+    ScalarType, Value, http::GraphiQLSource,
 };
 use axum::response::{Html, IntoResponse};
 use chrono::{DateTime, Utc};
@@ -102,15 +102,15 @@ pub struct Query;
 #[Object]
 impl Query {
     #[graphql(guard = "UserGuard")]
-    async fn marketplaces(&self, ctx: &Context<'_>) -> Vec<MarketplaceSchema> {
+    async fn marketplaces(&self, ctx: &Context<'_>) -> FieldResult<Vec<MarketplaceSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         db.marketplaces()
             .fetch_marketplaces()
             .await
-            .expect("Failed to fetch marketplaces")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(guard = "UserGuard")]
@@ -122,10 +122,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
         #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
-    ) -> Vec<AttributeSchema> {
+    ) -> FieldResult<Vec<AttributeSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -136,7 +136,7 @@ impl Query {
         db.attributes()
             .fetch_attributes(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch attributes")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "attributes_aggregate", guard = "UserGuard")]
@@ -148,10 +148,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryAttributeSchema>,
         #[graphql(name = "order_by")] order: Option<OrderAttributeSchema>,
-    ) -> AggregateSchema<AttributeSchema> {
+    ) -> FieldResult<AggregateSchema<AttributeSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -163,15 +163,15 @@ impl Query {
             .attributes()
             .fetch_total_attributes(&distinct, &query)
             .await
-            .expect("Failed to fetch total ttributes");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .attributes()
             .fetch_attributes(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch attributes");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     #[graphql(guard = "UserGuard")]
@@ -183,10 +183,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryActivitySchema>,
         #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
-    ) -> Vec<ActivitySchema> {
+    ) -> FieldResult<Vec<ActivitySchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -197,7 +197,7 @@ impl Query {
         db.activities()
             .fetch_activities(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch activities")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "activities_aggregate", guard = "UserGuard")]
@@ -209,10 +209,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryActivitySchema>,
         #[graphql(name = "order_by")] order: Option<OrderActivitySchema>,
-    ) -> AggregateSchema<ActivitySchema> {
+    ) -> FieldResult<AggregateSchema<ActivitySchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -224,15 +224,15 @@ impl Query {
             .activities()
             .fetch_total_activities(&distinct, &query)
             .await
-            .expect("Failed to fetch total activities");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .activities()
             .fetch_activities(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch activities");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     #[graphql(guard = "UserGuard")]
@@ -244,10 +244,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryCollectionSchema>,
         #[graphql(name = "order_by")] order: Option<OrderCollectionSchema>,
-    ) -> Vec<CollectionSchema> {
+    ) -> FieldResult<Vec<CollectionSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -258,7 +258,7 @@ impl Query {
         db.collections()
             .fetch_collections(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch collections")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collections_aggregate", guard = "UserGuard")]
@@ -270,10 +270,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryCollectionSchema>,
         #[graphql(name = "order_by")] order: Option<OrderCollectionSchema>,
-    ) -> AggregateSchema<CollectionSchema> {
+    ) -> FieldResult<AggregateSchema<CollectionSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -285,15 +285,15 @@ impl Query {
             .collections()
             .fetch_total_collections(&distinct, &query)
             .await
-            .expect("Failed to fetch total collections");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .collections()
             .fetch_collections(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch collections");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     #[graphql(guard = "UserGuard")]
@@ -305,10 +305,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryNftSchema>,
         #[graphql(name = "order_by")] order: Option<OrderNftSchema>,
-    ) -> Vec<NftSchema> {
+    ) -> FieldResult<Vec<NftSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -319,7 +319,7 @@ impl Query {
         db.nfts()
             .fetch_nfts(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch nfts")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "nfts_aggregate", guard = "UserGuard")]
@@ -331,10 +331,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryNftSchema>,
         #[graphql(name = "order_by")] order: Option<OrderNftSchema>,
-    ) -> AggregateSchema<NftSchema> {
+    ) -> FieldResult<AggregateSchema<NftSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -346,15 +346,15 @@ impl Query {
             .nfts()
             .fetch_total_nfts(&distinct, &query)
             .await
-            .expect("Failed to fetch total nfts");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .nfts()
             .fetch_nfts(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch nfts");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     #[graphql(guard = "UserGuard")]
@@ -366,10 +366,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryListingSchema>,
         #[graphql(name = "order_by")] order: Option<OrderListingSchema>,
-    ) -> Vec<ListingSchema> {
+    ) -> FieldResult<Vec<ListingSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -380,7 +380,7 @@ impl Query {
         db.listings()
             .fetch_listings(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch nfts")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "listings_aggregate", guard = "UserGuard")]
@@ -392,10 +392,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryListingSchema>,
         #[graphql(name = "order_by")] order: Option<OrderListingSchema>,
-    ) -> AggregateSchema<ListingSchema> {
+    ) -> FieldResult<AggregateSchema<ListingSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -407,15 +407,15 @@ impl Query {
             .listings()
             .fetch_total_listings(&distinct, &query)
             .await
-            .expect("Failed to fetch total nfts");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .listings()
             .fetch_listings(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch nfts");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     #[graphql(guard = "UserGuard")]
@@ -427,10 +427,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryBidSchema>,
         #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
-    ) -> Vec<BidSchema> {
+    ) -> FieldResult<Vec<BidSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -441,7 +441,7 @@ impl Query {
         db.bids()
             .fetch_bids(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch bids")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "bids_aggregate", guard = "UserGuard")]
@@ -453,10 +453,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "where")] query: Option<QueryBidSchema>,
         #[graphql(name = "order_by")] order: Option<OrderBidSchema>,
-    ) -> AggregateSchema<BidSchema> {
+    ) -> FieldResult<AggregateSchema<BidSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let distinct = distinct.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -468,15 +468,15 @@ impl Query {
             .bids()
             .fetch_total_bids(&distinct, &query)
             .await
-            .expect("Failed to fetch total bids");
+            .map_err(|e| FieldError::from(e))?;
 
         let nodes = db
             .bids()
             .fetch_bids(&distinct, limit, offset, &query, &order)
             .await
-            .expect("Failed to fetch bids");
+            .map_err(|e| FieldError::from(e))?;
 
-        AggregateSchema::new(total, nodes)
+        Ok(AggregateSchema::new(total, nodes))
     }
 
     #[graphql(name = "collection_trendings", guard = "UserGuard")]
@@ -490,10 +490,10 @@ impl Query {
         )]
         period: Option<Wrapper<PgInterval>>,
         #[graphql(name = "trending_by")] order: Option<OrderTrendingType>,
-    ) -> Vec<CollectionTrendingSchema> {
+    ) -> FieldResult<Vec<CollectionTrendingSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
@@ -502,17 +502,20 @@ impl Query {
         db.collections()
             .fetch_trendings(limit, offset, order, period.map(|w| w.0))
             .await
-            .expect("Failed to fetch collection trendings")
+            .map_err(|e| FieldError::from(e))
     }
 
     // ==================== WALLET ====================
     #[graphql(name = "wallet_stats", guard = "UserGuard")]
-    async fn wallet_stats(&self, ctx: &Context<'_>, address: String) -> Option<StatsSchema> {
+    async fn wallet_stats(&self, ctx: &Context<'_>, address: String) -> FieldResult<StatsSchema> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
-        db.wallets().fetch_stats(&address).await.ok()
+        db.wallets()
+            .fetch_stats(&address)
+            .await
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "wallet_nft_holding_period", guard = "UserGuard")]
@@ -520,15 +523,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         address: String,
-    ) -> Vec<NftHoldingPeriodSchema> {
+    ) -> FieldResult<Vec<NftHoldingPeriodSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         db.wallets()
             .fetch_nft_holding_periods(&address)
             .await
-            .expect("Failed to fetch wallet holding")
+            .map_err(|e| FieldError::from(e))
     }
     // ================================================
 
@@ -541,10 +544,10 @@ impl Query {
         offset: Option<i64>,
         #[graphql(name = "trending_by")] order: Option<OrderHolderType>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Vec<CollectionHolderSchema> {
+    ) -> FieldResult<Vec<CollectionHolderSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let order = order.unwrap_or_default();
         let limit = limit.unwrap_or(10);
@@ -553,7 +556,7 @@ impl Query {
         db.collections()
             .fetch_holders(collection_id, order, limit, offset)
             .await
-            .expect("Failed to fetch collection stats")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_stats", guard = "UserGuard")]
@@ -561,15 +564,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> CollectionStatSchema {
+    ) -> FieldResult<CollectionStatSchema> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         db.collections()
             .fetch_stats(collection_id)
             .await
-            .expect("Failed to fetch collection stats")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_trending_nfts", guard = "UserGuard")]
@@ -579,10 +582,10 @@ impl Query {
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Vec<TrendingNftSchema> {
+    ) -> FieldResult<Vec<TrendingNftSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
@@ -590,7 +593,7 @@ impl Query {
         db.collections()
             .fetch_trending_nfts(collection_id, limit, offset)
             .await
-            .expect("Failed to fetch collection trending")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_nft_changes", guard = "UserGuard")]
@@ -604,10 +607,10 @@ impl Query {
         )]
         interval: Option<Wrapper<PgInterval>>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Vec<NftChangeSchema> {
+    ) -> FieldResult<Vec<NftChangeSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
@@ -615,7 +618,7 @@ impl Query {
         db.collections()
             .fetch_nft_changes(collection_id, limit, offset, interval.map(|w| w.0))
             .await
-            .expect("Failed to fetch collection nft period distribution")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_profit_leaderboards", guard = "UserGuard")]
@@ -625,10 +628,10 @@ impl Query {
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Vec<ProfitLeaderboardSchema> {
+    ) -> FieldResult<Vec<ProfitLeaderboardSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
@@ -636,7 +639,7 @@ impl Query {
         db.collections()
             .fetch_profit_leaderboards(collection_id, limit, offset)
             .await
-            .expect("Failed to fetch collection nft period distribution")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_top_wallets", guard = "UserGuard")]
@@ -650,17 +653,17 @@ impl Query {
         interval: Option<Wrapper<PgInterval>>,
         #[graphql(name = "type")] type_: TopWalletType,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Vec<TopWalletSchema> {
+    ) -> FieldResult<Vec<TopWalletSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let limit = limit.unwrap_or(10);
 
         db.collections()
             .fetch_top_wallets(collection_id, type_, limit, interval.map(|w| w.0))
             .await
-            .expect("Failed to fetch collection top buyers")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_floor_charts", guard = "UserGuard")]
@@ -682,19 +685,21 @@ impl Query {
         )]
         interval: Wrapper<PgInterval>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Vec<DataPointSchema> {
+    ) -> FieldResult<Vec<DataPointSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         if !validate_data_set(&start_time.0, &end_time.0, &interval.0) {
-            panic!("Dataset too large");
+            return Err(FieldError::new(
+                "The requested dataset is too large to process. Please reduce the time range or interval.",
+            ));
         }
 
         db.collections()
             .fetch_floor_charts(collection_id, start_time.0, end_time.0, interval.0)
             .await
-            .expect("Failed to fetch floor chart")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_volume_charts", guard = "UserGuard")]
@@ -717,13 +722,15 @@ impl Query {
         interval: Wrapper<PgInterval>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
         #[graphql(name = "type")] coin_type: CoinType,
-    ) -> Vec<DataPointSchema> {
+    ) -> FieldResult<Vec<DataPointSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         if !validate_data_set(&start_time.0, &end_time.0, &interval.0) {
-            panic!("Dataset too large");
+            return Err(FieldError::new(
+                "The requested dataset is too large to process. Please reduce the time range or interval.",
+            ));
         }
 
         db.collections()
@@ -735,7 +742,7 @@ impl Query {
                 coin_type,
             )
             .await
-            .expect("Failed to fetch floor chart")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_nft_holders", guard = "UserGuard")]
@@ -745,10 +752,10 @@ impl Query {
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Vec<NftHolderSchema> {
+    ) -> FieldResult<Vec<NftHolderSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
@@ -756,7 +763,7 @@ impl Query {
         db.collections()
             .fetch_nft_holders(collection_id, limit, offset)
             .await
-            .expect("Failed to fetch nft holders")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_attributes", guard = "UserGuard")]
@@ -764,15 +771,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Vec<CollectionAttributeSchema> {
+    ) -> FieldResult<Vec<CollectionAttributeSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         db.collections()
             .fetch_attributes(collection_id)
             .await
-            .expect("Failed to fetch collection attributes")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_nft_amount_distribution", guard = "UserGuard")]
@@ -780,15 +787,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Option<NftAmountDistributionSchema> {
+    ) -> FieldResult<NftAmountDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         db.collections()
             .fetch_nft_amount_distribution(collection_id)
             .await
-            .ok()
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "collection_nft_period_distribution", guard = "UserGuard")]
@@ -796,15 +803,15 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "collection_id")] collection_id: Uuid,
-    ) -> Option<NftPeriodDistributionSchema> {
+    ) -> FieldResult<NftPeriodDistributionSchema> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         db.collections()
             .fetch_nft_period_distribution(collection_id)
             .await
-            .ok()
+            .map_err(|e| FieldError::from(e))
     }
 
     // ================================================
@@ -817,10 +824,10 @@ impl Query {
         limit: Option<i64>,
         offset: Option<i64>,
         #[graphql(name = "wallet_address")] wallet_address: String,
-    ) -> Vec<ProfitLossSchema> {
+    ) -> FieldResult<Vec<ProfitLossSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
@@ -828,7 +835,7 @@ impl Query {
         db.activities()
             .fetch_profit_and_loss(&wallet_address, limit, offset)
             .await
-            .expect("Failed to fetch wallet profit loss")
+            .map_err(|e| FieldError::from(e))
     }
 
     #[graphql(name = "activity_contribution_charts", guard = "UserGuard")]
@@ -836,14 +843,14 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "wallet_address")] wallet_address: String,
-    ) -> Vec<DataPointSchema> {
+    ) -> FieldResult<Vec<DataPointSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
-            .expect("Missing database in the context");
+            .map_err(|e| FieldError::from(e))?;
 
         db.activities()
             .fetch_contribution_chart(&wallet_address)
             .await
-            .expect("Failed to fetch contribution chart")
+            .map_err(|e| FieldError::from(e))
     }
 }
