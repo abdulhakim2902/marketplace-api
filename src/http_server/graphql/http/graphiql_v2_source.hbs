@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="https://graphql.org/favicon.ico">
+    
+    {{#if title}}
+    <title>{{ title }}</title>
+    {{else}}
+    <title>GraphiQL IDE</title>
+    {{/if}}
+    
+    <style>
+      body {
+          margin: 0;
+      }
+
+      #graphiql {
+          height: 100dvh;
+      }
+
+      .loading {
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 4rem;
+      }
+    </style>
+
+    <link rel="stylesheet" href="https://esm.sh/graphiql/dist/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://esm.sh/@graphiql/plugin-explorer/dist/style.css"
+    />
+    <!--
+    * Note:
+    * The ?standalone flag bundles the module along with all of its `dependencies`, excluding `peerDependencies`, into a single JavaScript file.
+    * `@emotion/is-prop-valid` is a shim to remove the console error ` module "@emotion /is-prop-valid" not found`. Upstream issue: https://github.com/motiondivision/motion/issues/3126
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+        "react": "https://esm.sh/react@19.1.0",
+        "react/": "https://esm.sh/react@19.1.0/",
+
+        "react-dom": "https://esm.sh/react-dom@19.1.0",
+        "react-dom/": "https://esm.sh/react-dom@19.1.0/",
+
+        "graphiql": "https://esm.sh/graphiql?standalone&external=react,react-dom,@graphiql/react,graphql",
+        "graphiql/": "https://esm.sh/graphiql/",
+        "@graphiql/plugin-explorer": "https://esm.sh/@graphiql/plugin-explorer?standalone&external=react,@graphiql/react,graphql",
+        "@graphiql/react": "https://esm.sh/@graphiql/react?standalone&external=react,react-dom,graphql,@graphiql/toolkit,@emotion/is-prop-valid",
+
+        "@graphiql/toolkit": "https://esm.sh/@graphiql/toolkit?standalone&external=graphql",
+        "graphql": "https://esm.sh/graphql@16.11.0",
+        "@emotion/is-prop-valid": "data:text/javascript,"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import React from 'react';
+      import ReactDOM from 'react-dom/client';
+      import { GraphiQL, HISTORY_PLUGIN } from 'graphiql';
+      import { createGraphiQLFetcher } from '@graphiql/toolkit';
+      import { explorerPlugin } from '@graphiql/plugin-explorer';
+      import 'graphiql/setup-workers/esm.sh';
+
+      const customFetch = (url, opts = {}) => {
+        return fetch(url, {...opts, credentials: '{{ credentials }}'})
+      };
+
+      const createUrl = (endpoint, subscription = false) => {
+        const url = new URL(endpoint, window.location.origin);
+        if (subscription) {
+          url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        }
+
+        return url.toString();
+      };
+
+      const plugins = [HISTORY_PLUGIN, explorerPlugin()];
+      const fetcher = createGraphiQLFetcher({ 
+        url: createUrl('{{ endpoint }}'),
+        fetch: customFetch,
+        {{#if subscription_endpoint}}
+        subscriptionUrl: createUrl('{{ subscription_endpoint }}', true),
+        {{/if}}
+        {{#if headers}}
+        headers: {
+          {{#each headers}}'{{@key}}': '{{this}}',{{/each}}
+        },
+        {{/if}}
+        {{#if ws_connection_params}}
+        wsConnectionParams: {
+          {{#each ws_connection_params}}'{{@key}}': '{{this}}',{{/each}}
+        },
+        {{/if}}
+      });
+
+      function App() {
+        return React.createElement(GraphiQL, {
+          fetcher,
+          plugins,
+          defaultEditorToolsVisibility: true,
+        });
+      }
+
+      const container = document.getElementById('graphiql');
+      const root = ReactDOM.createRoot(container);
+      root.render(React.createElement(App));
+    </script>
+  </head>
+
+  <body>
+    <div id="graphiql">
+    <div class="loading">Loading…</div>
+    </div>
+  </body>
+</html>
