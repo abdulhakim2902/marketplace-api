@@ -1,15 +1,21 @@
 use crate::{
-    database::{Database, IDatabase, bids::IBids, token_prices::ITokenPrices},
+    database::{Database, IDatabase, token_prices::ITokenPrices},
     models::schema::{
-        activity::ActivitySchema, attribute::AttributeSchema, bid::BidSchema,
-        collection::CollectionSchema, listing::ListingSchema, nft::NftSchema,
+        activity::{ActivitySchema, AggregateActivityFieldsSchema, AggregateActivitySchema},
+        attribute::{AggregateAttributeFieldsSchema, AggregateAttributeSchema, AttributeSchema},
+        bid::{AggregateBidFieldsSchema, AggregateBidSchema, BidSchema},
+        collection::{
+            AggregateCollectionFieldsSchema, AggregateCollectionSchema, CollectionSchema,
+        },
+        listing::{AggregateListingFieldsSchema, AggregateListingSchema, ListingSchema},
+        nft::{AggregateNftFieldsSchema, AggregateNftSchema, NftSchema},
     },
 };
 use async_graphql::{Context, Enum, InputObject, InputType, OutputType, SimpleObject};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use strum::{Display, EnumString};
 use uuid::Uuid;
 
@@ -115,9 +121,51 @@ pub struct OperatorSchema<T: InputType> {
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, SimpleObject)]
-#[graphql(name = "AggregateFields", rename_fields = "snake_case")]
-pub struct AggregateFieldsSchema {
-    pub count: i64,
+#[graphql(
+    name = "AggregateFields",
+    rename_fields = "snake_case",
+    concrete(
+        name = "AggregateFieldsTypeOutActivity",
+        input_name = "AggregateFieldsTypeInActivity",
+        params(AggregateActivityFieldsSchema)
+    ),
+    concrete(
+        name = "AggregateFieldsTypeOutAttribute",
+        input_name = "AggregateFieldsTypeInAttribute",
+        params(AggregateAttributeFieldsSchema)
+    ),
+    concrete(
+        name = "AggregateFieldsTypeOutBid",
+        input_name = "AggregateFieldsTypeInBid",
+        params(AggregateBidFieldsSchema)
+    ),
+    concrete(
+        name = "AggregateFieldsTypeOutCollection",
+        input_name = "AggregateFieldsTypeInCollection",
+        params(AggregateCollectionFieldsSchema)
+    ),
+    concrete(
+        name = "AggregateFieldsTypeOutListing",
+        input_name = "AggregateFieldsTypeInListing",
+        params(AggregateListingFieldsSchema)
+    ),
+    concrete(
+        name = "AggregateFieldsTypeOutNft",
+        input_name = "AggregateFieldsTypeInNft",
+        params(AggregateNftFieldsSchema)
+    )
+)]
+pub struct AggregateFieldsSchema<T: OutputType> {
+    pub count: Option<i64>,
+    pub avg: Option<T>,
+    pub max: Option<T>,
+    pub min: Option<T>,
+    pub stddev: Option<T>,
+    pub stddev_pop: Option<T>,
+    pub sum: Option<T>,
+    pub var_pop: Option<T>,
+    pub var_samp: Option<T>,
+    pub variance: Option<T>,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, SimpleObject)]
@@ -127,69 +175,74 @@ pub struct AggregateFieldsSchema {
     concrete(
         name = "AggregateTypeOutActivity",
         input_name = "AggregateTypeInActivity",
-        params(ActivitySchema)
+        params(AggregateActivitySchema, ActivitySchema)
     ),
     concrete(
         name = "AggregateTypeOutAttribute",
         input_name = "AggregateTypeInAttribute",
-        params(AttributeSchema)
-    ),
-    concrete(
-        name = "AggregateTypeOutCollection",
-        input_name = "AggregateTypeInCollection",
-        params(CollectionSchema)
-    ),
-    concrete(
-        name = "AggregateTypeOutNft",
-        input_name = "AggregateTypeInNft",
-        params(NftSchema)
-    ),
-    concrete(
-        name = "AggregateTypeOutListing",
-        input_name = "AggregateTypeInListing",
-        params(ListingSchema)
+        params(AggregateAttributeSchema, AttributeSchema)
     ),
     concrete(
         name = "AggregateTypeOutBid",
         input_name = "AggregateTypeInBid",
-        params(BidSchema)
+        params(AggregateBidSchema, BidSchema)
+    ),
+    concrete(
+        name = "AggregateTypeOutCollection",
+        input_name = "AggregateTypeInCollection",
+        params(AggregateCollectionSchema, CollectionSchema)
+    ),
+    concrete(
+        name = "AggregateTypeOutListing",
+        input_name = "AggregateTypeInListing",
+        params(AggregateListingSchema, ListingSchema)
+    ),
+    concrete(
+        name = "AggregateTypeOutNft",
+        input_name = "AggregateTypeInNft",
+        params(AggregateNftSchema, NftSchema)
     )
 )]
-pub struct AggregateSchema<T: OutputType> {
-    pub aggregate: AggregateFieldsSchema,
-    pub nodes: Vec<T>,
+pub struct AggregateSchema<T: OutputType, U: OutputType> {
+    pub aggregate: T,
+    pub nodes: Vec<U>,
 }
 
-impl<T: OutputType> AggregateSchema<T> {
-    pub fn new(total: i64, nodes: Vec<T>) -> Self {
-        Self {
-            aggregate: AggregateFieldsSchema { count: total },
-            nodes,
+#[derive(Clone, Debug)]
+pub struct AggregateSelection {
+    pub nodes: HashMap<String, Vec<String>>,
+    pub aggregate: HashMap<String, Vec<String>>,
+}
+
+pub fn get_aggregate_selection(ctx: &Context<'_>) -> AggregateSelection {
+    let mut nodes = HashMap::new();
+    let mut aggregate = HashMap::new();
+
+    for field in ctx.field().selection_set() {
+        if field.name() == "aggregate" {
+            for field in field.selection_set() {
+                aggregate.insert(
+                    field.name().to_string(),
+                    field
+                        .selection_set()
+                        .map(|e| e.name().to_string())
+                        .collect::<Vec<String>>(),
+                );
+            }
+        } else if field.name() == "nodes" {
+            for field in field.selection_set() {
+                nodes.insert(
+                    field.name().to_string(),
+                    field
+                        .selection_set()
+                        .map(|e| e.name().to_string())
+                        .collect::<Vec<String>>(),
+                );
+            }
         }
     }
-}
 
-async fn fetch_total_collection_offer(
-    ctx: &Context<'_>,
-    collection_id: Option<String>,
-) -> Option<String> {
-    if collection_id.is_none() {
-        return None;
-    }
-
-    let collection_id = collection_id.as_ref().unwrap();
-
-    let db = ctx
-        .data::<Arc<Database>>()
-        .expect("Missing database in the context");
-
-    let res = db.bids().fetch_total_collection_offer(collection_id).await;
-
-    if res.is_err() {
-        return None;
-    }
-
-    res.unwrap().as_ref().map(|e| e.to_plain_string())
+    AggregateSelection { nodes, aggregate }
 }
 
 async fn fetch_token_price(ctx: &Context<'_>) -> Option<BigDecimal> {

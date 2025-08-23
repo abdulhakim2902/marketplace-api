@@ -13,16 +13,17 @@ use crate::{
     models::schema::{
         AggregateSchema, CoinType,
         activity::{
-            ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
-            profit_loss::ProfitLossSchema,
+            ActivitySchema, AggregateActivitySchema, DistinctActivitySchema, OrderActivitySchema,
+            QueryActivitySchema, profit_loss::ProfitLossSchema,
         },
         attribute::{
-            AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+            AggregateAttributeSchema, AttributeSchema, DistinctAttributeSchema,
+            OrderAttributeSchema, QueryAttributeSchema,
         },
-        bid::{BidSchema, DistinctBidSchema, OrderBidSchema, QueryBidSchema},
+        bid::{AggregateBidSchema, BidSchema, DistinctBidSchema, OrderBidSchema, QueryBidSchema},
         collection::{
-            CollectionSchema, DistinctCollectionSchema, OrderCollectionSchema,
-            QueryCollectionSchema,
+            AggregateCollectionSchema, CollectionSchema, DistinctCollectionSchema,
+            OrderCollectionSchema, QueryCollectionSchema,
             attribute::CollectionAttributeSchema,
             holder::{CollectionHolderSchema, OrderHolderType},
             nft_change::NftChangeSchema,
@@ -35,9 +36,13 @@ use crate::{
             trending_nft::TrendingNftSchema,
         },
         data_point::{DataPointSchema, validate_data_set},
-        listing::{DistinctListingSchema, ListingSchema, OrderListingSchema, QueryListingSchema},
+        get_aggregate_selection,
+        listing::{
+            AggregateListingSchema, DistinctListingSchema, ListingSchema, OrderListingSchema,
+            QueryListingSchema,
+        },
         marketplace::MarketplaceSchema,
-        nft::{DistinctNftSchema, NftSchema, OrderNftSchema, QueryNftSchema},
+        nft::{AggregateNftSchema, DistinctNftSchema, NftSchema, OrderNftSchema, QueryNftSchema},
         wallet::{nft_holding_period::NftHoldingPeriodSchema, stats::StatsSchema},
     },
     utils::string_utils,
@@ -118,53 +123,6 @@ impl Query {
     }
 
     #[graphql(guard = "UserGuard")]
-    async fn attributes(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
-        #[graphql(default = 10)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryAttributeSchema,
-        #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
-    ) -> FieldResult<Vec<AttributeSchema>> {
-        ctx.data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?
-            .attributes()
-            .fetch_attributes(&query, &order, distinct.as_ref(), limit, offset)
-            .await
-            .map_err(|e| FieldError::from(e))
-    }
-
-    #[graphql(name = "attributes_aggregate", guard = "UserGuard")]
-    async fn attributes_aggregate(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
-        #[graphql(default = 10)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryAttributeSchema,
-        #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
-    ) -> FieldResult<AggregateSchema<AttributeSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let total = db
-            .attributes()
-            .fetch_total_attributes(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
-
-        let nodes = db
-            .attributes()
-            .fetch_attributes(&query, &order, distinct.as_ref(), limit, offset)
-            .await
-            .map_err(|e| FieldError::from(e))?;
-
-        Ok(AggregateSchema::new(total, nodes))
-    }
-
-    #[graphql(guard = "UserGuard")]
     async fn activities(
         &self,
         ctx: &Context<'_>,
@@ -191,16 +149,24 @@ impl Query {
         #[graphql(default = 0)] offset: i64,
         #[graphql(default, name = "where")] query: QueryActivitySchema,
         #[graphql(default, name = "order_by")] order: OrderActivitySchema,
-    ) -> FieldResult<AggregateSchema<ActivitySchema>> {
+    ) -> FieldResult<AggregateSchema<AggregateActivitySchema, ActivitySchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let total = db
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
             .activities()
-            .fetch_total_activities(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
+            .fetch_aggregate_activities(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
 
         let nodes = db
             .activities()
@@ -208,148 +174,62 @@ impl Query {
             .await
             .map_err(|e| FieldError::from(e))?;
 
-        Ok(AggregateSchema::new(total, nodes))
+        Ok(AggregateSchema { aggregate, nodes })
     }
 
     #[graphql(guard = "UserGuard")]
-    async fn collections(
+    async fn attributes(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctCollectionSchema>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
         #[graphql(default = 10)] limit: i64,
         #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryCollectionSchema,
-        #[graphql(default, name = "order_by")] order: OrderCollectionSchema,
-    ) -> FieldResult<Vec<CollectionSchema>> {
+        #[graphql(default, name = "where")] query: QueryAttributeSchema,
+        #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
+    ) -> FieldResult<Vec<AttributeSchema>> {
         ctx.data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?
-            .collections()
-            .fetch_collections(&query, &order, distinct.as_ref(), limit, offset)
+            .attributes()
+            .fetch_attributes(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))
     }
 
-    #[graphql(name = "collections_aggregate", guard = "UserGuard")]
-    async fn collections_aggregate(
+    #[graphql(name = "attributes_aggregate", guard = "UserGuard")]
+    async fn attributes_aggregate(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctCollectionSchema>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctAttributeSchema>,
         #[graphql(default = 10)] limit: i64,
         #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryCollectionSchema,
-        #[graphql(default, name = "order_by")] order: OrderCollectionSchema,
-    ) -> FieldResult<AggregateSchema<CollectionSchema>> {
+        #[graphql(default, name = "where")] query: QueryAttributeSchema,
+        #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
+    ) -> FieldResult<AggregateSchema<AggregateAttributeSchema, AttributeSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let total = db
-            .collections()
-            .fetch_total_collections(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
+            .attributes()
+            .fetch_aggregate_attributes(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
 
         let nodes = db
-            .collections()
-            .fetch_collections(&query, &order, distinct.as_ref(), limit, offset)
+            .attributes()
+            .fetch_attributes(&query, &order, distinct.as_ref(), limit, offset)
             .await
             .map_err(|e| FieldError::from(e))?;
 
-        Ok(AggregateSchema::new(total, nodes))
-    }
-
-    #[graphql(guard = "UserGuard")]
-    async fn nfts(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
-        #[graphql(default = 10)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryNftSchema,
-        #[graphql(default, name = "order_by")] order: OrderNftSchema,
-    ) -> FieldResult<Vec<NftSchema>> {
-        ctx.data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?
-            .nfts()
-            .fetch_nfts(&query, &order, distinct.as_ref(), limit, offset)
-            .await
-            .map_err(|e| FieldError::from(e))
-    }
-
-    #[graphql(name = "nfts_aggregate", guard = "UserGuard")]
-    async fn nfts_aggregate(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
-        #[graphql(default = 10)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryNftSchema,
-        #[graphql(default, name = "order_by")] order: OrderNftSchema,
-    ) -> FieldResult<AggregateSchema<NftSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let total = db
-            .nfts()
-            .fetch_total_nfts(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
-
-        let nodes = db
-            .nfts()
-            .fetch_nfts(&query, &order, distinct.as_ref(), limit, offset)
-            .await
-            .map_err(|e| FieldError::from(e))?;
-
-        Ok(AggregateSchema::new(total, nodes))
-    }
-
-    #[graphql(guard = "UserGuard")]
-    async fn listings(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
-        #[graphql(default = 10)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryListingSchema,
-        #[graphql(default, name = "order_by")] order: OrderListingSchema,
-    ) -> FieldResult<Vec<ListingSchema>> {
-        ctx.data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?
-            .listings()
-            .fetch_listings(&query, &order, distinct.as_ref(), limit, offset)
-            .await
-            .map_err(|e| FieldError::from(e))
-    }
-
-    #[graphql(name = "listings_aggregate", guard = "UserGuard")]
-    async fn listings_aggregate(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
-        #[graphql(default = 10)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryListingSchema,
-        #[graphql(default, name = "order_by")] order: OrderListingSchema,
-    ) -> FieldResult<AggregateSchema<ListingSchema>> {
-        let db = ctx
-            .data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?;
-
-        let total = db
-            .listings()
-            .fetch_total_listings(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
-
-        let nodes = db
-            .listings()
-            .fetch_listings(&query, &order, distinct.as_ref(), limit, offset)
-            .await
-            .map_err(|e| FieldError::from(e))?;
-
-        Ok(AggregateSchema::new(total, nodes))
+        Ok(AggregateSchema { aggregate, nodes })
     }
 
     #[graphql(guard = "UserGuard")]
@@ -379,16 +259,24 @@ impl Query {
         #[graphql(default = 0)] offset: i64,
         #[graphql(default, name = "where")] query: QueryBidSchema,
         #[graphql(default, name = "order_by")] order: OrderBidSchema,
-    ) -> FieldResult<AggregateSchema<BidSchema>> {
+    ) -> FieldResult<AggregateSchema<AggregateBidSchema, BidSchema>> {
         let db = ctx
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let total = db
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
             .bids()
-            .fetch_total_bids(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
+            .fetch_aggregate_bids(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
 
         let nodes = db
             .bids()
@@ -396,7 +284,172 @@ impl Query {
             .await
             .map_err(|e| FieldError::from(e))?;
 
-        Ok(AggregateSchema::new(total, nodes))
+        Ok(AggregateSchema { aggregate, nodes })
+    }
+
+    #[graphql(guard = "UserGuard")]
+    async fn collections(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctCollectionSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryCollectionSchema,
+        #[graphql(default, name = "order_by")] order: OrderCollectionSchema,
+    ) -> FieldResult<Vec<CollectionSchema>> {
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .collections()
+            .fetch_collections(&query, &order, distinct.as_ref(), limit, offset)
+            .await
+            .map_err(|e| FieldError::from(e))
+    }
+
+    #[graphql(name = "collections_aggregate", guard = "UserGuard")]
+    async fn collections_aggregate(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctCollectionSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryCollectionSchema,
+        #[graphql(default, name = "order_by")] order: OrderCollectionSchema,
+    ) -> FieldResult<AggregateSchema<AggregateCollectionSchema, CollectionSchema>> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?;
+
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
+            .collections()
+            .fetch_aggregate_collections(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
+
+        let nodes = db
+            .collections()
+            .fetch_collections(&query, &order, distinct.as_ref(), limit, offset)
+            .await
+            .map_err(|e| FieldError::from(e))?;
+
+        Ok(AggregateSchema { aggregate, nodes })
+    }
+
+    #[graphql(guard = "UserGuard")]
+    async fn listings(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryListingSchema,
+        #[graphql(default, name = "order_by")] order: OrderListingSchema,
+    ) -> FieldResult<Vec<ListingSchema>> {
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .listings()
+            .fetch_listings(&query, &order, distinct.as_ref(), limit, offset)
+            .await
+            .map_err(|e| FieldError::from(e))
+    }
+
+    #[graphql(name = "listings_aggregate", guard = "UserGuard")]
+    async fn listings_aggregate(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctListingSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryListingSchema,
+        #[graphql(default, name = "order_by")] order: OrderListingSchema,
+    ) -> FieldResult<AggregateSchema<AggregateListingSchema, ListingSchema>> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?;
+
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
+            .listings()
+            .fetch_aggregate_listings(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
+
+        let nodes = db
+            .listings()
+            .fetch_listings(&query, &order, distinct.as_ref(), limit, offset)
+            .await
+            .map_err(|e| FieldError::from(e))?;
+
+        Ok(AggregateSchema { aggregate, nodes })
+    }
+
+    #[graphql(guard = "UserGuard")]
+    async fn nfts(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryNftSchema,
+        #[graphql(default, name = "order_by")] order: OrderNftSchema,
+    ) -> FieldResult<Vec<NftSchema>> {
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .nfts()
+            .fetch_nfts(&query, &order, distinct.as_ref(), limit, offset)
+            .await
+            .map_err(|e| FieldError::from(e))
+    }
+
+    #[graphql(name = "nfts_aggregate", guard = "UserGuard")]
+    async fn nfts_aggregate(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctNftSchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryNftSchema,
+        #[graphql(default, name = "order_by")] order: OrderNftSchema,
+    ) -> FieldResult<AggregateSchema<AggregateNftSchema, NftSchema>> {
+        let db = ctx
+            .data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?;
+
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
+            .nfts()
+            .fetch_aggregate_nfts(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
+
+        let nodes = db
+            .nfts()
+            .fetch_nfts(&query, &order, distinct.as_ref(), limit, offset)
+            .await
+            .map_err(|e| FieldError::from(e))?;
+
+        Ok(AggregateSchema { aggregate, nodes })
     }
 
     #[graphql(name = "collection_trendings", guard = "UserGuard")]

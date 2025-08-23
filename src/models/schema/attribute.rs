@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::{
     database::{Database, IDatabase, collections::Collections, nfts::Nfts},
     models::schema::{
-        OperatorSchema, OrderingType,
+        AggregateFieldsSchema, OperatorSchema, OrderingType,
         collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
         nft::{NftSchema, OrderNftSchema, QueryNftSchema},
     },
@@ -114,3 +114,12 @@ pub enum DistinctAttributeSchema {
     Rarity,
     Score,
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, SimpleObject)]
+#[graphql(name = "AggregateAttributeFields", rename_fields = "snake_case")]
+pub struct AggregateAttributeFieldsSchema {
+    pub rarity: Option<BigDecimal>,
+    pub score: Option<BigDecimal>,
+}
+
+pub type AggregateAttributeSchema = AggregateFieldsSchema<AggregateAttributeFieldsSchema>;

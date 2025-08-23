@@ -1,11 +1,12 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::database::Schema;
+use crate::models::schema::AggregateFieldsSchema;
 use crate::models::schema::listing::{
-    DistinctListingSchema, OrderListingSchema, QueryListingSchema,
+    AggregateListingFieldsSchema, DistinctListingSchema, OrderListingSchema, QueryListingSchema,
 };
 use crate::models::{db::listing::DbListing, schema::listing::ListingSchema};
-use crate::utils::schema::{create_count_query_builder, create_query_builder};
+use crate::utils::schema::{create_aggregate_query_builder, create_query_builder};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -26,11 +27,12 @@ pub trait IListings: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<ListingSchema>>;
 
-    async fn fetch_total_listings(
+    async fn fetch_aggregate_listings(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryListingSchema,
         distinct: Option<&DistinctListingSchema>,
-    ) -> anyhow::Result<i64>;
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateListingFieldsSchema>>;
 }
 
 pub struct Listings {
@@ -129,17 +131,33 @@ impl IListings for Listings {
         .context("Failed to fetch listings")
     }
 
-    async fn fetch_total_listings(
+    async fn fetch_aggregate_listings(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryListingSchema,
         distinct: Option<&DistinctListingSchema>,
-    ) -> anyhow::Result<i64> {
-        let res = create_count_query_builder("listings", Schema::Listings, query, distinct)
-            .build_query_scalar()
-            .fetch_optional(&*self.pool)
-            .await
-            .context("Failed to total listings")?;
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateListingFieldsSchema>> {
+        if selection.is_empty() {
+            return Ok(AggregateFieldsSchema::default());
+        }
 
-        Ok(res.unwrap_or_default())
+        let table = if let Some(distinct) = distinct {
+            format!("(SELECT DISTINCT ON ({}) * FROM listings)", distinct)
+        } else {
+            "(SELECT * FROM listings)".to_string()
+        };
+
+        let value =
+            create_aggregate_query_builder(table.as_str(), selection, Schema::Listings, query)
+                .build_query_scalar::<serde_json::Value>()
+                .fetch_one(&*self.pool)
+                .await
+                .context("Failed to fetch aggregate listings")?;
+
+        let result =
+            serde_json::from_value::<AggregateFieldsSchema<AggregateListingFieldsSchema>>(value)
+                .context("Failed to parse aggregate result")?;
+
+        Ok(result)
     }
 }

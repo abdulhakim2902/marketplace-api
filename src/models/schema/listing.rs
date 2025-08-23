@@ -5,7 +5,7 @@ use crate::{
     models::{
         marketplace::APT_DECIMAL,
         schema::{
-            Date, OperatorSchema, OrderingType, fetch_token_price,
+            AggregateFieldsSchema, Date, OperatorSchema, OrderingType, fetch_token_price,
             nft::{NftSchema, OrderNftSchema, QueryNftSchema},
         },
     },
@@ -121,3 +121,15 @@ pub enum DistinctListingSchema {
     Seller,
     TxIndex,
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, SimpleObject)]
+#[graphql(name = "AggregateListingFields", rename_fields = "snake_case")]
+pub struct AggregateListingFieldsSchema {
+    pub tx_index: Option<BigDecimal>,
+    pub price: Option<BigDecimal>,
+    pub nonce: Option<BigDecimal>,
+    pub block_height: Option<BigDecimal>,
+    pub block_time: Option<BigDecimal>,
+}
+
+pub type AggregateListingSchema = AggregateFieldsSchema<AggregateListingFieldsSchema>;

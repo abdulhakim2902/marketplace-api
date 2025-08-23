@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Serialize;
 use serde_json::{Map, Value};
 use sqlx::{Postgres, QueryBuilder, query_builder::Separated};
@@ -74,6 +76,87 @@ pub fn create_query_builder<T: Serialize, V: Serialize, U: std::fmt::Display>(
     builder.push(pagination);
 
     builder
+}
+
+pub fn create_aggregate_query_builder<T: Serialize>(
+    table: &str,
+    selection: &HashMap<String, Vec<String>>,
+    schema: Schema,
+    query: &T,
+) -> QueryBuilder<'static, Postgres> {
+    let mut builder = QueryBuilder::<Postgres>::new("");
+
+    let mut selection_builder = QueryBuilder::<Postgres>::new(" SELECT ");
+    let mut seperated = selection_builder.separated(", ");
+    let mut query_builder = QueryBuilder::<Postgres>::new("");
+
+    // TODO selection response
+    // {
+    // count: 0,
+    //     "max": [
+    //         "tx_index",
+    //         "price",
+    //         "usd_price",
+    //         "block_height",
+    //     ],
+    //     "min": [
+    //         "tx_index",
+    //         "price",
+    //         "usd_price",
+    //         "block_height",
+    //     ]
+    // }
+
+    // SELECT COUNT(*), json_build_object("") AS max
+
+    // Handle selection
+    for (aggregator, values) in selection {
+        match aggregator.as_str() {
+            "count" => {
+                seperated.push(" COUNT(*) ");
+            }
+            _ => {
+                if !values.is_empty() {
+                    let mut aggregator_builder =
+                        QueryBuilder::<Postgres>::new(" json_build_object(");
+                    let mut aggregator_seperated = aggregator_builder.separated(", ");
+                    for value in values {
+                        aggregator_seperated.push(format!(
+                            "'{}', {}({})",
+                            value,
+                            aggregator.to_uppercase(),
+                            value
+                        ));
+                    }
+                    aggregator_seperated.push_unseparated(format!(") AS {}", aggregator));
+                    seperated.push(aggregator_builder.sql());
+                }
+            }
+        }
+    }
+
+    seperated.push_unseparated(format!(" FROM {} ", table));
+
+    // Handle query
+    if let Some(object) = structs::to_map(query).ok().flatten() {
+        query_builder.push(" WHERE ");
+        handle_query(&mut query_builder, &object, "AND", schema);
+        if query_builder.sql().trim().ends_with("WHERE") {
+            query_builder.reset();
+        }
+    }
+
+    builder.push(selection_builder.sql());
+    builder.push(query_builder.sql());
+
+    QueryBuilder::<Postgres>::new(format!(
+        r#"
+            SELECT row_to_json(t) FROM (
+                {}
+            ) t
+            "#,
+        builder.sql()
+    ))
 }
 
 pub fn create_count_query_builder<T: Serialize, V: std::fmt::Display>(

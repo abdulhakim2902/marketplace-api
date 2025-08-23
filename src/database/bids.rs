@@ -1,7 +1,8 @@
-use std::{str::FromStr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
-use crate::models::schema::bid::DistinctBidSchema;
-use crate::utils::schema::{create_count_query_builder, create_query_builder};
+use crate::models::schema::AggregateFieldsSchema;
+use crate::models::schema::bid::{AggregateBidFieldsSchema, DistinctBidSchema};
+use crate::utils::schema::{create_aggregate_query_builder, create_query_builder};
 use crate::{
     database::Schema,
     models::{
@@ -10,10 +11,8 @@ use crate::{
     },
 };
 use anyhow::Context;
-use bigdecimal::BigDecimal;
 use chrono::Utc;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
-use uuid::Uuid;
 
 #[async_trait::async_trait]
 pub trait IBids: Send + Sync {
@@ -32,16 +31,12 @@ pub trait IBids: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<BidSchema>>;
 
-    async fn fetch_total_bids(
+    async fn fetch_aggregate_bids(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryBidSchema,
         distinct: Option<&DistinctBidSchema>,
-    ) -> anyhow::Result<i64>;
-
-    async fn fetch_total_collection_offer(
-        &self,
-        collection_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>>;
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateBidFieldsSchema>>;
 }
 
 pub struct Bids {
@@ -145,40 +140,32 @@ impl IBids for Bids {
             .context("Failed to fetch bids")
     }
 
-    async fn fetch_total_bids(
+    async fn fetch_aggregate_bids(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryBidSchema,
         distinct: Option<&DistinctBidSchema>,
-    ) -> anyhow::Result<i64> {
-        let res = create_count_query_builder("bids", Schema::Bids, query, distinct)
-            .build_query_scalar()
-            .fetch_optional(&*self.pool)
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateBidFieldsSchema>> {
+        if selection.is_empty() {
+            return Ok(AggregateFieldsSchema::default());
+        }
+
+        let table = if let Some(distinct) = distinct {
+            format!("(SELECT DISTINCT ON ({}) * FROM bids)", distinct)
+        } else {
+            "(SELECT * FROM bids)".to_string()
+        };
+
+        let value = create_aggregate_query_builder(table.as_str(), selection, Schema::Bids, query)
+            .build_query_scalar::<serde_json::Value>()
+            .fetch_one(&*self.pool)
             .await
-            .context("Failed to fetch total bids")?;
+            .context("Failed to fetch aggregate bids")?;
 
-        Ok(res.unwrap_or_default())
-    }
+        let result: AggregateFieldsSchema<AggregateBidFieldsSchema> =
+            serde_json::from_value::<AggregateFieldsSchema<AggregateBidFieldsSchema>>(value)
+                .context("Failed to parse aggregate result")?;
 
-    async fn fetch_total_collection_offer(
-        &self,
-        collection_id: &str,
-    ) -> anyhow::Result<Option<BigDecimal>> {
-        let collection_id = Uuid::from_str(collection_id).ok();
-        let res = sqlx::query_scalar!(
-            r#"
-            SELECT SUM(b.price)
-            FROM bids b
-            WHERE b.collection_id = $1
-                AND b.status = 'active'
-                AND b.expired_at > NOW()
-            GROUP BY b.collection_id
-            "#,
-            collection_id,
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to count filtered collections")?;
-
-        Ok(res)
+        Ok(result)
     }
 }

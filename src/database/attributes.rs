@@ -1,11 +1,13 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::database::Schema;
 use crate::models::db::attribute::DbAttribute;
+use crate::models::schema::AggregateFieldsSchema;
 use crate::models::schema::attribute::{
-    AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+    AggregateAttributeFieldsSchema, AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema,
+    QueryAttributeSchema,
 };
-use crate::utils::schema::{create_count_query_builder, create_query_builder};
+use crate::utils::schema::{create_aggregate_query_builder, create_query_builder};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
 
@@ -26,11 +28,12 @@ pub trait IAttributes: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<AttributeSchema>>;
 
-    async fn fetch_total_attributes(
+    async fn fetch_aggregate_attributes(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryAttributeSchema,
         distinct: Option<&DistinctAttributeSchema>,
-    ) -> anyhow::Result<i64>;
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateAttributeFieldsSchema>>;
 }
 
 pub struct Attributes {
@@ -108,17 +111,33 @@ impl IAttributes for Attributes {
         .context("Failed to fetch attributes")
     }
 
-    async fn fetch_total_attributes(
+    async fn fetch_aggregate_attributes(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryAttributeSchema,
         distinct: Option<&DistinctAttributeSchema>,
-    ) -> anyhow::Result<i64> {
-        let res = create_count_query_builder("attributes", Schema::Attributes, query, distinct)
-            .build_query_scalar()
-            .fetch_optional(&*self.pool)
-            .await
-            .context("Failed to fetch total attributes")?;
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateAttributeFieldsSchema>> {
+        if selection.is_empty() {
+            return Ok(AggregateFieldsSchema::default());
+        }
 
-        Ok(res.unwrap_or_default())
+        let table = if let Some(distinct) = distinct {
+            format!("(SELECT DISTINCT ON ({}) * FROM attributes)", distinct)
+        } else {
+            "(SELECT * FROM attributes)".to_string()
+        };
+
+        let value =
+            create_aggregate_query_builder(table.as_str(), selection, Schema::Attributes, query)
+                .build_query_scalar::<serde_json::Value>()
+                .fetch_one(&*self.pool)
+                .await
+                .context("Failed to fetch aggregate attributes")?;
+
+        let result =
+            serde_json::from_value::<AggregateFieldsSchema<AggregateAttributeFieldsSchema>>(value)
+                .context("Failed to parse aggregate result")?;
+
+        Ok(result)
     }
 }

@@ -1,24 +1,23 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     database::Schema,
     models::{
         db::activity::DbActivity,
         schema::{
+            AggregateFieldsSchema,
             activity::{
-                ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
-                profit_loss::ProfitLossSchema,
+                ActivitySchema, AggregateActivityFieldsSchema, DistinctActivitySchema,
+                OrderActivitySchema, QueryActivitySchema, profit_loss::ProfitLossSchema,
             },
             data_point::DataPointSchema,
         },
     },
-    utils::{
-        schema::{create_count_query_builder, create_query_builder, handle_query},
-        structs,
-    },
+    utils::schema::{create_aggregate_query_builder, create_query_builder},
 };
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction, postgres::PgQueryResult};
+
 #[async_trait::async_trait]
 pub trait IActivities: Send + Sync {
     async fn tx_insert_activities(
@@ -36,11 +35,12 @@ pub trait IActivities: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<ActivitySchema>>;
 
-    async fn fetch_total_activities(
+    async fn fetch_aggregate_activities(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryActivitySchema,
         distinct: Option<&DistinctActivitySchema>,
-    ) -> anyhow::Result<i64>;
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateActivityFieldsSchema>>;
 
     async fn fetch_contribution_chart(
         &self,
@@ -150,45 +150,34 @@ impl IActivities for Activities {
         .context("Failed to fetch activities")
     }
 
-    async fn fetch_total_activities(
+    async fn fetch_aggregate_activities(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryActivitySchema,
         distinct: Option<&DistinctActivitySchema>,
-    ) -> anyhow::Result<i64> {
-        let mut builder = QueryBuilder::<Postgres>::new("");
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateActivityFieldsSchema>> {
+        if selection.is_empty() {
+            return Ok(AggregateFieldsSchema::default());
+        }
 
-        let mut selection_builder = QueryBuilder::<Postgres>::new("");
-        let mut query_builder = QueryBuilder::<Postgres>::new("");
-
-        // Handle selection
-        if let Some(distinct) = distinct {
-            selection_builder.push(format!(
-                " SELECT COUNT(DISTINCT {}) FROM activities ",
-                distinct.to_string()
-            ));
+        let table = if let Some(distinct) = distinct {
+            format!("(SELECT DISTINCT ON ({}) * FROM activities)", distinct)
         } else {
-            selection_builder.push(" SELECT COUNT(*) FROM activities ");
-        }
+            "(SELECT * FROM activities)".to_string()
+        };
 
-        // Handle query
-        if let Some(object) = structs::to_map(query).ok().flatten() {
-            query_builder.push(" WHERE ");
-            handle_query(&mut query_builder, &object, "AND", Schema::Activities);
-            if query_builder.sql().trim().ends_with("WHERE") {
-                query_builder.reset();
-            }
-        }
+        let value =
+            create_aggregate_query_builder(table.as_str(), selection, Schema::Activities, query)
+                .build_query_scalar::<serde_json::Value>()
+                .fetch_one(&*self.pool)
+                .await
+                .context("Failed to fetch aggregate activities")?;
 
-        builder.push(selection_builder.sql());
-        builder.push(query_builder.sql());
+        let result =
+            serde_json::from_value::<AggregateFieldsSchema<AggregateActivityFieldsSchema>>(value)
+                .context("Failed to parse aggregate result")?;
 
-        let res = create_count_query_builder("activities", Schema::Activities, query, distinct)
-            .build_query_scalar()
-            .fetch_optional(&*self.pool)
-            .await
-            .context("Failed to fetch total activities")?;
-
-        Ok(res.unwrap_or_default())
+        Ok(result)
     }
 
     async fn fetch_contribution_chart(

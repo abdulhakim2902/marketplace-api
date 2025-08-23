@@ -5,7 +5,7 @@ use crate::{
     models::{
         marketplace::APT_DECIMAL,
         schema::{
-            Date, OperatorSchema, OrderingType,
+            AggregateFieldsSchema, Date, OperatorSchema, OrderingType,
             collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
             fetch_token_price,
             nft::{NftSchema, OrderNftSchema, QueryNftSchema},
@@ -168,3 +168,13 @@ pub enum DistinctBidSchema {
     #[graphql(name = "type")]
     BidType,
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, SimpleObject)]
+#[graphql(name = "AggregateBidFields", rename_fields = "snake_case")]
+pub struct AggregateBidFieldsSchema {
+    pub nonce: Option<BigDecimal>,
+    pub price: Option<BigDecimal>,
+    pub remaining_count: Option<BigDecimal>,
+}
+
+pub type AggregateBidSchema = AggregateFieldsSchema<AggregateBidFieldsSchema>;

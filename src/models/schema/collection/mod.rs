@@ -17,16 +17,18 @@ use crate::{
         nfts::INfts,
     },
     models::schema::{
-        AggregateSchema, OperatorSchema, OrderingType,
+        AggregateFieldsSchema, AggregateSchema, OperatorSchema, OrderingType,
         activity::{
-            ActivitySchema, DistinctActivitySchema, OrderActivitySchema, QueryActivitySchema,
+            ActivitySchema, AggregateActivitySchema, DistinctActivitySchema, OrderActivitySchema,
+            QueryActivitySchema,
         },
         attribute::{
-            AttributeSchema, DistinctAttributeSchema, OrderAttributeSchema, QueryAttributeSchema,
+            AggregateAttributeSchema, AttributeSchema, DistinctAttributeSchema,
+            OrderAttributeSchema, QueryAttributeSchema,
         },
-        bid::{BidSchema, DistinctBidSchema, OrderBidSchema, QueryBidSchema},
-        fetch_total_collection_offer,
-        nft::{DistinctNftSchema, NftSchema, OrderNftSchema, QueryNftSchema},
+        bid::{AggregateBidSchema, BidSchema, DistinctBidSchema, OrderBidSchema, QueryBidSchema},
+        get_aggregate_selection,
+        nft::{AggregateNftSchema, DistinctNftSchema, NftSchema, OrderNftSchema, QueryNftSchema},
     },
 };
 use async_graphql::{
@@ -63,9 +65,70 @@ pub struct CollectionSchema {
 
 #[ComplexObject]
 impl CollectionSchema {
-    #[graphql(name = "total_offer")]
-    async fn total_offer(&self, ctx: &Context<'_>) -> Option<String> {
-        fetch_total_collection_offer(ctx, Some(self.id.to_string())).await
+    async fn activities(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryActivitySchema,
+        #[graphql(default, name = "order_by")] order: OrderActivitySchema,
+    ) -> FieldResult<Vec<ActivitySchema>> {
+        let mut query = query;
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.collection_id = Some(operator);
+
+        ctx.data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?
+            .activities()
+            .fetch_activities(&query, &order, distinct.as_ref(), limit, offset)
+            .await
+            .map_err(|e| FieldError::from(e))
+    }
+
+    #[graphql(name = "activities_aggregate")]
+    async fn activities_aggregate(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
+        #[graphql(default = 10)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+        #[graphql(default, name = "where")] query: QueryActivitySchema,
+        #[graphql(default, name = "order_by")] order: OrderActivitySchema,
+    ) -> FieldResult<AggregateSchema<AggregateActivitySchema, ActivitySchema>> {
+        let mut query = query;
+        let mut operator = OperatorSchema::<Uuid>::default();
+
+        operator._eq = Some(self.id);
+        query.collection_id = Some(operator);
+
+        let db = ctx
+            .data::<Arc<Database>>()
+            .map_err(|e| FieldError::from(e))?;
+
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
+            .activities()
+            .fetch_aggregate_activities(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
+
+        let nodes = db
+            .activities()
+            .fetch_activities(&query, &order, distinct.as_ref(), limit, offset)
+            .await
+            .map_err(|e| FieldError::from(e))?;
+
+        Ok(AggregateSchema { aggregate, nodes })
     }
 
     async fn attributes(
@@ -100,7 +163,7 @@ impl CollectionSchema {
         #[graphql(default = 0)] offset: i64,
         #[graphql(default, name = "where")] query: QueryAttributeSchema,
         #[graphql(default, name = "order_by")] order: OrderAttributeSchema,
-    ) -> FieldResult<AggregateSchema<AttributeSchema>> {
+    ) -> FieldResult<AggregateSchema<AggregateAttributeSchema, AttributeSchema>> {
         let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
@@ -111,11 +174,19 @@ impl CollectionSchema {
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let total = db
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
             .attributes()
-            .fetch_total_attributes(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
+            .fetch_aggregate_attributes(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
 
         let nodes = db
             .attributes()
@@ -123,65 +194,7 @@ impl CollectionSchema {
             .await
             .map_err(|e| FieldError::from(e))?;
 
-        Ok(AggregateSchema::new(total, nodes))
-    }
-
-    async fn activities(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
-        #[graphql(default = 10)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryActivitySchema,
-        #[graphql(default, name = "order_by")] order: OrderActivitySchema,
-    ) -> FieldResult<Vec<ActivitySchema>> {
-        let mut query = query;
-        let mut operator = OperatorSchema::<Uuid>::default();
-
-        operator._eq = Some(self.id);
-        query.collection_id = Some(operator);
-
-        ctx.data::<Arc<Database>>()
-            .map_err(|e| FieldError::from(e))?
-            .activities()
-            .fetch_activities(&query, &order, distinct.as_ref(), limit, offset)
-            .await
-            .map_err(|e| FieldError::from(e))
-    }
-
-    #[graphql(name = "activities_aggregate")]
-    async fn activities_aggregate(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(name = "distinct_on")] distinct: Option<DistinctActivitySchema>,
-        #[graphql(default = 10)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
-        #[graphql(default, name = "where")] query: QueryActivitySchema,
-        #[graphql(default, name = "order_by")] order: OrderActivitySchema,
-    ) -> FieldResult<AggregateSchema<ActivitySchema>> {
-        let mut query = query;
-        let mut operator = OperatorSchema::<Uuid>::default();
-
-        operator._eq = Some(self.id);
-        query.collection_id = Some(operator);
-
-        let db = ctx
-            .data::<Arc<Database>>()
-            .expect("Missing database in the context");
-
-        let total = db
-            .activities()
-            .fetch_total_activities(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
-
-        let nodes = db
-            .activities()
-            .fetch_activities(&query, &order, distinct.as_ref(), limit, offset)
-            .await
-            .map_err(|e| FieldError::from(e))?;
-
-        Ok(AggregateSchema::new(total, nodes))
+        Ok(AggregateSchema { aggregate, nodes })
     }
 
     async fn bids(
@@ -216,7 +229,7 @@ impl CollectionSchema {
         #[graphql(default = 0)] offset: i64,
         #[graphql(default, name = "where")] query: QueryBidSchema,
         #[graphql(default, name = "order_by")] order: OrderBidSchema,
-    ) -> FieldResult<AggregateSchema<BidSchema>> {
+    ) -> FieldResult<AggregateSchema<AggregateBidSchema, BidSchema>> {
         let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
@@ -227,11 +240,19 @@ impl CollectionSchema {
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let total = db
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
             .bids()
-            .fetch_total_bids(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
+            .fetch_aggregate_bids(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
 
         let nodes = db
             .bids()
@@ -239,7 +260,7 @@ impl CollectionSchema {
             .await
             .map_err(|e| FieldError::from(e))?;
 
-        Ok(AggregateSchema::new(total, nodes))
+        Ok(AggregateSchema { aggregate, nodes })
     }
 
     async fn nfts(
@@ -274,7 +295,7 @@ impl CollectionSchema {
         #[graphql(default = 0)] offset: i64,
         #[graphql(default, name = "where")] query: QueryNftSchema,
         #[graphql(default, name = "order_by")] order: OrderNftSchema,
-    ) -> FieldResult<AggregateSchema<NftSchema>> {
+    ) -> FieldResult<AggregateSchema<AggregateNftSchema, NftSchema>> {
         let mut query = query;
         let mut operator = OperatorSchema::<Uuid>::default();
 
@@ -285,11 +306,19 @@ impl CollectionSchema {
             .data::<Arc<Database>>()
             .map_err(|e| FieldError::from(e))?;
 
-        let total = db
+        let selection = get_aggregate_selection(ctx);
+
+        let aggregate = db
             .nfts()
-            .fetch_total_nfts(&query, distinct.as_ref())
-            .await
-            .map_err(|e| FieldError::from(e))?;
+            .fetch_aggregate_nfts(&selection.aggregate, &query, distinct.as_ref())
+            .await?;
+
+        if selection.nodes.is_empty() {
+            return Ok(AggregateSchema {
+                aggregate,
+                nodes: Vec::new(),
+            });
+        }
 
         let nodes = db
             .nfts()
@@ -297,7 +326,7 @@ impl CollectionSchema {
             .await
             .map_err(|e| FieldError::from(e))?;
 
-        Ok(AggregateSchema::new(total, nodes))
+        Ok(AggregateSchema { aggregate, nodes })
     }
 }
 
@@ -368,3 +397,14 @@ pub enum DistinctCollectionSchema {
     Volume,
     VolumeUsd,
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, SimpleObject)]
+#[graphql(name = "AggregateCollectionFields", rename_fields = "snake_case")]
+pub struct AggregateCollectionFieldsSchema {
+    pub supply: Option<BigDecimal>,
+    pub floor: Option<BigDecimal>,
+    pub volume: Option<BigDecimal>,
+    pub volume_usd: Option<BigDecimal>,
+}
+
+pub type AggregateCollectionSchema = AggregateFieldsSchema<AggregateCollectionFieldsSchema>;

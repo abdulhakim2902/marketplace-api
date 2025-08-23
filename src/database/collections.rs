@@ -5,10 +5,10 @@ use crate::{
     models::{
         db::collection::DbCollection,
         schema::{
-            CoinType,
+            AggregateFieldsSchema, CoinType,
             collection::{
-                CollectionSchema, DistinctCollectionSchema, OrderCollectionSchema,
-                QueryCollectionSchema,
+                AggregateCollectionFieldsSchema, CollectionSchema, DistinctCollectionSchema,
+                OrderCollectionSchema, QueryCollectionSchema,
                 attribute::CollectionAttributeSchema,
                 holder::{CollectionHolderSchema, OrderHolderType},
                 nft_change::NftChangeSchema,
@@ -23,7 +23,7 @@ use crate::{
             data_point::DataPointSchema,
         },
     },
-    utils::schema::{create_count_query_builder, create_query_builder},
+    utils::schema::{create_aggregate_query_builder, create_query_builder},
 };
 use anyhow::Context;
 use async_graphql::{FieldError, dataloader::Loader};
@@ -51,11 +51,12 @@ pub trait ICollections: Send + Sync {
         offset: i64,
     ) -> anyhow::Result<Vec<CollectionSchema>>;
 
-    async fn fetch_total_collections(
+    async fn fetch_aggregate_collections(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryCollectionSchema,
         distinct: Option<&DistinctCollectionSchema>,
-    ) -> anyhow::Result<i64>;
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateCollectionFieldsSchema>>;
 
     async fn fetch_trendings(
         &self,
@@ -248,18 +249,34 @@ impl ICollections for Collections {
         .context("Failed to fetch collections")
     }
 
-    async fn fetch_total_collections(
+    async fn fetch_aggregate_collections(
         &self,
+        selection: &HashMap<String, Vec<String>>,
         query: &QueryCollectionSchema,
         distinct: Option<&DistinctCollectionSchema>,
-    ) -> anyhow::Result<i64> {
-        let res = create_count_query_builder("collections", Schema::Collections, query, distinct)
-            .build_query_scalar()
-            .fetch_optional(&*self.pool)
-            .await
-            .context("Failed to fetch collections")?;
+    ) -> anyhow::Result<AggregateFieldsSchema<AggregateCollectionFieldsSchema>> {
+        if selection.is_empty() {
+            return Ok(AggregateFieldsSchema::default());
+        }
 
-        Ok(res.unwrap_or_default())
+        let table = if let Some(distinct) = distinct {
+            format!("(SELECT DISTINCT ON ({}) * FROM collections)", distinct)
+        } else {
+            "(SELECT * FROM collections)".to_string()
+        };
+
+        let value =
+            create_aggregate_query_builder(table.as_str(), selection, Schema::Collections, query)
+                .build_query_scalar::<serde_json::Value>()
+                .fetch_one(&*self.pool)
+                .await
+                .context("Failed to fetch aggregate collections")?;
+
+        let result =
+            serde_json::from_value::<AggregateFieldsSchema<AggregateCollectionFieldsSchema>>(value)
+                .context("Failed to parse aggregate result")?;
+
+        Ok(result)
     }
 
     async fn fetch_trendings(

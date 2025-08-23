@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::{
     database::{Database, IDatabase, collections::Collections, nfts::Nfts},
     models::schema::{
-        Date, OperatorSchema, OrderingType,
+        AggregateFieldsSchema, Date, OperatorSchema, OrderingType,
         collection::{CollectionSchema, OrderCollectionSchema, QueryCollectionSchema},
         nft::{NftSchema, OrderNftSchema, QueryNftSchema},
     },
@@ -153,3 +153,14 @@ pub enum DistinctActivitySchema {
     BlockHeight,
     Amount,
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, SimpleObject)]
+#[graphql(name = "AggregateActivityFields", rename_fields = "snake_case")]
+pub struct AggregateActivityFieldsSchema {
+    pub tx_index: Option<BigDecimal>,
+    pub price: Option<BigDecimal>,
+    pub usd_price: Option<BigDecimal>,
+    pub block_height: Option<BigDecimal>,
+}
+
+pub type AggregateActivitySchema = AggregateFieldsSchema<AggregateActivityFieldsSchema>;
