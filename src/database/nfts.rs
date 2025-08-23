@@ -123,13 +123,13 @@ impl INfts for Nfts {
                     WHEN EXCLUDED.burned THEN NULL
                     ELSE COALESCE(EXCLUDED.owner, nfts.owner)
                 END,
-                burned = EXCLUDED.burned,
+                burned = COALESCE(EXCLUDED.burned, nfts.burned),
                 updated_at = EXCLUDED.updated_at,
-                media_url = EXCLUDED.media_url,
-                avatar_url = EXCLUDED.avatar_url,
-                youtube_url = EXCLUDED.youtube_url,
-                external_url = EXCLUDED.external_url,
-                background_color = EXCLUDED.background_color
+                media_url = COALESCE(EXCLUDED.media_url, nfts.media_url),
+                avatar_url = COALESCE(EXCLUDED.avatar_url, nfts.avatar_url),
+                youtube_url = COALESCE(EXCLUDED.youtube_url, nfts.youtube_url),
+                external_url = COALESCE(EXCLUDED.external_url, nfts.external_url),
+                background_color = COALESCE(EXCLUDED.background_color, nfts.background_color)
             "#,
         )
         .build()
