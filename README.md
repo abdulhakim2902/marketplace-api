@@ -69,6 +69,7 @@ The `config.yaml` file is used to configure the NFT aggregator. Below is an expl
   - **password**: The admin password
 - **server_config**: 
   - **port**: Port number for the endpoint (e.g. 8080)
+  - **allowed_origin**: Origin that is allowed to access the api
 - **jwt_config**:
   - **secret**: The jwt secret
   - **expires_in**: The jwt expiration
@@ -79,6 +80,8 @@ The `config.yaml` file is used to configure the NFT aggregator. Below is an expl
   - **indexer_grpc**: The gRPC address (e.g., "https://grpc.mainnet.aptoslabs.com:443")
   - **auth_token**: The authentication token. **Replace with your own.**
     Get your token from https://developers.aptoslabs.com/
+  - **starting_version**: Default starting version
+  - **active**: Set to true to make the processor running
 - **nft_marketplace_configs**: A list of marketplace configurations, each containing:
   - **name**: Marketplace identifier (e.g., "topaz", "tradeport", "bluemove")
   - **starting_version**: The starting version of the marketplace contract
@@ -127,3 +130,21 @@ The processor handles two types of data:
 To access the api explorer
 
 ``{basepath}/api/v1/docs``
+
+### Graphql API
+
+To access the graphql explorer
+
+``{basepath}/graphql``
+
+#### POST to GraphQL API
+
+Make a HTTP POST request ``{basepath}/graphql`` with these headers
+
+```json
+{
+  "x-api-key": "<API_KEY>",
+  "x-api-user": "<USERNAME>"
+}
+```
+

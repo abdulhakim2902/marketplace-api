@@ -200,7 +200,7 @@ where
         let jwt_secret = self.config.jwt_config.secret.to_string();
 
         let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-            .route("/", get(graphql).post(graphql_handler))
+            .route("/graphql", get(graphql).post(graphql_handler))
             .route("/health", get(health::check))
             .nest(
                 "/api/v1",

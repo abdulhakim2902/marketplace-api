@@ -60,7 +60,7 @@ pub async fn graphql() -> impl IntoResponse {
     Html(
         GraphiQLSource::build()
             .title("NFT Aggregator GraphQL API")
-            .endpoint("/")
+            .endpoint("/graphql")
             .finish(),
     )
 }
