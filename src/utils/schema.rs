@@ -90,25 +90,6 @@ pub fn create_aggregate_query_builder<T: Serialize>(
     let mut seperated = selection_builder.separated(", ");
     let mut query_builder = QueryBuilder::<Postgres>::new("");
 
-    // TODO selection response
-    // {
-    // count: 0,
-    //     "max": [
-    //         "tx_index",
-    //         "price",
-    //         "usd_price",
-    //         "block_height",
-    //     ],
-    //     "min": [
-    //         "tx_index",
-    //         "price",
-    //         "usd_price",
-    //         "block_height",
-    //     ]
-    // }
-
-    // SELECT COUNT(*), json_build_object("") AS max
-
     // Handle selection
     for (aggregator, values) in selection {
         match aggregator.as_str() {
@@ -157,43 +138,6 @@ pub fn create_aggregate_query_builder<T: Serialize>(
             "#,
         builder.sql()
     ))
-}
-
-pub fn create_count_query_builder<T: Serialize, V: std::fmt::Display>(
-    table: &str,
-    schema: Schema,
-    query: &T,
-    distinct: Option<&V>,
-) -> QueryBuilder<'static, Postgres> {
-    let mut builder = QueryBuilder::<Postgres>::new("");
-
-    let mut selection_builder = QueryBuilder::<Postgres>::new("");
-    let mut query_builder = QueryBuilder::<Postgres>::new("");
-
-    // Handle selection
-    if let Some(distinct) = distinct {
-        selection_builder.push(format!(
-            " SELECT COUNT(DISTINCT {}) FROM {} ",
-            distinct.to_string(),
-            table
-        ));
-    } else {
-        selection_builder.push(format!(" SELECT COUNT(*) FROM {} ", table));
-    }
-
-    // Handle query
-    if let Some(object) = structs::to_map(query).ok().flatten() {
-        query_builder.push(" WHERE ");
-        handle_query(&mut query_builder, &object, "AND", schema);
-        if query_builder.sql().trim().ends_with("WHERE") {
-            query_builder.reset();
-        }
-    }
-
-    builder.push(selection_builder.sql());
-    builder.push(query_builder.sql());
-
-    builder
 }
 
 pub fn handle_join(builder: &mut QueryBuilder<'_, Postgres>, object: &Map<String, Value>) {
@@ -653,7 +597,11 @@ pub fn handle_gt_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("{} > '{}'", field, s));
+            if let Some(n) = s.parse::<i64>().ok() {
+                seperated.push(format!("{} > {}", field, n));
+            } else {
+                seperated.push(format!("{} > '{}'", field, s));
+            }
         }
         Value::Number(n) => {
             seperated.push(format!("{} > {}", field, n));
@@ -674,7 +622,11 @@ pub fn handle_gte_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("{} >= '{}'", field, s));
+                        if let Some(n) = s.parse::<i64>().ok() {
+                seperated.push(format!("{} >= {}", field, n));
+            } else {
+                seperated.push(format!("{} >= '{}'", field, s));
+            }
         }
         Value::Number(n) => {
             seperated.push(format!("{} >= {}", field, n));
@@ -695,7 +647,11 @@ pub fn handle_lt_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("{} < '{}'", field, s));
+                       if let Some(n) = s.parse::<i64>().ok() {
+                seperated.push(format!("{} < {}", field, n));
+            } else {
+                seperated.push(format!("{} < '{}'", field, s));
+            }
         }
         Value::Number(n) => {
             seperated.push(format!("{} < {}", field, n));
@@ -716,7 +672,11 @@ pub fn handle_lte_operator(
 ) {
     match value {
         Value::String(s) => {
-            seperated.push(format!("{} <= '{}'", field, s));
+                        if let Some(n) = s.parse::<i64>().ok() {
+                seperated.push(format!("{} <= {}", field, n));
+            } else {
+                seperated.push(format!("{} <= '{}'", field, s));
+            }
         }
         Value::Number(n) => {
             seperated.push(format!("{} <= {}", field, n));
