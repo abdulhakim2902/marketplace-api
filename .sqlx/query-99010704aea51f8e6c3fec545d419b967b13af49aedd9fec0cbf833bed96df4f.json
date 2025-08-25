@@ -1,0 +1,97 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH\n                previous_listings AS (\n                    SELECT\n                        collection_id, \n                        MIN(price)                      AS floor,\n                        COUNT(*)                        AS total_listed\n                    FROM listings\n                    WHERE listed \n                        AND ($1::INTERVAL IS NULL OR block_time < NOW() - $1::INTERVAL)\n                    GROUP BY collection_id\n                ),\n                current_listings AS (\n                    SELECT\n                        collection_id, \n                        MIN(price)                      AS floor,\n                        COUNT(*)                        AS total_listed\n                    FROM listings\n                    WHERE listed \n                        AND ($1::INTERVAL IS NULL OR block_time >= NOW() - $1::INTERVAL)\n                    GROUP BY collection_id\n                ),\n                previous_sale_activities AS (\n                    SELECT\n                        collection_id, \n                        SUM(price)                      AS volume\n                    FROM activities\n                    WHERE tx_type IN ('mint', 'buy', 'accept-bid', 'accept-collection-bid')\n                        AND ($1::INTERVAL IS NULL\n                            OR (\n                                block_time < NOW() - $1::INTERVAL\n                                AND block_time >= NOW() - $1::INTERVAL - $1::INTERVAL \n                            )\n                        )\n                    GROUP BY collection_id\n                ),\n                current_activities AS (\n                    SELECT\n                        collection_id, \n                        SUM(price)                      AS volume,\n                        SUM(\n                            CASE\n                                WHEN price > 0 THEN 1\n                                ELSE 0 \n                            END\n                        )                               AS sales\n                    FROM activities\n                    WHERE tx_type IN ('mint', 'buy', 'accept-bid', 'accept-collection-bid')\n                        AND ($1::INTERVAL IS NULL OR block_time >= NOW() - $1::INTERVAL)\n                    GROUP BY collection_id\n                ),\n                nft_owners AS (\n                    SELECT \n                        collection_id, \n                        COUNT(DISTINCT owner)           AS owners\n                    FROM nfts\n                    GROUP BY collection_id\n                ),\n                top_bids AS (\n                    SELECT\n                        collection_id,\n                        MAX(price)                      AS top_bid\n                    FROM bids\n                    WHERE status = 'active' \n                        AND (expired_at IS NULL OR expired_at > NOW())\n                    GROUP BY collection_id\n                ),\n                collection_trendings AS (\n                    SELECT\n                        c.id                                                AS collection_id,\n                        COALESCE(cl.floor, pl.floor) * c.supply             AS market_cap,\n                        COALESCE(cl.floor, pl.floor)                        AS floor,\n                        ((cl.floor - pl.floor)::NUMERIC \n                            / NULLIF(pl.floor, 0) * 100)                    AS floor_percentage,\n                        cl.total_listed + pl.total_listed                   AS listed,\n                        ((cl.total_listed + pl.total_listed)::NUMERIC\n                            / NULLIF(c.supply, 0) * 100)                    AS listed_percentage,\n                        ca.volume::BIGINT                                   AS volume,\n                        ((ca.volume - psa.volume)::NUMERIC\n                            / NULLIF(psa.volume, 0) * 100)                  AS volume_percentage,\n                        ca.sales                                            AS sales,\n                        no.owners                                           AS owners,\n                        no.owners::NUMERIC / NULLIF(c.supply, 0) * 100      AS owners_percentage,\n                        tb.top_bid                                          AS top_bid,\n                        c.volume                                            AS total_volume\n                    FROM collections c\n                        LEFT JOIN previous_listings pl ON c.id = pl.collection_id\n                        LEFT JOIN current_listings cl ON c.id = cl.collection_id\n                        LEFT JOIN previous_sale_activities psa ON c.id = psa.collection_id\n                        LEFT JOIN current_activities ca ON c.id = ca.collection_id\n                        LEFT JOIN nft_owners no ON c.id = no.collection_id\n                        LEFT JOIN top_bids tb ON c.id = tb.collection_id\n                )\n            SELECT * FROM collection_trendings\n            ORDER BY (\n                CASE $2\n                    WHEN 'market_cap' THEN market_cap\n                    WHEN 'floor' THEN floor\n                    WHEN 'floor_percentage' THEN floor_percentage\n                    WHEN 'listed' THEN listed\n                    WHEN 'listed_percentage' THEN listed_percentage\n                    WHEN 'volume' THEN volume\n                    WHEN 'volume_percentage' THEN volume_percentage\n                    WHEN 'sales' THEN sales\n                    WHEN 'owners' THEN owners\n                    WHEN 'owners_percentage' THEN owners_percentage\n                    WHEN 'top_bid' THEN top_bid\n                    WHEN 'total_volume' THEN total_volume\n                    ELSE total_volume\n                END\n            ) DESC\n            LIMIT $3 OFFSET $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "collection_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "market_cap",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "floor",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "floor_percentage",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 4,
+        "name": "listed",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "listed_percentage",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "volume",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "volume_percentage",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "sales",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "owners",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 10,
+        "name": "owners_percentage",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 11,
+        "name": "top_bid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "total_volume",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Interval",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      true
+    ]
+  },
+  "hash": "99010704aea51f8e6c3fec545d419b967b13af49aedd9fec0cbf833bed96df4f"
+}

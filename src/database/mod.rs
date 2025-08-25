@@ -38,13 +38,13 @@ use crate::database::{
 
 #[async_trait::async_trait]
 pub trait IDatabase: Send + Sync + 'static {
-    type TTActivities: IActivities;
-    type TTBids: IBids;
-    type TTListings: IListings;
-    type TTCollections: ICollections;
-    type TTNfts: INfts;
-    type TTAttributes: IAttributes;
-    type TTokenPrices: ITokenPrices;
+    type TActivities: IActivities;
+    type TBids: IBids;
+    type TListings: IListings;
+    type TCollections: ICollections;
+    type TNfts: INfts;
+    type TAttributes: IAttributes;
+    type TokenPrices: ITokenPrices;
     type TProcessorStatus: IProcessorStatus;
     type TWallets: IWallets;
     type TMarketplaces: IMarketplaces;
@@ -56,14 +56,14 @@ pub trait IDatabase: Send + Sync + 'static {
     async fn is_healthy(&self) -> bool;
 
     fn get_pool(&self) -> &Pool<Postgres>;
-    fn activities(&self) -> Arc<Self::TTActivities>;
-    fn bids(&self) -> Arc<Self::TTBids>;
-    fn listings(&self) -> Arc<Self::TTListings>;
-    fn collections(&self) -> Arc<Self::TTCollections>;
-    fn nfts(&self) -> Arc<Self::TTNfts>;
-    fn attributes(&self) -> Arc<Self::TTAttributes>;
+    fn activities(&self) -> Arc<Self::TActivities>;
+    fn bids(&self) -> Arc<Self::TBids>;
+    fn listings(&self) -> Arc<Self::TListings>;
+    fn collections(&self) -> Arc<Self::TCollections>;
+    fn nfts(&self) -> Arc<Self::TNfts>;
+    fn attributes(&self) -> Arc<Self::TAttributes>;
     fn wallets(&self) -> Arc<Self::TWallets>;
-    fn token_prices(&self) -> Arc<Self::TTokenPrices>;
+    fn token_prices(&self) -> Arc<Self::TokenPrices>;
     fn marketplaces(&self) -> Arc<Self::TMarketplaces>;
     fn nft_metadata(&self) -> Arc<Self::TNFTMetadata>;
     fn processor_status(&self) -> Arc<Self::TProcessorStatus>;
@@ -143,14 +143,14 @@ impl Database {
 
 #[async_trait::async_trait]
 impl IDatabase for Database {
-    type TTActivities = Activities;
-    type TTBids = Bids;
-    type TTListings = Listings;
-    type TTCollections = Collections;
-    type TTNfts = Nfts;
-    type TTAttributes = Attributes;
+    type TActivities = Activities;
+    type TBids = Bids;
+    type TListings = Listings;
+    type TCollections = Collections;
+    type TNfts = Nfts;
+    type TAttributes = Attributes;
     type TProcessorStatus = ProcessorStatus;
-    type TTokenPrices = TokenPrices;
+    type TokenPrices = TokenPrices;
     type TWallets = Wallets;
     type TMarketplaces = Marketplaces;
     type TNFTMetadata = NFTMetadata;
@@ -166,31 +166,31 @@ impl IDatabase for Database {
         &self.pool
     }
 
-    fn activities(&self) -> Arc<Self::TTActivities> {
+    fn activities(&self) -> Arc<Self::TActivities> {
         Arc::clone(&self.activities)
     }
 
-    fn bids(&self) -> Arc<Self::TTBids> {
+    fn bids(&self) -> Arc<Self::TBids> {
         Arc::clone(&self.bids)
     }
 
-    fn listings(&self) -> Arc<Self::TTListings> {
+    fn listings(&self) -> Arc<Self::TListings> {
         Arc::clone(&self.listings)
     }
 
-    fn collections(&self) -> Arc<Self::TTCollections> {
+    fn collections(&self) -> Arc<Self::TCollections> {
         Arc::clone(&self.collections)
     }
 
-    fn nfts(&self) -> Arc<Self::TTNfts> {
+    fn nfts(&self) -> Arc<Self::TNfts> {
         Arc::clone(&self.nfts)
     }
 
-    fn attributes(&self) -> Arc<Self::TTAttributes> {
+    fn attributes(&self) -> Arc<Self::TAttributes> {
         Arc::clone(&self.attributes)
     }
 
-    fn token_prices(&self) -> Arc<Self::TTokenPrices> {
+    fn token_prices(&self) -> Arc<Self::TokenPrices> {
         Arc::clone(&self.token_prices)
     }
 

@@ -286,117 +286,129 @@ impl ICollections for Collections {
         order: OrderTrendingType,
         interval: Option<PgInterval>,
     ) -> anyhow::Result<Vec<CollectionTrendingSchema>> {
-        let mut query_builder = QueryBuilder::<Postgres>::new(
+        let res = sqlx::query_as!(
+            CollectionTrendingSchema,
             r#"
-            WITH 
-                nft_owners AS (
-                    SELECT collection_id, COUNT(DISTINCT owner) AS total
-                    FROM nfts
-                    WHERE burned IS NULL OR NOT burned
-                    GROUP BY collection_id 
-                ),
-                listings AS (
-                    SELECT collection_id, COUNT(*) total
+            WITH
+                previous_listings AS (
+                    SELECT
+                        collection_id, 
+                        MIN(price)                      AS floor,
+                        COUNT(*)                        AS total_listed
                     FROM listings
-                    WHERE listed
+                    WHERE listed 
+                        AND ($1::INTERVAL IS NULL OR block_time < NOW() - $1::INTERVAL)
                     GROUP BY collection_id
                 ),
-                sale_activities AS (
+                current_listings AS (
                     SELECT
-                        collection_id,
-                        SUM(price)::BIGINT              AS volume,
-                        SUM(usd_price)                  AS volume_usd,
-                        COUNT(*)                        AS sales
-                    FROM activities
-                    WHERE tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
-                        AND (
-            "#,
-        );
-
-        query_builder.push_bind(interval);
-        query_builder.push("::INTERVAL IS NULL OR block_time >= NOW() - ");
-        query_builder.push_bind(interval);
-        query_builder.push("::INTERVAL)");
-        query_builder.push(" GROUP BY collection_id),");
-
-        query_builder.push(
-            r#"
+                        collection_id, 
+                        MIN(price)                      AS floor,
+                        COUNT(*)                        AS total_listed
+                    FROM listings
+                    WHERE listed 
+                        AND ($1::INTERVAL IS NULL OR block_time >= NOW() - $1::INTERVAL)
+                    GROUP BY collection_id
+                ),
                 previous_sale_activities AS (
                     SELECT
-                        collection_id,
-                        SUM(price)::BIGINT              AS volume,
-                        SUM(usd_price)                  AS volume_usd,
-                        COUNT(*)                        AS sales
+                        collection_id, 
+                        SUM(price)                      AS volume
                     FROM activities
-                    WHERE tx_type IN ('buy', 'accept-bid', 'accept-collection-bid')
-                        AND (
-            "#,
-        );
-
-        query_builder.push_bind(interval);
-        query_builder.push("::INTERVAL IS NULL OR (block_time >= NOW() - '24h'::INTERVAL - ");
-        query_builder.push_bind(interval);
-        query_builder.push("::INTERVAL AND block_time < NOW() - ");
-        query_builder.push_bind(interval);
-        query_builder.push("::INTERVAL))");
-        query_builder.push(" GROUP BY collection_id),");
-
-        query_builder.push(
-            r#"
-                collection_trendings AS (
+                    WHERE tx_type IN ('mint', 'buy', 'accept-bid', 'accept-collection-bid')
+                        AND ($1::INTERVAL IS NULL
+                            OR (
+                                block_time < NOW() - $1::INTERVAL
+                                AND block_time >= NOW() - $1::INTERVAL - $1::INTERVAL 
+                            )
+                        )
+                    GROUP BY collection_id
+                ),
+                current_activities AS (
+                    SELECT
+                        collection_id, 
+                        SUM(price)                      AS volume,
+                        SUM(
+                            CASE
+                                WHEN price > 0 THEN 1
+                                ELSE 0 
+                            END
+                        )                               AS sales
+                    FROM activities
+                    WHERE tx_type IN ('mint', 'buy', 'accept-bid', 'accept-collection-bid')
+                        AND ($1::INTERVAL IS NULL OR block_time >= NOW() - $1::INTERVAL)
+                    GROUP BY collection_id
+                ),
+                nft_owners AS (
                     SELECT 
-                        c.id                    AS collection_id,
-                        sa.volume               AS current_volume,
-                        sa.volume_usd           AS current_usd_volume,
-                        sa.sales                AS current_trades_count,
-                        psa.volume              AS previous_volume,
-                        psa.volume_usd          AS previous_usd_volume,
-                        psa.sales               AS previous_trades_count,
-                        no.total                AS owners,
-                        l.total                 AS listed,
-                        c.supply,
-                        c.floor
+                        collection_id, 
+                        COUNT(DISTINCT owner)           AS owners
+                    FROM nfts
+                    GROUP BY collection_id
+                ),
+                top_bids AS (
+                    SELECT
+                        collection_id,
+                        MAX(price)                      AS top_bid
+                    FROM bids
+                    WHERE status = 'active' 
+                        AND (expired_at IS NULL OR expired_at > NOW())
+                    GROUP BY collection_id
+                ),
+                collection_trendings AS (
+                    SELECT
+                        c.id                                                AS collection_id,
+                        COALESCE(cl.floor, pl.floor) * c.supply             AS market_cap,
+                        COALESCE(cl.floor, pl.floor)                        AS floor,
+                        ((cl.floor - pl.floor)::NUMERIC 
+                            / NULLIF(pl.floor, 0) * 100)                    AS floor_percentage,
+                        cl.total_listed + pl.total_listed                   AS listed,
+                        ((cl.total_listed + pl.total_listed)::NUMERIC
+                            / NULLIF(c.supply, 0) * 100)                    AS listed_percentage,
+                        ca.volume::BIGINT                                   AS volume,
+                        ((ca.volume - psa.volume)::NUMERIC
+                            / NULLIF(psa.volume, 0) * 100)                  AS volume_percentage,
+                        ca.sales                                            AS sales,
+                        no.owners                                           AS owners,
+                        no.owners::NUMERIC / NULLIF(c.supply, 0) * 100      AS owners_percentage,
+                        tb.top_bid                                          AS top_bid,
+                        c.volume                                            AS total_volume
                     FROM collections c
-                        LEFT JOIN sale_activities sa ON sa.collection_id = c.id
-                        LEFT JOIN previous_sale_activities psa ON psa.collection_id = c.id
-                        LEFT JOIN nft_owners no ON no.collection_id = c.id
-                        LEFT JOIN listings l ON l.collection_id = c.id
+                        LEFT JOIN previous_listings pl ON c.id = pl.collection_id
+                        LEFT JOIN current_listings cl ON c.id = cl.collection_id
+                        LEFT JOIN previous_sale_activities psa ON c.id = psa.collection_id
+                        LEFT JOIN current_activities ca ON c.id = ca.collection_id
+                        LEFT JOIN nft_owners no ON c.id = no.collection_id
+                        LEFT JOIN top_bids tb ON c.id = tb.collection_id
                 )
             SELECT * FROM collection_trendings
+            ORDER BY (
+                CASE $2
+                    WHEN 'market_cap' THEN market_cap
+                    WHEN 'floor' THEN floor
+                    WHEN 'floor_percentage' THEN floor_percentage
+                    WHEN 'listed' THEN listed
+                    WHEN 'listed_percentage' THEN listed_percentage
+                    WHEN 'volume' THEN volume
+                    WHEN 'volume_percentage' THEN volume_percentage
+                    WHEN 'sales' THEN sales
+                    WHEN 'owners' THEN owners
+                    WHEN 'owners_percentage' THEN owners_percentage
+                    WHEN 'top_bid' THEN top_bid
+                    WHEN 'total_volume' THEN total_volume
+                    ELSE total_volume
+                END
+            ) DESC
+            LIMIT $3 OFFSET $4
             "#,
-        );
-
-        match order {
-            OrderTrendingType::Volume => {
-                query_builder.push("ORDER BY current_volume DESC NULLS LAST");
-            }
-            OrderTrendingType::Floor => {
-                query_builder.push("ORDER BY floor DESC NULLS LAST");
-            }
-            OrderTrendingType::Listed => {
-                query_builder.push("ORDER BY listed DESC NULLS LAST");
-            }
-            OrderTrendingType::MarketCap => {
-                query_builder.push("ORDER BY floor * supply DESC NULLS LAST");
-            }
-            OrderTrendingType::Owners => {
-                query_builder.push("ORDER BY owners DESC NULLS LAST");
-            }
-            OrderTrendingType::Sales => {
-                query_builder.push("ORDER BY current_trades_count DESC NULLS LAST");
-            }
-        }
-
-        query_builder.push(" LIMIT ");
-        query_builder.push_bind(limit);
-        query_builder.push(" OFFSET ");
-        query_builder.push_bind(offset);
-
-        let res = query_builder
-            .build_query_as::<CollectionTrendingSchema>()
-            .fetch_all(&*self.pool)
-            .await
-            .context("Failed to fetch collection trendings")?;
+            interval,
+            order.to_string(),
+            limit,
+            offset,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch collection trendings")?;
 
         Ok(res)
     }
