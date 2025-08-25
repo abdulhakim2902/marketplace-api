@@ -108,10 +108,10 @@ impl TryFrom<NftMarketplaceActivity> for DbListing {
             listed: value.get_listing_status(),
             collection_id: value.get_collection_id(),
             nft_id: value.get_nft_id(),
-            price: Some(value.price),
+            seller: value.get_seller(),
+            price: value.get_price(),
             market_contract_id: value.contract_address,
             market_name: value.marketplace,
-            seller: value.seller,
             block_time: Some(value.block_timestamp),
             nonce: value.listing_id,
             block_height: Some(value.block_height),
@@ -358,7 +358,24 @@ impl ListingModel for NftMarketplaceActivity {
             MarketplaceEventType::Relist => Some(true),
             MarketplaceEventType::Unlist => Some(false),
             MarketplaceEventType::Buy => Some(false),
+            MarketplaceEventType::AcceptBid => Some(false),
             _ => None,
+        }
+    }
+
+    fn get_seller(&self) -> Option<String> {
+        if let Some(status) = self.get_listing_status() {
+            if status { self.seller.clone() } else { None }
+        } else {
+            None
+        }
+    }
+
+    fn get_price(&self) -> Option<i64> {
+        if let Some(status) = self.get_listing_status() {
+            if status { Some(self.price) } else { None }
+        } else {
+            None
         }
     }
 }
@@ -441,6 +458,8 @@ pub trait BidModel {
 pub trait ListingModel {
     fn get_listing_id(&self) -> Option<Uuid>;
     fn get_listing_status(&self) -> Option<bool>;
+    fn get_seller(&self) -> Option<String>;
+    fn get_price(&self) -> Option<i64>;
 }
 
 pub trait CollectionModel {

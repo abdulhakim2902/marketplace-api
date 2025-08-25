@@ -77,7 +77,6 @@ impl NFTAccumulator {
             self.listings
                 .entry(listing.id)
                 .and_modify(|existing: &mut DbListing| {
-                    let is_listed = listing.listed.unwrap_or(false);
                     let is_latest = listing
                         .block_time
                         .zip(existing.block_time)
@@ -92,13 +91,6 @@ impl NFTAccumulator {
                         existing.price = listing.price.clone();
                         existing.seller = listing.seller.clone();
                         existing.tx_index = listing.tx_index.clone();
-
-                        if !is_listed {
-                            existing.nonce = None;
-                            existing.price = None;
-                            existing.seller = None;
-                            existing.tx_index = None;
-                        }
                     }
                 })
                 .or_insert(listing);

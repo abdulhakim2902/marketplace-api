@@ -622,7 +622,7 @@ pub fn handle_gte_operator(
 ) {
     match value {
         Value::String(s) => {
-                        if let Some(n) = s.parse::<i64>().ok() {
+            if let Some(n) = s.parse::<i64>().ok() {
                 seperated.push(format!("{} >= {}", field, n));
             } else {
                 seperated.push(format!("{} >= '{}'", field, s));
@@ -647,7 +647,7 @@ pub fn handle_lt_operator(
 ) {
     match value {
         Value::String(s) => {
-                       if let Some(n) = s.parse::<i64>().ok() {
+            if let Some(n) = s.parse::<i64>().ok() {
                 seperated.push(format!("{} < {}", field, n));
             } else {
                 seperated.push(format!("{} < '{}'", field, s));
@@ -672,7 +672,7 @@ pub fn handle_lte_operator(
 ) {
     match value {
         Value::String(s) => {
-                        if let Some(n) = s.parse::<i64>().ok() {
+            if let Some(n) = s.parse::<i64>().ok() {
                 seperated.push(format!("{} <= {}", field, n));
             } else {
                 seperated.push(format!("{} <= '{}'", field, s));
